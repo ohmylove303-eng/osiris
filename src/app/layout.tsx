@@ -180,7 +180,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" dir="ltr" className="notranslate" translate="no">
+    <html lang="ko" dir="ltr" className="notranslate" translate="no" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -197,7 +197,7 @@ export default function RootLayout({
         />
 
       </head>
-      <body className="antialiased">
+      <body className="antialiased" suppressHydrationWarning>
         <ErrorBoundary name="번개의 눈동자 코어">
           {children}
         </ErrorBoundary>
