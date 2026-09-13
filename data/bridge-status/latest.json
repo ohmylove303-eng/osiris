@@ -1,0 +1,24 @@
+[
+  {
+    "bridge_id": "bridge-1-dprk",
+    "last_update": "2026-08-05T13:31:49.750Z",
+    "next_scheduled_update": "2026-08-05T21:00:00.000Z",
+    "total_events_collected": 22,
+    "total_verified": 21,
+    "total_unverified": 0,
+    "sources_queried": 14,
+    "sources_responding": 5,
+    "error_log": []
+  },
+  {
+    "bridge_id": "bridge-2-multidomain",
+    "last_update": "2026-08-05T13:31:49.750Z",
+    "next_scheduled_update": "2026-08-05T21:00:00.000Z",
+    "total_events_collected": 455,
+    "total_verified": 356,
+    "total_unverified": 0,
+    "sources_queried": 3,
+    "sources_responding": 2,
+    "error_log": []
+  }
+]

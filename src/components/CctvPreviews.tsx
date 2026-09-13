@@ -7,11 +7,9 @@ import { layoutTile, tileHeight, tilesOverlap, type TileGeometry } from '@/lib/m
 import type { Map as MlMap } from 'maplibre-gl';
 
 /**
- * OSIRIS — live CCTV previews on the map
+ * ⚡ 번개의 눈동자 (LIGHTNING EYE) — 지도 상 실시간 CCTV 라이브 비디오 프리뷰 타일
  *
- * Zoom in far enough on a cluster of cameras and the nearest ones stop being
- * dots and start showing what they see: a small live frame pinned above each
- * marker, captioned with the camera's name.
+ * 줌 13 이상 확대 시 최근접 카메라들을 지도 위에 실시간 영상 타일로 자동 표출합니다.
  *
  * Most of the ~19,000 are JPEG snapshot feeds, which cost one request per
  * refresh. The ones that are video get a tile too — Quebec 511 alone is 675
@@ -25,7 +23,7 @@ import type { Map as MlMap } from 'maplibre-gl';
  * recomputed only when the map settles.
  */
 
-const MIN_ZOOM = 13;
+const MIN_ZOOM = 11;
 const MAX_TILES = 8;
 /** Simultaneously decoding tiles. Snapshots fill whatever is left of MAX_TILES. */
 const MAX_VIDEO_TILES = 4;
@@ -144,7 +142,7 @@ function VideoMedia({ cam: camera, onReady, onFail }: MediaProps) {
        "maybe" whether or not the build can actually decode it, so trusting it
        first would leave a dead tile on every build that cannot. */
     let cancelled = false;
-    let hls: { destroy: () => void } | null = null;
+    let hls: { destroy: () => void; startLoad?: () => void; recoverMediaError?: () => void } | null = null;
     import('hls.js').then(({ default: Hls }) => {
       if (cancelled || !ref.current) return;
       if (!Hls.isSupported()) {
@@ -160,7 +158,22 @@ function VideoMedia({ cam: camera, onReady, onFail }: MediaProps) {
          video for a tile the size of a postage stamp. */
       const instance = new Hls({ enableWorker: false, maxBufferLength: 6 });
       hls = instance;
-      instance.on(Hls.Events.ERROR, (_e, data) => { if (data.fatal) onFail(); });
+      instance.on(Hls.Events.ERROR, (_e, data) => {
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              instance.startLoad();
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              instance.recoverMediaError();
+              break;
+            default:
+              instance.destroy();
+              onFail();
+              break;
+          }
+        }
+      });
       instance.loadSource(url);
       instance.attachMedia(ref.current);
       ref.current.play().catch(() => {});
@@ -179,7 +192,10 @@ function VideoMedia({ cam: camera, onReady, onFail }: MediaProps) {
       autoPlay
       preload="auto"
       onLoadedData={onReady}
-      onError={onFail}
+      onError={() => {
+        // Only trigger failure for non-HLS or explicit failure; HLS handles internal recovery
+        if (kind !== 'hls') onFail();
+      }}
     />
   );
 }
@@ -190,12 +206,13 @@ function Tile({ cam: camera, onOpen }: { cam: PreviewCamera; onOpen: (cam: Previ
 
   /* No reset needed on the way in: each tile is keyed by camera id, so a slot
      changing hands remounts this component with fresh state. */
-  const onReady = useCallback(() => setLoaded(true), []);
-  const onFail = useCallback(() => setFailed(true), []);
-
-  /* A camera that will not load is worse than no tile: it is a broken box
-     sitting over the map claiming to be a feed. */
-  if (failed) return null;
+  const onReady = useCallback(() => {
+    setLoaded(true);
+    setFailed(false);
+  }, []);
+  const onFail = useCallback(() => {
+    setFailed(true);
+  }, []);
 
   return (
     <button
@@ -208,7 +225,7 @@ function Tile({ cam: camera, onOpen }: { cam: PreviewCamera; onOpen: (cam: Previ
         className="relative overflow-hidden bg-black"
         style={{
           height: IMG_H,
-          border: `1px solid ${cam(40)}`,
+          border: `1px solid ${failed ? 'color-mix(in srgb, var(--alert-red) 60%, transparent)' : cam(40)}`,
           boxShadow: '0 6px 20px rgba(0,0,0,0.65)',
         }}
       >
@@ -243,8 +260,8 @@ function Tile({ cam: camera, onOpen }: { cam: PreviewCamera; onOpen: (cam: Previ
         ))}
 
         <div className="pointer-events-none absolute left-1.5 top-1.5 flex items-center gap-1 bg-black/70 px-1 py-[1px]">
-          <span className="h-1 w-1 rounded-full bg-[var(--alert-red)] animate-pulse" />
-          <span className="font-mono text-[7px] tracking-[0.18em] text-white/75">LIVE</span>
+          <span className={`h-1 w-1 rounded-full ${failed ? 'bg-amber-500' : 'bg-[var(--alert-red)]'} animate-pulse`} />
+          <span className="font-mono text-[7px] tracking-[0.18em] text-white/75">{failed ? 'STANDBY' : 'LIVE'}</span>
         </div>
 
         {/* Hover only: the tile is already a button, this says what it opens. */}
@@ -266,7 +283,7 @@ function Tile({ cam: camera, onOpen }: { cam: PreviewCamera; onOpen: (cam: Previ
               }}
             />
             <div className="absolute inset-0 flex items-center justify-center font-mono text-[7px] tracking-[0.25em] text-white/30">
-              LINKING
+              {failed ? 'RECONNECTING' : 'LINKING'}
             </div>
           </div>
         )}
@@ -332,7 +349,7 @@ function CctvPreviews({ mapRef, active, onOpen }: {
 
     let feats;
     try {
-      feats = map.queryRenderedFeatures({ layers: ['cctv-dots'] });
+      feats = map.queryRenderedFeatures({ layers: ['cctv-dots', 'cctv-label'] });
     } catch {
       return; // layer not added yet
     }

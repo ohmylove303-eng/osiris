@@ -25,8 +25,9 @@ export async function GET() {
       facility_type: site.facility_type,
       facility_type_label: site.facility_type_label,
       runway_length_m: site.runway_length_m || 0,
-      satellite_image: site.satellite_image,
-      recon_image: site.recon_image,
+      satellite_image: site.imagery?.satellite_ortho ?? '',
+      recon_image: site.imagery?.aerial_recon ?? '',
+      image_date: site.imagery?.image_date ?? '',
       // Honesty: synthesis is INFERENCE — never expose as verified fact
       synthesisJudgmentSource: DIALECTIC_STAGE_META.synthesis.judgmentSource,
       assertiveAllowed: false,

@@ -219,3 +219,60 @@ export async function upsertVectorDocuments(
     failed,
   };
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// China Encroachment Sites — RAG Indexing Pipeline
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Index all China encroachment sites into the vector store.
+ * Uses Ollama nomic-embed-text if available; falls back to Jaccard token store.
+ */
+export async function indexChinaEncroachmentSites(): Promise<UpsertResult> {
+  // Dynamic import to avoid circular dependency and server-only code in client bundles
+  const { CHINA_ENCROACHMENT_SITES, buildRagText } = await import('./china-encroachment');
+
+  const docs = CHINA_ENCROACHMENT_SITES.map(site => ({
+    id: `china-osint-${site.id}`,
+    title: `${site.name} [${site.threat_level}]`,
+    category: 'china_maritime_encroachment',
+    content: buildRagText(site),
+    metadata: {
+      source_org: site.sources[0]?.org ?? 'CSIS AMTI',
+      source_url: site.sources[0]?.url ?? 'https://amti.csis.org',
+      date: site.sources[0]?.date ?? '2024',
+      mgrs: site.coordinate_precision?.mgrs,
+      verification_tier: 'TIER-1 VERIFIED',
+      verification_score: 95,
+    },
+  }));
+
+  return upsertVectorDocuments(docs);
+}
+
+/**
+ * Jaccard-based fast duplicate finder (no Ollama required).
+ * Returns sites whose RAG text overlaps the given text above the threshold.
+ */
+export function findDuplicateSitesByJaccard(
+  newSiteRagText: string,
+  threshold = 0.72
+): Array<{ id: string; title: string; score: number }> {
+  const store = loadVectorStore();
+  const chineOsintDocs = store.filter(d => d.category === 'china_maritime_encroachment');
+
+  const tokenize = (s: string) =>
+    new Set(s.toLowerCase().split(/\s+/).filter(w => w.length > 2));
+  const tokensA = tokenize(newSiteRagText);
+
+  return chineOsintDocs
+    .map(doc => {
+      const tokensB = tokenize(doc.content);
+      const intersection = new Set([...tokensA].filter(x => tokensB.has(x)));
+      const union = new Set([...tokensA, ...tokensB]);
+      const score = union.size === 0 ? 0 : intersection.size / union.size;
+      return { id: doc.id, title: doc.title, score: Math.round(score * 100) / 100 };
+    })
+    .filter(r => r.score >= threshold)
+    .sort((a, b) => b.score - a.score);
+}

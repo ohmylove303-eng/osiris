@@ -111,7 +111,22 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
           videoRef.current?.play().catch(() => {});
         });
         hls.on(Hls.Events.ERROR, (event, data) => {
-          if (data.fatal) setError(true);
+          if (data.fatal) {
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                console.warn('[번개의눈동자] HLS Network error, attempting reconnect...', data.details);
+                hls.startLoad();
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                console.warn('[번개의눈동자] HLS Media error, attempting recovery...', data.details);
+                hls.recoverMediaError();
+                break;
+              default:
+                hls.destroy();
+                setError(true);
+                break;
+            }
+          }
         });
       } else if (videoRef.current?.canPlayType('application/vnd.apple.mpegurl')) {
         videoRef.current.src = camera.stream_url;

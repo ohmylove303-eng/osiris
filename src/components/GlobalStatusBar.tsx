@@ -140,16 +140,32 @@ export default function GlobalStatusBar() {
     <>
       <span className="text-[var(--border-primary)] mx-1 text-white/20">│</span>
       <span className="inline-flex items-center gap-1 mx-2">
-        <span className="text-[#FF1744] text-[10px]">🔴</span>
-        <span className="text-[#FF1744] font-bold tracking-wider">Bridge 1: 북한 군사활동 152건</span>
-        <span className="text-[#00E676] text-[8px] bg-[#00E676]/15 px-1 py-0.2 rounded border border-[#00E676]/30">수집 보고</span>
+        <span className="text-[#FF1744] text-[10px] animate-pulse">🔴</span>
+        <span className="text-[#FF5252] font-bold tracking-wider">[긴급 05:58 KST] 북한 동해상 미상 발사체 탐지 (TestEvent: PASS / 체계식별: HOLD)</span>
+        <span className="text-[#00E676] text-[8px] bg-[#00E676]/15 px-1 py-0.2 rounded border border-[#00E676]/30">합참·로이터 공식 보고</span>
       </span>
       <span className="text-[var(--border-primary)] mx-1 text-white/20">│</span>
-      <span className="inline-flex items-center gap-1 mx-2">
+      <button
+        type="button"
+        onClick={() => typeof window !== 'undefined' && window.dispatchEvent(new CustomEvent('osiris:open-bridge'))}
+        className="inline-flex items-center gap-1 mx-2 hover:opacity-80 transition cursor-pointer"
+        title="OSIRIS 인텔리전스 브릿지 열기"
+      >
+        <span className="text-[#FF1744] text-[10px]">📡</span>
+        <span className="text-[#FF1744] font-bold tracking-wider underline decoration-dotted underline-offset-2">Bridge 1: 북한 군사활동 153건</span>
+        <span className="text-[#00E676] text-[8px] bg-[#00E676]/15 px-1 py-0.2 rounded border border-[#00E676]/30">수집 보고</span>
+      </button>
+      <span className="text-[var(--border-primary)] mx-1 text-white/20">│</span>
+      <button
+        type="button"
+        onClick={() => typeof window !== 'undefined' && window.dispatchEvent(new CustomEvent('osiris:open-bridge'))}
+        className="inline-flex items-center gap-1 mx-2 hover:opacity-80 transition cursor-pointer"
+        title="OSIRIS 인텔리전스 브릿지 열기"
+      >
         <span className="text-[#D500F9] text-[10px]">🟣</span>
-        <span className="text-[#D500F9] font-bold tracking-wider">Bridge 2: 지진/핵실험 감시 365건</span>
+        <span className="text-[#D500F9] font-bold tracking-wider underline decoration-dotted underline-offset-2">Bridge 2: 지진/핵실험 감시 365건</span>
         <span className="text-[#00BCD4] text-[8px] bg-[#00BCD4]/20 px-1 py-0.2 rounded border border-[#00BCD4]/40">풍계리 반경 100km 감시</span>
-      </span>
+      </button>
       <span className="text-[var(--border-primary)] mx-1 text-white/20">│</span>
       <span className="inline-flex items-center gap-1 mx-2">
         <span className="text-[#00E5FF] text-[10px]">🛰️</span>

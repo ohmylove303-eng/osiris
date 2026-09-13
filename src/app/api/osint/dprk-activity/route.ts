@@ -38,7 +38,20 @@ export function generateTacticalAnalysis(title: string, desc: string, category: 
   let stage2 = '주변 산악 능선 차폐각 35도 이상, 진입 도로망 및 위장막/방폭 차폐문 설치 확인. 상공 정찰 회피를 위한 산림 위장 전개.';
   let stage3 = '지하 암반 관통 갱도 내부 2중 철근 콘크리트 방폭문(두께 2m), 내부 탄약고 및 환기 배출구, 전동 회전판 완비.';
 
-  if (t.includes('600mm') || t.includes('kn-25') || t.includes('초대형 방사포')) {
+  if (t.includes('미상 발사체') || t.includes('unidentified projectile') || t.includes('2026-09-12')) {
+    eqName = '미상 발사체 (Unidentified Projectile - 합참 분석 중)';
+    classification = '미상 비행체계 (체계 특정 보류: HOLD)';
+    calRange = '사거리/최고고도/속도 한미 군당국 정밀 분석 중 (UNKNOWN)';
+    fireRate = '발사 수량 및 발사대 형태 미상 (UNKNOWN)';
+    warhead = '체계 미상 (KN-23/화성-20 등 예단 금지: REJECT-UNTIL-EVIDENCE)';
+    chassis = '발사 원점 및 플랫폼(TEL/고정식) 분석 중';
+    opDoctrine = '2026-09-12 새벽 동해상 발사 → 한미 연합 탄도탄 감시 자산(그린파인/피스아이) 조기 탐지 → 제원·궤적 정밀 분석 진행 중';
+    pros = '증거 게이트(Evidence Gate): 탐지 사실 PASS, 특정 체계 결부 HOLD, 환각 방지 규칙 적용.';
+    cons = '공개 정보 한계: 대한민국 합참 및 미군/일본 방위성 공식 세부 제원 발표 전까지 체계 단정 불가.';
+    stage1 = `위성 정밀 좌표 ${lat.toFixed(4)}°N, ${lng.toFixed(4)}°E (MGRS: ${mgrs}). 동해 공해상 발사 궤적 감시 수역.`;
+    stage2 = '한미 조기경보위성(SBIRS) 및 피스아이(E-737), 그린파인 탄도탄 감시 레이더 추적.';
+    stage3 = '발사 원점(원산/깃대령/함흥 일대 추정) 및 비행 궤적 종말 탄착지 데이터 링크 교차 분석 중.';
+  } else if (t.includes('600mm') || t.includes('kn-25') || t.includes('초대형 방사포')) {
     eqName = 'KN-25 600mm 초대형 방사포 (MLRS)';
     classification = '전술핵 탑재 초대형 다련장 로켓';
     calRange = '600mm / 380~400km';
@@ -542,6 +555,37 @@ function resolveEventMedia(title: string, desc: string, cat: string, rawUrls: st
 
 const CURATED_ACTIVITIES: CollectedEvent[] = [
   {
+    id: 'dprk-act-2026-09-12-001',
+    title: '🔴 [긴급] 북한 동해상 미상 발사체 발사 (TestEvent:2026-09-12-EastSea)',
+    description: '한국 합동참모본부가 2026년 9월 12일 새벽 북한의 동해상 미상 발사체(Unidentified Projectile) 발사를 공식 탐지(Reuters 05:49 KST 보도). 한미 정보당국이 세부 기종·비행거리·고도·궤적을 정밀 분석 중. [증거 게이트 판정]: 발사 사건(TestEvent) 자체는 PASS-DETECTION이나, 특정 체계(KN-23/KN-25/화성-20/ICBM/SLBM) 연결은 단정 불가(HOLD/REJECT-UNTIL-EVIDENCE). 전략 ICBM 재돌입 R2~R3 및 MIRV M1 등급은 변화 없음.',
+    category: 'missile_launch',
+    lat: 39.1500,
+    lng: 128.2000,
+    source_org: '대한민국 합동참모본부(ROK JCS) / Reuters / Yonhap',
+    source_url: 'https://www.reuters.com/world/asia-pacific/north-korea-launches-unidentified-projectile-toward-east-sea-yonhap-reports-2026-09-11/',
+    source_date: '2026-09-12',
+    published_date: '2026-09-12T05:49:00+09:00',
+    media_urls: ['/intel/dprk/kittaeryong_sat.png'],
+    report_url: 'https://www.reuters.com/world/asia-pacific/north-korea-launches-unidentified-projectile-toward-east-sea-yonhap-reports-2026-09-11/',
+    verification_tier: 'TIER-1 VERIFIED',
+    verification_score: 95,
+    verification_log: [
+      '[1/4] Source: 대한민국 합동참모본부 공식 발표 (Tier-1, Trust=99%)',
+      '[2/4] Cross-Ref: Reuters (2026-09-12 05:49 KST), Yonhap News',
+      '[3/4] Evidence Gate: TestEvent: PASS-DETECTION | MissileSystem: HOLD | Trajectory: UNKNOWN',
+      '[4/4] Recursive Bias Audit: 화성-20 / KN-23 예단 금지 (REJECT-UNTIL-EVIDENCE)',
+    ],
+    cross_references: [
+      'https://www.reuters.com/world/asia-pacific/north-korea-launches-unidentified-projectile-toward-east-sea-yonhap-reports-2026-09-11/',
+      'https://www.mod.go.jp/js/press/',
+      'https://www.38north.org/',
+    ],
+    terrain_description: '동해상 발사 궤적 감시 구역 (발사 원점 및 비행 궤적 합참 분석 중)',
+    related_site_id: 'dprk-mis-kittaeryong',
+    accumulated_date: '2026-09-12',
+    bridge_id: 'bridge-1-dprk',
+  },
+  {
     id: 'dprk-act-001',
     title: '북한 화성-18형 ICBM 3차 시험 발사 (2025-01-14)',
     description: '북한 미사일총국이 2025년 1월 14일 평양 순안 인근에서 화성-18형(Hwasong-18) 고체연료 ICBM 3차 시험 발사를 실시. 최대 고도 6,500km, 비행거리 1,000km, 비행시간 73분. 미 인도태평양사령부(INDOPACOM) 확인.',
@@ -855,8 +899,12 @@ export async function GET(request: Request) {
     }
   }
 
-  // Sort by date (newest first)
-  allActivities.sort((a, b) => b.source_date.localeCompare(a.source_date));
+  // Sort by date (newest first, robust timestamp comparison)
+  allActivities.sort((a, b) => {
+    const timeB = new Date(b.published_date || b.source_date).getTime() || 0;
+    const timeA = new Date(a.published_date || a.source_date).getTime() || 0;
+    return timeB - timeA;
+  });
 
   // Save to daily accumulation
   saveDailyEvents(today, allActivities);

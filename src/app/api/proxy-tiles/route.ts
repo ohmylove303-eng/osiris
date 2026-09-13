@@ -8,10 +8,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Only allow cartocdn.com domains to prevent open proxy abuse
+    // Allow trusted tile domains (CartoCDN, ESRI ArcGIS Satellite, OSM)
     const targetUrl = new URL(url);
     const host = targetUrl.hostname.toLowerCase();
-    if (host !== 'cartocdn.com' && !host.endsWith('.cartocdn.com')) {
+    const ALLOWED_DOMAINS = ['cartocdn.com', 'arcgisonline.com', 'openstreetmap.org', 'stadiamaps.com'];
+    const isAllowed = ALLOWED_DOMAINS.some(domain => host === domain || host.endsWith('.' + domain));
+    if (!isAllowed) {
       return NextResponse.json({ error: 'Forbidden domain' }, { status: 403 });
     }
 

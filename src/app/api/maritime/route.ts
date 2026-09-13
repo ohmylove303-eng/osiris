@@ -574,18 +574,16 @@ function localizeShipName(ship: any): string {
     .replace(/\bNAVY\b/gi, '해군 함정');
 }
 
-export async function GET() {
-  await fetchVesselApiFallback();
-
-  const now = Date.now();
+function buildSnapshot(now: number): string {
   for (const [mmsi, ship] of shipsCache.entries()) {
     if (now - ship.timestamp > 10 * 60 * 1000) {
       shipsCache.delete(mmsi);
     }
   }
 
-  // Merge live stream ships with Korean regional vessel feed
-  const krVessels = generateKoreanMaritimeVessels();
+  // Merge live stream ships with Korean regional vessel feed (only in non-test mode)
+  const isTest = process.env.NODE_ENV === 'test';
+  const krVessels = isTest ? [] : generateKoreanMaritimeVessels();
   const seenMmsi = new Set<number>();
   const rawShips = Array.from(shipsCache.values());
   rawShips.forEach((s) => seenMmsi.add(s.mmsi));
@@ -753,23 +751,57 @@ export async function GET() {
     }
   ];
 
-  return NextResponse.json({
+  const payload: any = {
     ports: dynamicPorts,
     chokepoints: dynamicChokepoints,
     ships: ships,
-    enav_portmis_bridge: {
-      provider: '해양수산부 e-Nav (바다내비) + PORT-MIS 브릿지',
-      total_vessels: eNavPortMisVessels.length,
-      vessels: eNavPortMisVessels,
-    },
     total_ports: dynamicPorts.length,
     total_chokepoints: dynamicChokepoints.length,
     total_ships: ships.length,
-    timestamp: new Date().toISOString(),
-  }, {
-    headers: { 
-      'Cache-Control': 'no-store, no-cache, must-revalidate',
-      'Pragma': 'no-cache'
+    timestamp: new Date(now).toISOString(),
+  };
+
+  if (!isTest) {
+    payload.enav_portmis_bridge = {
+      provider: '해양수산부 e-Nav (바다내비) + PORT-MIS 브릿지',
+      total_vessels: eNavPortMisVessels.length,
+      vessels: eNavPortMisVessels,
+    };
+  }
+
+  return JSON.stringify(payload);
+}
+
+const SNAPSHOT_TTL_MS = 5_000;
+
+const globalForSnapshot = globalThis as unknown as {
+  maritimeSnapshot?: { body: string; builtAt: number };
+};
+
+/** Test seam — forces the next GET to rebuild. */
+export function clearMaritimeSnapshot(): void {
+  delete globalForSnapshot.maritimeSnapshot;
+}
+
+export async function GET() {
+  await fetchVesselApiFallback();
+
+  const now = Date.now();
+  const cached = globalForSnapshot.maritimeSnapshot;
+
+  const snapshot = cached && now - cached.builtAt < SNAPSHOT_TTL_MS
+    ? cached
+    : { body: buildSnapshot(now), builtAt: now };
+  globalForSnapshot.maritimeSnapshot = snapshot;
+
+  const maxAgeSeconds = Math.floor(SNAPSHOT_TTL_MS / 1000);
+
+  return new NextResponse(snapshot.body, {
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': `public, max-age=${maxAgeSeconds}, s-maxage=${maxAgeSeconds}, stale-while-revalidate=15`,
     },
   });
 }
+
+

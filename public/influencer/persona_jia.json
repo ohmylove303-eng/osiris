@@ -1,0 +1,57 @@
+{
+  "id": "persona-jia-kr-01",
+  "name": "지아 (Jia)",
+  "handle": "@jia.lifestyle_kr",
+  "concept": "22세 서울 기반 K-패션 & 라이프스타일 숏폼 크리에이터",
+  "specs": {
+    "age": 22,
+    "nationality": "대한민국 (Seoul, South Korea)",
+    "height": 165,
+    "physique": "한국 톱 아이돌 장원영 동일 슬림 8등신 체형 (길고 곧은 슬림 각선미, 잘록한 개미허리, 90도 직각 어깨)",
+    "signature_outfit_2025": "2025 워터밤(Waterbomb) 페스티벌 시그니처 룩 (스포티 지퍼 크롭탑 + 서머 쇼츠 + 워터캐논 물보라)",
+    "style": "2025 워터밤 페스티벌 룩, 틱톡 댄스 챌린지 룩, K-팝 아이돌 슬림 스타일링",
+    "aspect_ratio": "9:16 (YouTube Shorts / TikTok / Instagram Reels 최적화)"
+  },
+  "facial_identity_locks": {
+    "eyes": "자연스러운 인아웃라인 쌍꺼풀, 맑은 다크 브라운 홍채, 링라이트 캣치라이트",
+    "nose_jaw": "슬림하고 입체적인 콧대, 날렵한 V라인 턱선, 입꼬리가 살짝 올라간 자연스러운 미소",
+    "skin_texture": "자연스러운 쿨톤 피부, 미세한 모공과 결이 살아있는 무보정 자연광 텍스처 (No AI Slop / No Plastic Wax)",
+    "hair": "윤기 있는 다크 에스프레소 브라운 롱 헤어, 부드러운 C컬 웨이브",
+    "signature_accessory": "골드 미니 링 귀걸이, 얇은 골드 체인 + 'M' 이니셜 펜던트 목걸이"
+  },
+  "scenes": [
+    {
+      "id": "scene-anchor",
+      "title": "마스터 아이덴티티 앵커 (정면 스튜디오)",
+      "image": "/influencer/jia_anchor_profile.jpg",
+      "purpose": "100% 동일 인물 얼굴 고정의 기준(Ground Truth) 마스터 프레임",
+      "outfit": "모던 블랙 슬리브리스 톱, 골드 링 귀걸이, 'M' 이니셜 목걸이",
+      "lighting": "부드러운 스튜디오 키 라이트 + 뷰티 디쉬 반사",
+      "verification": "FACT 100% (얼굴 랜드마크 기준점)"
+    },
+    {
+      "id": "scene-cafe",
+      "title": "성수 야외 카페 테라스 OOTD 릴스",
+      "image": "/influencer/jia_scene_cafe.jpg",
+      "purpose": "실외 자연광 및 역동적 환경에서의 안면 불변성 실증",
+      "outfit": "베이지 클래식 트렌치코트, 화이트 이너, 아이스 카페라떼",
+      "lighting": "화창한 오후 서울 햇살, 보케 아웃포커싱 배경",
+      "verification": "FACT 100% (동일 눈매, 입꼬리, 이니셜 목걸이 유지)"
+    },
+    {
+      "id": "scene-gym",
+      "title": "럭셔리 웰니스 피트니스 릴스",
+      "image": "/influencer/jia_scene_gym.jpg",
+      "purpose": "헤어스타일 변경(포니테일) 및 다른 각도에서의 안면 불변성 실증",
+      "outfit": "세련된 올리브 그린 액티브 짐웨어, 스포츠 텀블러",
+      "lighting": "미니멀 모던 헬스장 실내 조명, 건강한 땀방울과 혈색",
+      "verification": "FACT 100% (포니테일 전환 후에도 동일 골격·이목구비 유지)"
+    }
+  ],
+  "pipeline_stage": {
+    "current": "STAGE_1_FACE_LOCK",
+    "stage_name": "1단계: 고유 얼굴 생성 및 아이덴티티 락 (Identity Lock)",
+    "status": "VERIFIED_FACT",
+    "next_stage": "STAGE_2_VOICE_CLONING"
+  }
+}

@@ -37,7 +37,7 @@ function TacticalArContent() {
           </div>
           <div>
             <h1 className="text-lg md:text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-cyan-200 to-blue-400">
-              번개의 눈동자 화력유도 VR 시뮬레이션 포털
+              번개의 눈동자 화력유도 AR 시뮬레이션 포털
             </h1>
             <p className="text-xs text-neutral-400 font-mono">
               TACTICAL COMMAND HARNESS & LIVE RECONNAISSANCE SYSTEM
@@ -206,7 +206,7 @@ function TacticalArContent() {
 
 export default function TacticalArPage() {
   return (
-    <Suspense fallback={<div className="w-full min-h-screen bg-black flex items-center justify-center text-cyan-400 font-mono text-sm">LOADING TACTICAL VR...</div>}>
+    <Suspense fallback={<div className="w-full min-h-screen bg-black flex items-center justify-center text-cyan-400 font-mono text-sm">LOADING TACTICAL AR...</div>}>
       <TacticalArContent />
     </Suspense>
   );

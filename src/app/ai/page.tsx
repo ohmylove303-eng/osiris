@@ -7,7 +7,17 @@ import { ArrowLeft, Cpu } from 'lucide-react';
 
 const LocalAiStudio = dynamic(() => import('@/components/LocalAiStudio'), { ssr: false });
 
-export default function DedicatedAiPage() {
+export default function DedicatedAiPage(props?: {
+  params?: Promise<Record<string, string | string[] | undefined>>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  if (props?.params) {
+    React.use(props.params);
+  }
+  if (props?.searchParams) {
+    React.use(props.searchParams);
+  }
+
   return (
     <main className="min-h-screen bg-[var(--bg-void)] text-[var(--text-primary)] p-4 md:p-6 flex flex-col font-[family-name:var(--font-body)]">
       {/* Top Navigation Bar */}

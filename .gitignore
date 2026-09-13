@@ -1,4 +1,5 @@
 # Dependencies
+node_modules/
 /node_modules
 /.pnp
 .pnp.js
@@ -56,3 +57,15 @@ scanner_backend_backup.js
 
 # Security - Prevent accidental manual leaks
 *Manual*.md
+
+# Large media & AI weights
+*.mp4
+*.pt
+*.wav
+public/influencer/*.wav
+public/influencer/*.mp4
+public/influencer/viral_raw/
+public/osiris_*.json
+merge_map.py
+
+

@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo, use } from 'react';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Layers, BarChart3, Newspaper, Search, X, Globe, MapPinned, Route, Radar, Satellite, Moon, ExternalLink, AlertTriangle, Activity, Database, Wifi, Play, Network, Crosshair, Bluetooth, Pentagon, Radio, PenLine, Zap } from 'lucide-react';
+import { Layers, BarChart3, Newspaper, Search, X, Globe, MapPinned, Route, Radar, Satellite, Moon, ExternalLink, AlertTriangle, Activity, Database, Wifi, Play, Network, Crosshair, Bluetooth, Pentagon, Radio, PenLine, Zap, Navigation, ChevronDown } from 'lucide-react';
 import { type TerrainStatus } from '@/lib/map-terrain';
 import { loadCameraCatalog, mergeCameraCatalog } from '@/lib/camera-catalog';
 import IntelFeed from '@/components/IntelFeed';
@@ -35,6 +35,7 @@ const OsintPanel = dynamic(() => import('@/components/OsintPanel'));
 const DrawingToolbar = dynamic(() => import('@/components/DrawingToolbar'), { ssr: false });
 const DrawHud = dynamic(() => import('@/components/DrawHud'), { ssr: false });
 const DprkReportDossierModal = dynamic(() => import('@/components/DprkReportDossierModal'), { ssr: false });
+const ChinaEncroachmentModal = dynamic(() => import('@/components/ChinaEncroachmentModal'), { ssr: false });
 // The measurement helpers are pure functions — importing them directly keeps
 // them out of the lazy chunk, so a finished polygon can be measured whether or
 // not the toolbar has loaded yet.
@@ -136,7 +137,17 @@ function ViewSegment({ active, onClick, title, icon: Icon, label, layoutId }: {
   );
 }
 
-export default function Dashboard() {
+export default function Dashboard(props?: {
+  params?: Promise<Record<string, string | string[] | undefined>>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  if (props?.params) {
+    use(props.params);
+  }
+  if (props?.searchParams) {
+    use(props.searchParams);
+  }
+
   const dataRef = useRef<any>({});
   const [dataVersion, setDataVersion] = useState(0);
   const data = dataRef.current;
@@ -173,8 +184,21 @@ export default function Dashboard() {
   const [watchEvents, setWatchEvents] = useState<WatchEvent[]>([]);
   const watchBaselines = useRef<Record<string, WatchBaseline>>({});
   const [selectedPolygon, setSelectedPolygon] = useState<string | null>(null);
-  const [showDesktopSearch, setShowDesktopSearch] = useState(false);
+  const [showDesktopSearch, setShowDesktopSearch] = useState<boolean>(false);
   const [showDirections, setShowDirections] = useState(false);
+  const [showIntelBridge, setShowIntelBridge] = useState(false);
+  const [routeSeed, setRouteSeed] = useState<{ label: string; lat: number; lng: number; k: number } | null>(null);
+
+  const handleRouteTo = useCallback((place: { label: string; lat: number; lng: number }) => {
+    setRouteSeed({ ...place, k: Date.now() });
+    setShowDirections(true);
+  }, []);
+
+  useEffect(() => {
+    const handleOpenBridge = () => setShowIntelBridge(true);
+    window.addEventListener('osiris:open-bridge', handleOpenBridge);
+    return () => window.removeEventListener('osiris:open-bridge', handleOpenBridge);
+  }, []);
   const [activeRoute, setActiveRoute] = useState<
     (RouteResult & {
       from: { lat: number; lng: number };
@@ -193,6 +217,7 @@ export default function Dashboard() {
   const [aircraftAirports, setAircraftAirports] = useState<Record<string, Airport[]>>({});
 
   const [dprkReportModalData, setDprkReportModalData] = useState<any>(null);
+  const [chinaEncroachmentModalSiteId, setChinaEncroachmentModalSiteId] = useState<string | null>(null);
 
   // The popup lives in raw map HTML, so it hands aircraft and DPRK dossiers over through globals.
   useEffect(() => {
@@ -202,9 +227,29 @@ export default function Dashboard() {
         prev.some((w) => w.icao24 === f.icao24) ? prev : [...prev, f].slice(-6));
     };
     (window as any).openDprkReportDossier = (data: any) => setDprkReportModalData(data);
+    (window as any).openChinaEncroachmentModal = (siteId: string) => setChinaEncroachmentModalSiteId(siteId || 'YS-SHENLAN-01');
     return () => {
       delete (window as any).openDprkReportDossier;
+      delete (window as any).openChinaEncroachmentModal;
     };
+  }, []);
+
+  const handleOpenThinkTankModal = useCallback(async () => {
+    if (dataRef.current?.dprk_sites && dataRef.current.dprk_sites.length > 0) {
+      setDprkReportModalData(dataRef.current.dprk_sites[0]);
+    } else {
+      try {
+        const res = await fetch('/api/osint/dprk');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.sites && json.sites.length > 0) {
+            setDprkReportModalData(json.sites[0]);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to open think tank dossier:', err);
+      }
+    }
   }, []);
 
   const removeWatched = useCallback((icao24: string) => {
@@ -321,9 +366,11 @@ export default function Dashboard() {
     radiation: false,
     infrastructure: false,
     global_incidents: true,
+    military_demarcation: true,
     dprk_sites: true,
     dprk_activity: true,
     seismic_watch: true,
+    china_encroachment: true,
     war_alerts: false,
     day_night: true,
     cables: true,
@@ -344,9 +391,18 @@ export default function Dashboard() {
     setMapProjection('mercator');
   };
   const terrainPanelProps = {
-    terrainStatus,
-    on3DModeSelected: () => setMapProjection('globe'),
-    onTerrainRetry: () => setTerrainRetry(value => value + 1),
+    elevationEnabled: activeLayers.terrain_elevation,
+    dem3dEnabled: activeLayers.terrain_3d,
+    projection: mapProjection,
+    onSelectElevation: () => {
+      setActiveLayers(prev => ({ ...prev, terrain_elevation: true, terrain_3d: false }));
+      setMapProjection('mercator');
+    },
+    onSelect3D: () => {
+      setActiveLayers(prev => ({ ...prev, terrain_elevation: false, terrain_3d: true }));
+      setMapProjection('globe');
+    },
+    onSelectFlat: selectFlatMap,
     onTerrainFocus: () => setTerrainFocus(value => value + 1),
   };
   const [capabilities, setCapabilities] = useState<Record<string, boolean>>({});
@@ -372,6 +428,15 @@ export default function Dashboard() {
       setActiveLayers(prev => {
         const next = { ...prev };
         Object.keys(next).forEach(k => { (next as any)[k] = active.includes(k); });
+        // Core military & tactical intelligence layers must default to ON
+        next.flights = true;
+        next.military = true;
+        next.maritime = true;
+        next.military_demarcation = true;
+        next.dprk_sites = true;
+        next.dprk_activity = true;
+        next.seismic_watch = true;
+        next.china_encroachment = true;
         return next;
       });
     }
@@ -1261,6 +1326,8 @@ export default function Dashboard() {
             aria-hidden={Boolean(navSession)}
           >
             <DirectionsBar
+              key={routeSeed?.k ?? 'fresh'}
+              initialTo={routeSeed ? { label: routeSeed.label, lat: routeSeed.lat, lng: routeSeed.lng } : null}
               center={mapCenter ? { lat: mapCenter.lat, lng: mapCenter.lng } : null}
               onRoute={(r) => setActiveRoute(r)}
               onLiveLocation={setLiveLocation}
@@ -1271,7 +1338,7 @@ export default function Dashboard() {
                 setFollowUser(true);
               }}
               onLocate={(lat, lng, zoom) => setFlyToLocation({ lat, lng, zoom, ts: Date.now() })}
-              onClose={() => { setShowDirections(false); setActiveRoute(null); }}
+              onClose={() => { setShowDirections(false); setActiveRoute(null); setRouteSeed(null); }}
             />
           </motion.div>
         )}
@@ -1320,59 +1387,222 @@ export default function Dashboard() {
         )}
       </motion.div>
 
-      {/* ── HEADER ── */}
-      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1, delay: 2.5 }} className={`absolute top-4 z-[200] pointer-events-none flex flex-col`} style={{ left: isMobile ? '24px' : '64px', right: '24px' }}>
-        <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-3">
-            <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-black/70 border border-[var(--border-active)] shadow-[0_0_8px_var(--gold-glow)] shrink-0">
-              <div className="absolute inset-0 bg-gradient-to-tr from-[var(--gold-primary)]/10 to-transparent rounded-xl" />
-              <div className="absolute inset-x-1.5 top-1/2 -translate-y-1/2 h-[0.5px] bg-[var(--cyan-primary)]/30" />
-              <div className="absolute inset-y-1.5 left-1/2 -translate-x-1/2 w-[0.5px] bg-[var(--cyan-primary)]/30" />
-              
-              {/* Lightning Eye Icon: 눈동자 형태 + 황금 번개 동공 */}
-              <svg viewBox="0 0 40 24" className="w-8 h-5 relative z-10" style={{ filter: 'drop-shadow(0 0 2px var(--gold-glow))' }}>
-                <path d="M 3 12 Q 20 1 37 12 Q 20 23 3 12 Z" fill="rgba(3,6,15,0.85)" stroke="var(--gold-primary)" strokeWidth="1.8" />
-                <circle cx="20" cy="12" r="5.5" fill="#02040c" stroke="var(--cyan-primary)" strokeWidth="1" />
-                <polygon points="21,7 17,12 20,12 19,17 23,12 20,12" fill="var(--gold-primary)" stroke="#FFFFFF" strokeWidth="0.4" />
-              </svg>
-            </div>
-            <div className="flex flex-col items-start gap-0.5">
-              <h1 className="text-lg md:text-xl font-bold tracking-[0.3em] text-[var(--gold-primary)] font-mono notranslate" style={{ textShadow: '0 0 6px var(--gold-glow)' }} translate="no">번개의 눈동자</h1>
-              <span className="text-[8px] md:text-[9px] font-mono tracking-[0.2em] opacity-75 uppercase text-[var(--cyan-primary)] notranslate" translate="no">LIGHTNING EYE · INTEL HUD</span>
-            </div>
+      {/* ── TOP-LEFT BRAND (기존 원본 100% 보존: 줄바꿈 절대 방지) ── */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 2.2 }}
+        className="header-brand absolute top-4 z-[200] pointer-events-none select-none"
+        style={{ left: isMobile ? '12px' : '56px' }}
+      >
+        <div className="flex items-center gap-2.5">
+          <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-black/70 border border-[var(--border-active)] shadow-[0_0_8px_var(--gold-glow)] shrink-0">
+            <div className="absolute inset-0 bg-gradient-to-tr from-[var(--gold-primary)]/10 to-transparent rounded-xl" />
+            <div className="absolute inset-x-1.5 top-1/2 -translate-y-1/2 h-[0.5px] bg-[var(--cyan-primary)]/30" />
+            <div className="absolute inset-y-1.5 left-1/2 -translate-x-1/2 w-[0.5px] bg-[var(--cyan-primary)]/30" />
+            
+            {/* Lightning Eye Icon: 눈동자 형태 + 황금 번개 동공 */}
+            <svg viewBox="0 0 40 24" className="w-8 h-5 relative z-10" style={{ filter: 'drop-shadow(0 0 2px var(--gold-glow))' }}>
+              <path d="M 3 12 Q 20 1 37 12 Q 20 23 3 12 Z" fill="rgba(3,6,15,0.85)" stroke="var(--gold-primary)" strokeWidth="1.8" />
+              <circle cx="20" cy="12" r="5.5" fill="#02040c" stroke="var(--cyan-primary)" strokeWidth="1" />
+              <polygon points="21,7 17,12 20,12 19,17 23,12 20,12" fill="var(--gold-primary)" stroke="#FFFFFF" strokeWidth="0.4" />
+            </svg>
           </div>
-
-          {!isMobile && (
-            <div className="pointer-events-auto flex items-center gap-2 mr-64 lg:mr-72">
-              <Link
-                href="/tactical-ar"
-                className="flex items-center gap-1.5 px-3 py-2 bg-[var(--cyan-primary)]/10 border border-[var(--border-cyan)] hover:border-[var(--cyan-primary)]/50 rounded-xl text-xs font-mono font-bold text-[var(--cyan-primary)] shadow-[0_0_8px_var(--cyan-glow)] transition-colors shrink-0"
-                title="화력유도 전술 VR 시뮬레이터 (교관 및 교육생)"
-              >
-                <Crosshair className="w-3.5 h-3.5 text-cyan-400" />
-                <span>🎯 화력유도 VR 포털</span>
-              </Link>
-              <Link
-                href="/ai"
-                className="flex items-center gap-1.5 px-3 py-2 bg-[var(--gold-primary)]/10 border border-[var(--border-primary)] hover:border-[var(--border-active)] rounded-xl text-xs font-mono font-bold text-[var(--gold-primary)] shadow-[0_0_8px_var(--gold-glow)] transition-colors shrink-0"
-                title="M5 온디바이스 로컬 AI 스튜디오"
-              >
-                <Zap className="w-3.5 h-3.5 text-[var(--gold-primary)]" />
-                <span>⚡ AI 스튜디오 전용화면</span>
-              </Link>
-              <HarnessAuditHud />
-              <div className="w-56 lg:w-72">
-                <SearchBar onLocate={(lat, lng, zoom) => { setFlyToLocation({ lat, lng, zoom, ts: Date.now() }); }} />
-              </div>
-            </div>
-          )}
+          <div className="flex flex-col items-start gap-0.5 whitespace-nowrap">
+            <h1 className="text-lg md:text-xl font-bold tracking-[0.3em] text-[var(--gold-primary)] font-mono notranslate whitespace-nowrap" style={{ textShadow: '0 0 6px var(--gold-glow)' }} translate="no">번개의 눈동자</h1>
+            <span className="text-[8px] md:text-[9px] font-mono tracking-[0.2em] opacity-75 uppercase text-[var(--cyan-primary)] notranslate whitespace-nowrap" translate="no">LIGHTNING EYE · INTEL HUD</span>
+          </div>
         </div>
         <div className="flex items-center gap-3 mt-1.5 pl-[52px] min-w-0 pr-4">
-          <span className="text-[9px] md:text-[9px] text-[var(--text-muted)] font-mono tracking-[0.2em] md:tracking-[0.3em] uppercase opacity-60 truncate notranslate" translate="no">
+          <span className="text-[9px] md:text-[9px] text-[var(--text-muted)] font-mono tracking-[0.2em] md:tracking-[0.3em] uppercase opacity-60 truncate notranslate whitespace-nowrap" translate="no">
             전 세계 실시간 관제 <span className="hidden md:inline">· 항공기 · 함정 · 위성 · CCTV · 기상 · 사이버 위협</span>
           </span>
         </div>
       </motion.div>
+
+      {/* ── TOP ACTION BAR (실시간 내비게이션 & 인텔리전스 브릿지 & 검색) ── */}
+      {!isMobile && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 2.3 }}
+          className="absolute top-4 left-[310px] md:left-[340px] xl:left-[370px] z-[200] pointer-events-auto flex items-center gap-2"
+        >
+          {/* 1. 핵심 내비게이션 바로가기 */}
+          <button
+            type="button"
+            onClick={() => {
+              setShowDirections(prev => {
+                const next = !prev;
+                if (!next) setActiveRoute(null);
+                return next;
+              });
+            }}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-mono font-bold transition-all shrink-0 cursor-pointer ${
+              showDirections || navSession
+                ? 'bg-[var(--gold-primary)] text-black shadow-[0_0_12px_var(--gold-glow)]'
+                : 'bg-[var(--gold-primary)]/10 border border-[var(--border-primary)] hover:border-[var(--border-active)] text-[var(--gold-primary)] hover:bg-[var(--gold-primary)]/20 shadow-[0_0_8px_var(--gold-glow)]'
+            }`}
+            title="실시간 턴바이턴 내비게이션 & 길찾기 (Turn-by-Turn GPS Navigation)"
+          >
+            <Navigation className="w-3.5 h-3.5" />
+            <span>🧭 내비게이션</span>
+          </button>
+
+          {/* 2. OSIRIS 최신 인텔리전스 브릿지 */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowIntelBridge(!showIntelBridge)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-mono font-bold transition-all shrink-0 cursor-pointer ${
+                showIntelBridge
+                  ? 'bg-purple-900 border border-purple-400 text-white shadow-[0_0_12px_rgba(168,85,247,0.5)]'
+                  : 'bg-purple-950/60 border border-purple-500/50 hover:border-purple-300 text-purple-200 hover:bg-purple-900/60 shadow-[0_0_8px_rgba(168,85,247,0.25)]'
+              }`}
+              title="OSIRIS 최신 인텔리전스 브릿지 (6대 정보기관 · 서해 중국 침탈 시설 · 북한 전략기지 · 전술망)"
+            >
+              <span className="text-sm">🌐</span>
+              <span>인텔리전스 브릿지</span>
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showIntelBridge ? 'rotate-180' : ''}`} />
+            </button>
+
+            {/* 브릿지 드롭다운 팝오버 패널 */}
+            <AnimatePresence>
+              {showIntelBridge && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                  className="absolute left-0 mt-2 w-84 bg-[#070b14]/95 border border-purple-500/40 rounded-2xl shadow-[0_12px_32px_rgba(0,0,0,0.85),0_0_16px_rgba(168,85,247,0.25)] backdrop-blur-xl p-3 z-[500] flex flex-col gap-1.5"
+                >
+                  <div className="flex items-center justify-between pb-2 mb-1 border-b border-white/10 px-1">
+                    <span className="text-[11px] font-mono font-bold text-purple-300">⚡ OSIRIS 최신 인텔리전스 브릿지</span>
+                    <span className="text-[9px] font-mono text-purple-400/70">HARNESS BRIDGE v3</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowIntelBridge(false);
+                      handleOpenThinkTankModal();
+                    }}
+                    className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-purple-900/40 transition-colors text-left group cursor-pointer"
+                  >
+                    <span className="text-base">🏛️</span>
+                    <div>
+                      <div className="text-xs font-bold text-purple-200 group-hover:text-white">6대 정보기관 브리핑 (CSIS · IDF)</div>
+                      <div className="text-[10px] text-white/50">Janes, DoD, CIRO 실시간 씽크탱크 보고서 및 도판</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowIntelBridge(false);
+                      setFlyToLocation({ lat: 35.00, lng: 123.50, zoom: 7, ts: Date.now() });
+                      setChinaEncroachmentModalSiteId('YS-SHENLAN-01');
+                    }}
+                    className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-orange-950/40 transition-colors text-left group cursor-pointer"
+                  >
+                    <span className="text-base">🇨🇳</span>
+                    <div>
+                      <div className="text-xs font-bold text-orange-200 group-hover:text-white">중국 서해 침탈 시설 (선란1·2호 / 부표망)</div>
+                      <div className="text-[10px] text-white/50">13기 부표망, 루칭위안위 066, 피어리 크로스 4단계 분석 도판</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowIntelBridge(false);
+                      setFlyToLocation({ lat: 39.85, lng: 127.75, zoom: 7.5, ts: Date.now() });
+                    }}
+                    className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-red-950/40 transition-colors text-left group cursor-pointer"
+                  >
+                    <span className="text-base">🚀</span>
+                    <div>
+                      <div className="text-xs font-bold text-red-200 group-hover:text-white">북한 22개 전략기지 (영웅김군옥함)</div>
+                      <div className="text-[10px] text-white/50">신포 잠수함 기지 및 만탑산 핵·미사일 기지 관제</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowIntelBridge(false);
+                      setFlyToLocation({ lat: 37.85, lng: 125.6, zoom: 8.5, ts: Date.now() });
+                    }}
+                    className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-cyan-950/40 transition-colors text-left group cursor-pointer"
+                  >
+                    <span className="text-base">🛡️</span>
+                    <div>
+                      <div className="text-xs font-bold text-cyan-200 group-hover:text-white">서해 NLL · KADIZ 전술 구역</div>
+                      <div className="text-[10px] text-white/50">서해 5도 및 한반도 영공 방공식별구역</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowIntelBridge(false);
+                      setFlyToLocation({ lat: 37.6, lng: 127.3, zoom: 8, ts: Date.now() });
+                    }}
+                    className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-emerald-950/40 transition-colors text-left group cursor-pointer"
+                  >
+                    <span className="text-base">✈️</span>
+                    <div>
+                      <div className="text-xs font-bold text-emerald-200 group-hover:text-white">한미 공군 초계 편대 (F-35A / F-15K)</div>
+                      <div className="text-[10px] text-white/50">ADS-B / Mode-S 실시간 피아식별 초계 비행</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowIntelBridge(false);
+                      setFlyToLocation({ lat: 37.4, lng: 124.0, zoom: 7.5, ts: Date.now() });
+                    }}
+                    className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-amber-950/40 transition-colors text-left group cursor-pointer"
+                  >
+                    <span className="text-base">⚓</span>
+                    <div>
+                      <div className="text-xs font-bold text-amber-200 group-hover:text-white">중국 함대 (랴오닝함 / 052D 태원함)</div>
+                      <div className="text-[10px] text-white/50">AIS / 위성 교차 검증 해상 전력 추적</div>
+                    </div>
+                  </button>
+
+                  <div className="border-t border-white/10 my-1 pt-1.5 flex items-center gap-1.5">
+                    <Link
+                      href="/tactical-ar"
+                      onClick={() => setShowIntelBridge(false)}
+                      className="flex-1 flex items-center justify-center gap-1 p-1.5 rounded-lg bg-[var(--cyan-primary)]/15 hover:bg-[var(--cyan-primary)]/25 text-[10px] font-mono text-[var(--cyan-primary)] font-bold transition"
+                    >
+                      <Crosshair className="w-3 h-3" />
+                      <span>🎯 화력유도 AR</span>
+                    </Link>
+                    <Link
+                      href="/ai"
+                      onClick={() => setShowIntelBridge(false)}
+                      className="flex-1 flex items-center justify-center gap-1 p-1.5 rounded-lg bg-[var(--gold-primary)]/15 hover:bg-[var(--gold-primary)]/25 text-[10px] font-mono text-[var(--gold-primary)] font-bold transition"
+                    >
+                      <Zap className="w-3 h-3" />
+                      <span>⚡ AI 스튜디오</span>
+                    </Link>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* 통합 검색바 */}
+          <div className="w-52 lg:w-64">
+            <SearchBar
+              onLocate={(lat, lng, zoom) => { setFlyToLocation({ lat, lng, zoom, ts: Date.now() }); }}
+              onRouteTo={handleRouteTo}
+            />
+          </div>
+        </motion.div>
+      )}
 
 
       {/* ── TOP-RIGHT STATUS (desktop) ── */}
@@ -1516,8 +1746,44 @@ export default function Dashboard() {
           <span className="absolute right-11 top-1/2 -translate-y-1/2 px-2 py-1 text-[9px] font-mono tracking-wider text-white/80 bg-black/80 backdrop-blur-sm rounded whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity pointer-events-none">DRAW</span>
         </div>
 
+        {/* ── 인텔리전스 브릿지 (최신 정보 통합 허브) ── */}
         <div className="relative group">
-          <button onClick={() => { setShowDirections(!showDirections); if (showDirections) { setActiveRoute(null); } setShowDesktopSearch(false); setShowIntel(false); setShowMarkets(false); setShowAlerts(false); setShowSpaceCam(false); setShowDrawing(false); }} className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showDirections ? 'bg-[var(--gold-primary)]/20' : 'hover:bg-white/10'}`} title="Directions — turn-by-turn routing" aria-label="Directions" aria-expanded={showDirections}>
+          <button
+            onClick={() => setShowIntelBridge(v => !v)}
+            className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showIntelBridge ? 'bg-purple-900/60 text-purple-300 shadow-[0_0_10px_rgba(168,85,247,0.4)]' : 'hover:bg-white/10 text-purple-400/80'}`}
+            title="OSIRIS 최신 인텔리전스 브릿지 (6대 정보기관 · 서해 중국 침탈 시설 · 북한 22개 전략기지)"
+            aria-label="인텔리전스 브릿지"
+            aria-expanded={showIntelBridge}
+          >
+            <Globe className="w-4 h-4" />
+            {showIntelBridge && (
+              <span
+                aria-hidden="true"
+                className="absolute -right-1 top-1/2 -translate-y-1/2 h-4 w-[2px] rounded-full bg-purple-400"
+              />
+            )}
+          </button>
+          <span className="absolute right-11 top-1/2 -translate-y-1/2 px-2 py-1 text-[9px] font-mono tracking-wider text-white/80 bg-black/80 backdrop-blur-sm rounded whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity pointer-events-none">BRIDGE</span>
+        </div>
+
+        {/* ── 실시간 내비게이션 & 길찾기 ── */}
+        <div className="relative group">
+          <button
+            onClick={() => {
+              setShowDirections(!showDirections);
+              if (showDirections) { setActiveRoute(null); setRouteSeed(null); }
+              setShowDesktopSearch(false);
+              setShowIntel(false);
+              setShowMarkets(false);
+              setShowAlerts(false);
+              setShowSpaceCam(false);
+              setShowDrawing(false);
+            }}
+            className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showDirections ? 'bg-[var(--gold-primary)]/20 text-[var(--gold-primary)] shadow-[0_0_10px_var(--gold-glow)]' : 'hover:bg-white/10 text-white/60'}`}
+            title="실시간 내비게이션 & 길찾기 (Turn-by-turn Directions)"
+            aria-label="내비게이션"
+            aria-expanded={showDirections}
+          >
             <Route className={`w-4 h-4 ${showDirections ? 'text-[var(--gold-primary)]' : 'text-white/60'}`} />
             {showDirections && (
               <span
@@ -1526,7 +1792,7 @@ export default function Dashboard() {
               />
             )}
           </button>
-          <span className="absolute right-11 top-1/2 -translate-y-1/2 px-2 py-1 text-[9px] font-mono tracking-wider text-white/80 bg-black/80 backdrop-blur-sm rounded whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity pointer-events-none">ROUTE</span>
+          <span className="absolute right-11 top-1/2 -translate-y-1/2 px-2 py-1 text-[9px] font-mono tracking-wider text-white/80 bg-black/80 backdrop-blur-sm rounded whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity pointer-events-none">내비게이션</span>
         </div>
 
         <div className="relative group">
@@ -1543,7 +1809,15 @@ export default function Dashboard() {
           <AnimatePresence>
             {showDesktopSearch && (
               <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="absolute right-12 top-1/2 -translate-y-1/2 w-80">
-                <SearchBar alwaysExpanded onLocate={(lat, lng, zoom) => { setFlyToLocation({ lat, lng, zoom, ts: Date.now() }); setShowDesktopSearch(false); }} />
+                <SearchBar
+                  alwaysExpanded
+                  onLocate={(lat, lng, zoom) => { setFlyToLocation({ lat, lng, zoom, ts: Date.now() }); setShowDesktopSearch(false); }}
+                  onRouteTo={(place) => {
+                    setRouteSeed({ ...place, k: Date.now() });
+                    setShowDirections(true);
+                    setShowDesktopSearch(false);
+                  }}
+                />
               </motion.div>
             )}
           </AnimatePresence>
@@ -1931,6 +2205,16 @@ export default function Dashboard() {
           siteData={dprkReportModalData}
         />
       )}
+
+      {/* ── China Encroachment & Artificial Islands OSINT Modal (Genius Questioning 4-Stage) ── */}
+      {chinaEncroachmentModalSiteId && (
+        <ChinaEncroachmentModal
+          isOpen={!!chinaEncroachmentModalSiteId}
+          onClose={() => setChinaEncroachmentModalSiteId(null)}
+          initialSiteId={chinaEncroachmentModalSiteId}
+        />
+      )}
+
 
       {/* ── OVERLAYS ── */}
       <div className="vignette absolute inset-0 pointer-events-none z-[2]" />

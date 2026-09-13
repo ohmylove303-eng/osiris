@@ -209,10 +209,48 @@ function normalizeValhallaTrip(trip: ValhallaTrip | undefined, mode: TravelMode)
 }
 
 /** Build human text for an OSRM maneuver — OSRM ships no instruction strings. */
-export function osrmInstruction(step: OsrmStep): string {
+export function osrmInstruction(step: OsrmStep, lang: 'en' | 'ko' = 'en'): string {
   const type: string = step?.maneuver?.type || '';
   const modifier: string = step?.maneuver?.modifier || '';
   const road: string = (step?.name || '').trim();
+
+  if (lang === 'ko') {
+    const onto = road ? ` (${road} 방면)` : '';
+    switch (type) {
+      case 'depart':
+        return road ? `${road} 방면으로 출발` : '출발';
+      case 'arrive':
+        return '목적지에 도착했습니다';
+      case 'roundabout':
+      case 'rotary':
+        return step?.maneuver?.exit
+          ? `회전교차로에서 ${step.maneuver.exit}번 출구로 진출${onto}`
+          : `회전교차로 진입${onto}`;
+      case 'merge':
+        return `합류 구간${onto}`;
+      case 'on ramp':
+        return `진입 램프로 주행${onto}`;
+      case 'off ramp':
+        return `진출 램프로 주행${onto}`;
+      case 'fork':
+        return `${modifier.includes('left') ? '좌측' : '우측'} 갈림길로 진행${onto}`;
+      case 'end of road':
+        return `${modifier.includes('left') ? '좌회전' : '우회전'}${onto}`;
+      case 'continue':
+        return `직진${onto}`;
+      case 'turn':
+      default:
+        if (modifier === 'slight right') return `우측 약간 회전${onto}`;
+        if (modifier === 'right') return `우회전${onto}`;
+        if (modifier === 'sharp right') return `급우회전${onto}`;
+        if (modifier === 'slight left') return `좌측 약간 회전${onto}`;
+        if (modifier === 'left') return `좌회전${onto}`;
+        if (modifier === 'sharp left') return `급좌회전${onto}`;
+        if (modifier === 'uturn') return `유턴${onto}`;
+        return `직진${onto}`;
+    }
+  }
+
   const onto = road ? ` onto ${road}` : '';
 
   switch (type) {
@@ -245,7 +283,7 @@ export function osrmInstruction(step: OsrmStep): string {
   }
 }
 
-export function normalizeOsrm(json: OsrmResponse, mode: TravelMode): DirectionsResult | null {
+export function normalizeOsrm(json: OsrmResponse, mode: TravelMode, lang: 'en' | 'ko' = 'en'): DirectionsResult | null {
   const route = json?.routes?.[0];
   if (!route?.geometry?.coordinates?.length) return null;
 
@@ -253,7 +291,7 @@ export function normalizeOsrm(json: OsrmResponse, mode: TravelMode): DirectionsR
   for (const leg of route.legs || []) {
     for (const s of leg.steps || []) {
       steps.push({
-        instruction: osrmInstruction(s),
+        instruction: osrmInstruction(s, lang),
         distance: s.distance || 0,
         duration: s.duration || 0,
         location: (s.maneuver?.location as [number, number]) || [0, 0],
@@ -306,7 +344,7 @@ async function tryValhalla(
     // Give the operator a choice the way a consumer mapping app does; the
     // engine only returns these when the network genuinely offers one.
     alternates: 2,
-    directions_options: { units: 'kilometers' },
+    directions_options: { units: 'kilometers', language: 'ko-KR' },
   };
   const url = `${VALHALLA}?json=${encodeURIComponent(JSON.stringify(body))}`;
   return normalizeValhallaAll(await httpJson<ValhallaResponse>(url), mode);
@@ -319,7 +357,7 @@ async function tryOsrm(
   // The public OSRM demo only carries the driving profile.
   const coords = points.map((p) => `${p.lng},${p.lat}`).join(';');
   const url = `${OSRM}/driving/${coords}?steps=true&overview=full&geometries=geojson`;
-  const r = normalizeOsrm(await httpJson<OsrmResponse>(url), mode);
+  const r = normalizeOsrm(await httpJson<OsrmResponse>(url), mode, 'ko');
   return r ? [r] : [];
 }
 

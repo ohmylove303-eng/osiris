@@ -76,7 +76,7 @@ const TARGET_ENDPOINTS = [
   { path: '/api/cctv', name: '국토부 CCTV 실시간 영상', keyField: 'cameras' },
   { path: '/api/infrastructure', name: '핵심 방공·원전·군사 인프라', keyField: 'infrastructure' },
   { path: '/api/satellites', name: '군사/정찰 위성 궤도', keyField: 'satellites' },
-  { path: '/api/tactical/session', name: '화력유도 VR 전술 세션 (교관/교육생)', keyField: 'session' },
+  { path: '/api/tactical/session', name: '화력유도 AR 전술 세션 (교관/교육생)', keyField: 'session' },
   { path: '/api/earthquakes', name: 'USGS 실시간 지진 감시', keyField: 'earthquakes' },
   { path: '/api/fires', name: 'NASA FIRMS 열화상/산불', keyField: 'fires' },
 ];
@@ -138,7 +138,7 @@ const AUTHORITATIVE_FALLBACK_PROVIDERS: Record<string, {
     }
   },
   '/api/tactical/session': {
-    sourceName: 'OSIRIS 화력유도 VR 전술 세션 내부 실시간 상태 버스',
+    sourceName: 'OSIRIS 화력유도 AR 전술 세션 내부 실시간 상태 버스',
     executeRemediation: async () => {
       return { ok: true, count: 1, sample: '교관/교육생 세션 텔레메트리 정상' };
     }
@@ -426,7 +426,7 @@ ${JSON.stringify(auditPayload, null, 2)}
       tactical_assessment: reportParsed?.tactical_assessment || (
         remediationApplied 
           ? '일시적 외부망 지연이 감지되었으나 하네스 자가 치유 엔진이 공인 대체 출처(국토부 ITS/산림청)로 즉각 교차 검증하여 전술적 무결성을 100% 복원하였습니다.'
-          : '전 공역 및 해상 선박, 위성 궤도 및 전술 VR 화력유도망이 최고 등급 신뢰도로 정상 가동 중입니다.'
+          : '전 공역 및 해상 선박, 위성 궤도 및 전술 AR 화력유도망이 최고 등급 신뢰도로 정상 가동 중입니다.'
       ),
       action_recommendation: reportParsed?.action_recommendation || (
         remediationApplied 

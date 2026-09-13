@@ -22,6 +22,7 @@ interface SearchResult {
 interface SearchBarProps {
   onLocate: (lat: number, lng: number, zoom?: number) => void;
   alwaysExpanded?: boolean;
+  onRouteTo?: (place: { label: string; lat: number; lng: number }) => void;
 }
 
 // Map Nominatim result types to appropriate zoom levels
@@ -86,7 +87,7 @@ function formatLabel(displayName: string): { primary: string; secondary: string 
   };
 }
 
-export default function SearchBar({ onLocate, alwaysExpanded = false }: SearchBarProps) {
+export default function SearchBar({ onLocate, alwaysExpanded = false, onRouteTo }: SearchBarProps) {
   const [open, setOpen] = useState(alwaysExpanded);
   const [value, setValue] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -290,10 +291,27 @@ export default function SearchBar({ onLocate, alwaysExpanded = false }: SearchBa
                     <div className="text-[9px] text-[var(--text-muted)] font-mono truncate mt-0.5">{secondary}</div>
                   )}
                 </div>
-                <div className="flex flex-col items-end flex-shrink-0">
-                  <span className="text-[9px] text-[var(--text-muted)] font-mono uppercase tracking-wider">
-                    {r.type === 'coordinate' ? 'COORDS' : r.type}
-                  </span>
+                <div className="flex flex-col items-end flex-shrink-0 gap-1">
+                  <div className="flex items-center gap-1.5">
+                    {onRouteTo && (
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRouteTo({ label: r.label, lat: r.lat, lng: r.lng });
+                        }}
+                        className="px-1.5 py-0.5 rounded bg-[var(--gold-primary)]/15 hover:bg-[var(--gold-primary)]/30 border border-[var(--gold-primary)]/40 text-[var(--gold-primary)] text-[8px] font-mono font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                        title="이 위치로 실시간 내비게이션 & 길찾기 시작"
+                      >
+                        <Navigation className="w-2.5 h-2.5" />
+                        <span>길찾기</span>
+                      </span>
+                    )}
+                    <span className="text-[9px] text-[var(--text-muted)] font-mono uppercase tracking-wider">
+                      {r.type === 'coordinate' ? 'COORDS' : r.type}
+                    </span>
+                  </div>
                   <span className="text-[9px] text-[var(--gold-primary)] font-mono opacity-40">
                     Z{r.zoomLevel}
                   </span>

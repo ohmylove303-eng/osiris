@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ['ranges-light-query-lease.trycloudflare.com', '*.trycloudflare.com'],
   turbopack: {
+    root: __dirname,
     rules: {
       'maplibre-gl.mjs': {
         loaders: [`${__dirname}/tools/maplibre-url-loader.cjs`],

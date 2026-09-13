@@ -71,10 +71,13 @@ async function loadMichiganCameras(): Promise<CctvCamera[]> {
     signal: AbortSignal.timeout(15000),
     headers: { Accept: 'application/json' },
   });
-  if (!res.ok) throw new Error(`MiDrive HTTP ${res.status}`);
+  if (!res.ok) {
+    console.warn(`[OSIRIS] MiDrive HTTP ${res.status} — returning safe fallback`);
+    return [];
+  }
 
-  const data = await res.json();
-  if (!Array.isArray(data)) throw new Error('MiDrive returned a non-array payload');
+  const data = await res.json().catch(() => null);
+  if (!Array.isArray(data)) return [];
 
   const cams: CctvCamera[] = [];
   const seen = new Set<string>();

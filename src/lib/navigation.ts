@@ -189,13 +189,26 @@ export function announcementBand(distance: number): number | null {
   return match;
 }
 
-/** Spoken phrasing for a maneuver at a given band. */
+/** Spoken phrasing for a maneuver at a given band. Supports natural Korean and English. */
 export function announcementText(instruction: string, band: number): string {
   const clean = instruction.replace(/\.$/, '');
+  const isKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(clean);
+
+  if (isKorean) {
+    if (band <= 30) {
+      return `잠시 후, ${clean}입니다`;
+    }
+    if (band < 1000) {
+      return `${band}미터 앞, ${clean}입니다`;
+    }
+    return `1킬로미터 앞, ${clean}입니다`;
+  }
+
   if (band <= 30) return clean;
   if (band < 1000) return `In ${band} meters, ${clean.charAt(0).toLowerCase()}${clean.slice(1)}`;
   return `In 1 kilometer, ${clean.charAt(0).toLowerCase()}${clean.slice(1)}`;
 }
+
 
 /**
  * Decide whether to speak, given what has already been said for this step.

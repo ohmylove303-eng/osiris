@@ -51,15 +51,15 @@ function ManeuverIcon({ type, className }: { type: string; className?: string })
 
 /** Guidance distances read better rounded than exact. */
 export function navDistance(m: number): string {
-  if (m < 20) return 'Now';
+  if (m < 20) return '잠시 후';
   if (m < 1000) return `${Math.round(m / 10) * 10} m`;
   return `${(m / 1000).toFixed(1)} km`;
 }
 
 export function navDuration(s: number): string {
   const mins = Math.max(1, Math.round(s / 60));
-  if (mins < 60) return `${mins} min`;
-  return `${Math.floor(mins / 60)} hr ${mins % 60} min`;
+  if (mins < 60) return `약 ${mins}분`;
+  return `약 ${Math.floor(mins / 60)}시간 ${mins % 60}분`;
 }
 
 export default function NavigationView({
@@ -101,8 +101,11 @@ export default function NavigationView({
   const speak = useCallback((text: string) => {
     if (muted || typeof window === 'undefined' || !window.speechSynthesis) return;
     const u = new SpeechSynthesisUtterance(text);
-    u.rate = 1.05;
-    u.lang = 'en-US';
+    u.rate = 1.0;
+    u.lang = 'ko-KR';
+    const voices = window.speechSynthesis.getVoices();
+    const koVoice = voices.find((v) => v.lang.startsWith('ko') || v.name.includes('Yuna') || v.name.includes('Sora') || v.name.includes('Korean'));
+    if (koVoice) u.voice = koVoice;
     window.speechSynthesis.speak(u);
   }, [muted]);
 
@@ -116,7 +119,7 @@ export default function NavigationView({
     if (p.arrived) {
       if (!spoken.current[-1]) {
         spoken.current[-1] = 1;
-        speak('You have arrived at your destination.');
+        speak('목적지에 도착했습니다.');
       }
       return;
     }
@@ -127,7 +130,7 @@ export default function NavigationView({
       if (offRouteSince.current === null) offRouteSince.current = Date.now();
       else if (Date.now() - offRouteSince.current > 6000 && !rerouting) {
         setRerouting(true);
-        speak('Recalculating.');
+        speak('경로를 재탐색합니다.');
         onReroute({ lat: fix.lat, lng: fix.lng });
       }
       return;
@@ -178,12 +181,12 @@ export default function NavigationView({
 
           <div className="flex-1 min-w-0">
             {!arrived && progress && (
-              <div className="text-[22px] leading-none text-[var(--gold-primary)] tabular-nums mb-1">
+              <div className="text-[22px] leading-none text-[var(--gold-primary)] tabular-nums mb-1 font-bold">
                 {navDistance(progress.distanceToStep)}
               </div>
             )}
-            <div className={`text-[11px] leading-snug ${arrived ? 'text-[var(--alert-green)]' : 'text-[var(--text-primary)]'}`}>
-              {arrived ? `You have arrived at ${destinationLabel}` : step?.instruction ?? 'Starting…'}
+            <div className={`text-[12px] leading-snug font-medium ${arrived ? 'text-[var(--alert-green)]' : 'text-[var(--text-primary)]'}`}>
+              {arrived ? `${destinationLabel}에 도착했습니다` : step?.instruction ?? '출발 준비 중…'}
             </div>
           </div>
 
@@ -193,8 +196,8 @@ export default function NavigationView({
             {onRecenter && !following && (
               <button
                 onClick={onRecenter}
-                title="Recenter on me and resume follow"
-                aria-label="Recenter on me and resume follow"
+                title="내 위치로 지도 맞춤 및 추적"
+                aria-label="내 위치로 지도 맞춤 및 추적"
                 className="p-1.5 rounded-md text-[#4285F4] bg-[rgba(66,133,244,0.14)] hover:bg-[rgba(66,133,244,0.24)] transition-colors animate-pulse"
               >
                 <LocateFixed className="w-4 h-4" />
@@ -203,15 +206,15 @@ export default function NavigationView({
             <button
               onClick={() => { setMuted((m) => !m); window.speechSynthesis?.cancel(); }}
               aria-pressed={muted}
-              title={muted ? 'Unmute voice guidance' : 'Mute voice guidance'}
+              title={muted ? '음성 안내 켜기' : '음성 안내 음소거'}
               className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
             >
               {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </button>
             <button
               onClick={onExit}
-              title="End navigation"
-              aria-label="End navigation"
+              title="내비게이션 종료"
+              aria-label="내비게이션 종료"
               className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--alert-red)] transition-colors"
             >
               <X className="w-4 h-4" />
@@ -230,22 +233,22 @@ export default function NavigationView({
         {/* ── trip status ── */}
         <div className="px-4 py-2.5 flex items-center justify-between gap-3">
           {rerouting ? (
-            <span className="flex items-center gap-2 text-[11px] text-[var(--alert-orange)]">
-              <Loader2 className="w-3 h-3 animate-spin" /> Recalculating route…
+            <span className="flex items-center gap-2 text-[11px] text-[var(--alert-orange)] font-semibold">
+              <Loader2 className="w-3 h-3 animate-spin" /> 경로 재탐색 중…
             </span>
           ) : progress?.offRoute ? (
-            <span className="flex items-center gap-2 text-[11px] text-[var(--alert-orange)]">
-              <AlertTriangle className="w-3 h-3" /> Off route
+            <span className="flex items-center gap-2 text-[11px] text-[var(--alert-orange)] font-semibold">
+              <AlertTriangle className="w-3 h-3" /> 경로 이탈
             </span>
           ) : (
-            <span className="text-[11px] text-[var(--text-muted)] truncate">
-              to {destinationLabel}
+            <span className="text-[11px] text-[var(--text-muted)] truncate font-medium">
+              {destinationLabel} 방면
             </span>
           )}
 
           {progress && !arrived && (
             <span className="flex items-baseline gap-2.5 flex-shrink-0 tabular-nums">
-              <span className="text-[12px] text-[var(--text-primary)]">{navDuration(progress.durationRemaining)}</span>
+              <span className="text-[12px] text-[var(--text-primary)] font-bold">{navDuration(progress.durationRemaining)}</span>
               <span className="text-[11px] text-[var(--text-secondary)]">{navDistance(progress.distanceRemaining)}</span>
               <span className="text-[11px] text-[var(--text-muted)]">
                 {new Date(now + progress.durationRemaining * 1000)
@@ -259,7 +262,7 @@ export default function NavigationView({
       {/* ── the turn after this one ── */}
       {progress && !arrived && route.steps[progress.stepIndex + 1] && (
         <div className="glass-panel px-4 py-2 flex items-center gap-3">
-          <span className="text-[9px] uppercase tracking-[0.15em] text-[var(--text-muted)] flex-shrink-0">Then</span>
+          <span className="text-[10px] tracking-[0.1em] text-[var(--gold-primary)] font-bold flex-shrink-0">다음</span>
           <ManeuverIcon type={route.steps[progress.stepIndex + 1].type} className="w-4 h-4" />
           <span className="text-[11px] text-[var(--text-secondary)] truncate">
             {route.steps[progress.stepIndex + 1].instruction}
@@ -269,9 +272,10 @@ export default function NavigationView({
 
       {!fix && (
         <div className="glass-panel px-4 py-2 text-[11px] text-[var(--alert-orange)]">
-          Waiting for a position fix… navigation needs HTTPS or localhost.
+          GPS 위치 신호 수신 대기 중… (HTTPS 또는 localhost 환경 필요)
         </div>
       )}
     </div>
   );
 }
+

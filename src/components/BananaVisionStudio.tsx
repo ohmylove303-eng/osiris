@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Eye, Image as ImageIcon, Sparkles, CheckCircle2, Zap, RefreshCw, Film, Play, Video, Send, Wand2, Compass, Layers } from 'lucide-react';
+import { Eye, Image as ImageIcon, Sparkles, CheckCircle2, Zap, RefreshCw, Film, Play, Video, Send, Wand2, Compass, Layers, Cpu, ShieldCheck, ChevronRight, Sliders } from 'lucide-react';
 
 interface OcrRegion {
   text: string;
@@ -9,35 +9,64 @@ interface OcrRegion {
   bbox: number[][];
 }
 
+interface DirectorPlan {
+  title: string;
+  scene_concept: string;
+  stage1_ltx: string;
+  stage2_cog: string;
+  stage3_wan: string;
+  diffusion_prompt: string;
+  motion: string;
+  fps?: number;
+  duration_sec?: number;
+}
+
 const PRESET_PROMPTS = [
-  '⚡ 사이버펑크 네온 시티와 홀로그램',
-  '🚀 우주 성운과 블랙홀 시네마틱 4K',
-  '🌊 심해 아쿠아틱 블루 웨이브',
-  '🍓 신선한 딸기 슬로우모션 펄스',
-  '🍌 황금 바나나 2.0 시네마틱 렌더링',
-  '🤖 인공지능 양자 코어 회전 무빙'
+  '🛰️ 한반도 야간 상공 정찰위성 궤도 뷰',
+  '🚢 서해 NLL 해역 초계 고속정 기동',
+  '✈️ 독도 상공 공군 F-35A 초계 비행',
+  '⚡ 사이버 작전사령부 양자 위협 추적',
+  '🌊 동해 해저 잠수함 음향 탐지 기동',
+  '🚀 우주 궤도 조기경보위성 적외선 스캔'
 ];
 
 export default function BananaVisionStudio() {
   const [data, setData] = useState<{
     imageUrl: string | null;
     videoUrl: string | null;
+    directorEngine?: string;
+    pipelineStages?: { stage: number; name: string; role: string }[];
     ocrEngine: string;
     vlmModel: string;
+    plan?: DirectorPlan | null;
     ocrResults: OcrRegion[];
   } | null>(null);
 
-  const [currentVideoUrl, setCurrentVideoUrl] = useState<string>('/banana_generated.mp4');
+  const [currentVideoUrl, setCurrentVideoUrl] = useState<string>('/osiris_ai_generated.mp4');
+  const [currentPlan, setCurrentPlan] = useState<DirectorPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [renderingVideo, setRenderingVideo] = useState(false);
   const [mediaMode, setMediaMode] = useState<'video' | 'image'>('video');
+  const [activeTab, setActiveTab] = useState<'director' | 'history'>('director');
 
   // Creation State
-  const [prompt, setPrompt] = useState('사이버펑크 네온 시티와 홀로그램 바나나');
-  const [motion, setMotion] = useState<'zoom' | 'orbit' | 'pan'>('zoom');
-  const [history, setHistory] = useState<{ prompt: string; url: string; motion: string }[]>([
-    { prompt: '황금 바나나 2.0 기본 시네마틱', url: '/banana_generated.mp4', motion: 'zoom' },
-    { prompt: '우주 성운과 블랙홀 탐사', url: '/custom_video.mp4', motion: 'orbit' }
+  const [prompt, setPrompt] = useState('한반도 야간 상공 정찰위성 궤도 뷰');
+  const [motion, setMotion] = useState<'zoom' | 'orbit' | 'pan'>('orbit');
+  const [history, setHistory] = useState<{ prompt: string; url: string; motion: string; plan?: DirectorPlan | null }[]>([
+    {
+      prompt: '한반도 야간 상공 정찰위성 궤도 뷰',
+      url: '/osiris_ai_generated.mp4',
+      motion: 'orbit',
+      plan: {
+        title: '정찰위성 우주 궤도 영상: 한반도 야간 상공',
+        scene_concept: '저궤도(LEO 450km) 상공에서 한반도를 관측하며 지표면 야간 도시 광망 및 대기권 지평선을 적외선/광학 복합 센서로 추적',
+        stage1_ltx: 'LTX-Video 0.9B: 초당 7.6km 궤도 속도감 및 카메라 롤각(Roll) 3차원 레이아웃 확정',
+        stage2_cog: 'CogVideoX-2B: 대기 산란광(Rayleigh Scattering) 및 야간 도시 그리드 불빛의 3D Causal 시공간 연속성 합성',
+        stage3_wan: 'Wan 2.1 1.3B: 해안선 지형 굴곡, 서해안 해무, 위성 메탈릭 프레임 질감 SOTA 디테일 마스터 렌더링',
+        diffusion_prompt: 'Cinematic 4K satellite POV looking down at earth, glowing city lights, deep black space horizon with atmospheric glow, orbit camera movement, ultra-detailed, 24fps',
+        motion: 'orbit'
+      }
+    }
   ]);
 
   const fetchData = async () => {
@@ -47,8 +76,13 @@ export default function BananaVisionStudio() {
       if (res.ok) {
         const json = await res.json();
         setData(json);
-        if (json.videoUrl && !currentVideoUrl) {
+        if (json.videoUrl) {
           setCurrentVideoUrl(json.videoUrl);
+        }
+        if (json.plan) {
+          setCurrentPlan(json.plan);
+        } else if (history[0]?.plan) {
+          setCurrentPlan(history[0].plan);
         }
       }
     } catch (err) {
@@ -74,8 +108,12 @@ export default function BananaVisionStudio() {
         const json = await res.json();
         if (json.videoUrl) {
           setCurrentVideoUrl(json.videoUrl);
-          setHistory(prev => [{ prompt: json.prompt, url: json.videoUrl, motion: json.motion }, ...prev]);
+          if (json.plan) {
+            setCurrentPlan(json.plan);
+          }
+          setHistory(prev => [{ prompt: json.prompt, url: json.videoUrl, motion: json.motion, plan: json.plan }, ...prev]);
           setMediaMode('video');
+          setActiveTab('director');
         }
       }
     } catch (err) {
@@ -94,15 +132,18 @@ export default function BananaVisionStudio() {
       {/* Header Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-3 border-b border-slate-800">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/40 rounded-xl text-amber-400">
-            <Sparkles className="w-5 h-5 animate-pulse" />
+          <div className="p-2.5 bg-gradient-to-br from-amber-500/20 to-cyan-500/20 border border-amber-500/40 rounded-xl text-amber-400">
+            <Cpu className="w-5 h-5 animate-pulse" />
           </div>
           <div>
             <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-              제미니 나노 바나나 2.0 & AI 영상 제작 스튜디오
+              OSIRIS 로컬 AI 자율 영상 제작 스튜디오
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-mono">
+                3-STAGE PIPELINE
+              </span>
             </h2>
             <p className="text-xs text-slate-400 font-mono">
-              M5 Metal 가속 물리 연산 · 24fps MP4 시네마틱 렌더링 엔진
+              Apple M5 Metal 가속 · 1~3순위 단계별 모델 협력 (LTX-Video → CogVideoX → Wan 2.1)
             </p>
           </div>
         </div>
@@ -116,7 +157,7 @@ export default function BananaVisionStudio() {
                 mediaMode === 'video' ? 'bg-amber-500 text-black font-bold shadow-md' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <Film className="w-3.5 h-3.5" /> 🎬 동영상 제작/재생
+              <Film className="w-3.5 h-3.5" /> 🎬 자율 제작 영상
             </button>
             <button
               onClick={() => setMediaMode('image')}
@@ -124,7 +165,7 @@ export default function BananaVisionStudio() {
                 mediaMode === 'image' ? 'bg-indigo-600 text-white font-bold shadow-md' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <ImageIcon className="w-3.5 h-3.5" /> 🖼️ 정지 이미지 & OCR
+              <ImageIcon className="w-3.5 h-3.5" /> 🖼️ 정지 영상 & OCR
             </button>
           </div>
 
@@ -138,7 +179,7 @@ export default function BananaVisionStudio() {
         </div>
       </div>
 
-      {/* Interactive Creation Toolbar (영상 프롬프트 입력창) */}
+      {/* Interactive Creation Toolbar */}
       <form onSubmit={handleCreateNewVideo} className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-xl">
         <div className="flex flex-col md:flex-row items-center gap-3">
           <div className="relative flex-1 w-full">
@@ -149,7 +190,7 @@ export default function BananaVisionStudio() {
               type="text"
               value={prompt}
               onChange={e => setPrompt(e.target.value)}
-              placeholder="만들고 싶은 영상의 주제나 프롬프트를 자유롭게 입력하세요 (예: 우주 성운 탐사, 사이버펑크 도시...)"
+              placeholder="추상적인 지시를 입력하면 로컬 AI 감독이 구체적인 3단계 설계 계획을 수립합니다 (예: 한반도 야간 상공 정찰위성...)"
               className="w-full pl-10 pr-4 py-2.5 bg-slate-950/90 border border-slate-800 rounded-xl text-xs md:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400 transition-all font-sans"
             />
           </div>
@@ -157,18 +198,18 @@ export default function BananaVisionStudio() {
           {/* Camera Motion Selector */}
           <div className="flex items-center gap-1.5 bg-slate-950 p-1 border border-slate-800 rounded-xl shrink-0 text-xs font-mono">
             <span className="text-[11px] text-slate-500 px-2 flex items-center gap-1">
-              <Compass className="w-3 h-3 text-amber-400" /> 모션:
+              <Compass className="w-3 h-3 text-amber-400" /> 카메라 앵글:
             </span>
-            {(['zoom', 'orbit', 'pan'] as const).map(m => (
+            {(['orbit', 'zoom', 'pan'] as const).map(m => (
               <button
                 key={m}
                 type="button"
                 onClick={() => setMotion(m)}
                 className={`px-2.5 py-1.5 rounded-lg uppercase transition-colors ${
-                  motion === m ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
+                  motion === m ? 'bg-cyan-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                {m === 'zoom' ? '줌인' : m === 'orbit' ? '회전' : '패닝'}
+                {m === 'orbit' ? '궤도회전' : m === 'zoom' ? '줌인' : '패닝'}
               </button>
             ))}
           </div>
@@ -177,17 +218,17 @@ export default function BananaVisionStudio() {
           <button
             type="submit"
             disabled={renderingVideo || !prompt.trim()}
-            className="w-full md:w-auto px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 disabled:opacity-50 text-slate-950 font-bold text-xs md:text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-all shrink-0 font-mono"
+            className="w-full md:w-auto px-5 py-2.5 bg-gradient-to-r from-amber-500 via-orange-500 to-cyan-500 hover:from-amber-400 hover:to-cyan-400 disabled:opacity-50 text-slate-950 font-bold text-xs md:text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-all shrink-0 font-mono"
           >
             {renderingVideo ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin text-black" />
-                <span>M5 렌더링 중...</span>
+                <span>AI 감독 자율 기획 & 렌더링...</span>
               </>
             ) : (
               <>
                 <Video className="w-4 h-4" />
-                <span>새 영상 생성</span>
+                <span>자율 기획 및 제작 시작</span>
               </>
             )}
           </button>
@@ -195,7 +236,7 @@ export default function BananaVisionStudio() {
 
         {/* Preset Prompt Suggestions */}
         <div className="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t border-slate-800/60 text-[11px] font-mono">
-          <span className="text-slate-500 mr-1">추천 테마:</span>
+          <span className="text-slate-500 mr-1">추천 작전 테마:</span>
           {PRESET_PROMPTS.map((p, idx) => (
             <button
               key={idx}
@@ -216,14 +257,14 @@ export default function BananaVisionStudio() {
           <div className="flex items-center justify-between mb-2 text-xs font-mono text-slate-400">
             <span className="flex items-center gap-1.5 font-bold text-amber-400">
               {mediaMode === 'video' ? <Film className="w-4 h-4" /> : <ImageIcon className="w-4 h-4" />}
-              {mediaMode === 'video' ? 'M5 로컬 렌더링 실시간 MP4 비디오' : '정지 바나나 2.0 이미지'}
+              {mediaMode === 'video' ? '실시간 렌더링 비디오 (24fps H.264)' : '정지 위성 영상'}
             </span>
-            <span className="bg-emerald-500/10 text-emerald-400 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
-              {mediaMode === 'video' ? '24fps H.264 하드웨어 인코딩' : 'M5 Metal 가속'}
+            <span className="bg-cyan-500/10 text-cyan-400 px-2.5 py-0.5 rounded-full border border-cyan-500/30">
+              Apple Silicon M5 GPU 가속
             </span>
           </div>
 
-          <div className="flex-1 flex items-center justify-center bg-slate-950 rounded-xl border border-slate-800/80 overflow-hidden relative group p-2">
+          <div className="flex-1 flex items-center justify-center bg-slate-950 rounded-xl border border-slate-800/80 overflow-hidden relative group p-2 min-h-[280px]">
             {mediaMode === 'video' ? (
               currentVideoUrl ? (
                 <video
@@ -245,7 +286,7 @@ export default function BananaVisionStudio() {
               data?.imageUrl ? (
                 <img
                   src={data.imageUrl}
-                  alt="Gemini Nano Banana 2.0"
+                  alt="Satellite Visual"
                   className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105"
                 />
               ) : (
@@ -259,31 +300,117 @@ export default function BananaVisionStudio() {
           {/* Video Metadata Tag Bar */}
           {mediaMode === 'video' && (
             <div className="mt-2.5 flex items-center justify-between text-[11px] font-mono text-slate-400 bg-slate-950/80 px-3 py-1.5 rounded-lg border border-slate-800">
-              <span className="truncate max-w-[200px] text-amber-300 font-bold">▶ {prompt}</span>
-              <span>72 Frames (24fps · 3.0s)</span>
-              <span>800×608 시네마틱</span>
+              <span className="truncate max-w-[280px] text-amber-300 font-bold">
+                ▶ {currentPlan?.title || prompt}
+              </span>
+              <span>120 프레임 (24fps · 5.0초)</span>
+              <span>960×540 시네마틱</span>
             </div>
           )}
         </div>
 
-        {/* Right: Video History & OCR Analysis Panel */}
+        {/* Right: AI Director's Storyboard & Multi-Stage Spec */}
         <div className="lg:col-span-5 flex flex-col bg-slate-900/60 border border-slate-800 rounded-2xl p-4 overflow-hidden space-y-3">
-          {/* Section: Video History */}
-          <div className="flex flex-col flex-1 overflow-hidden">
-            <div className="flex items-center justify-between mb-2 border-b border-slate-800 pb-2">
-              <span className="text-xs font-mono font-bold text-amber-400 flex items-center gap-1.5">
-                <Film className="w-4 h-4" /> 생성된 영상 보관함 ({history.length})
-              </span>
-              <span className="text-[10px] font-mono text-slate-500">클릭 시 즉시 재생</span>
-            </div>
+          {/* Tabs */}
+          <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
+            <button
+              onClick={() => setActiveTab('director')}
+              className={`text-xs font-mono font-bold flex items-center gap-1.5 px-3 py-1 rounded-lg transition-colors ${
+                activeTab === 'director' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Cpu className="w-3.5 h-3.5" /> 🎬 AI 감독 연출 기획서
+            </button>
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`text-xs font-mono font-bold flex items-center gap-1.5 px-3 py-1 rounded-lg transition-colors ${
+                activeTab === 'history' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Film className="w-3.5 h-3.5" /> 보관함 ({history.length})
+            </button>
+          </div>
 
-            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+          {activeTab === 'director' ? (
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1 styled-scrollbar text-xs font-mono">
+              {/* Scene Concept Box */}
+              <div className="p-3 bg-slate-950/80 border border-slate-800 rounded-xl space-y-1">
+                <div className="text-[11px] text-amber-400 font-bold flex items-center gap-1.5">
+                  <Wand2 className="w-3.5 h-3.5" /> 장면 연출 컨셉트
+                </div>
+                <p className="text-slate-300 leading-relaxed font-sans text-xs">
+                  {currentPlan?.scene_concept || '추상적 지시를 기반으로 3D 지형 곡률과 광학 시뮬레이션 환경을 구축 중입니다.'}
+                </p>
+              </div>
+
+              {/* 3-Stage Model Cooperation Strategy */}
+              <div className="space-y-2">
+                <div className="text-[11px] text-cyan-400 font-bold flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5" /> 1~3순위 단계별 모델 파이프라인
+                </div>
+
+                {/* Stage 1: LTX-Video */}
+                <div className="p-2.5 bg-slate-950/60 border border-slate-800/80 rounded-lg space-y-1">
+                  <div className="flex items-center justify-between text-[11px] text-indigo-400 font-bold">
+                    <span>1단계: LTX-Video 0.9B</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                      고속 프리뷰 (20s)
+                    </span>
+                  </div>
+                  <p className="text-slate-400 text-[11px] font-sans">
+                    {currentPlan?.stage1_ltx || '거시적 카메라 궤적 및 속도감 초벌 레이아웃 확정'}
+                  </p>
+                </div>
+
+                {/* Stage 2: CogVideoX */}
+                <div className="p-2.5 bg-slate-950/60 border border-slate-800/80 rounded-lg space-y-1">
+                  <div className="flex items-center justify-between text-[11px] text-amber-400 font-bold">
+                    <span>2단계: CogVideoX-2B</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      3D Causal VAE
+                    </span>
+                  </div>
+                  <p className="text-slate-400 text-[11px] font-sans">
+                    {currentPlan?.stage2_cog || '대기 산란광 및 도시 그리드 불빛의 시공간 연속성 합성'}
+                  </p>
+                </div>
+
+                {/* Stage 3: Wan 2.1 */}
+                <div className="p-2.5 bg-slate-950/60 border border-slate-800/80 rounded-lg space-y-1">
+                  <div className="flex items-center justify-between text-[11px] text-emerald-400 font-bold">
+                    <span>3단계: Wan 2.1 1.3B</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      Flow Matching DiT
+                    </span>
+                  </div>
+                  <p className="text-slate-400 text-[11px] font-sans">
+                    {currentPlan?.stage3_wan || '지표면 텍스처, 해무, 메탈릭 프레임 질감 SOTA 디테일 마스터링'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Diffusion Prompt */}
+              {currentPlan?.diffusion_prompt && (
+                <div className="p-2.5 bg-slate-950/80 border border-slate-800 rounded-lg space-y-1">
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider">
+                    AI 감독 생성 영문 디퓨전 프롬프트:
+                  </div>
+                  <div className="text-[11px] text-slate-400 font-mono leading-tight">
+                    {currentPlan.diffusion_prompt}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Section: Video History */
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 styled-scrollbar">
               {history.map((item, idx) => (
                 <div
                   key={idx}
                   onClick={() => {
                     setCurrentVideoUrl(item.url);
                     setPrompt(item.prompt);
+                    if (item.plan) setCurrentPlan(item.plan);
                     setMediaMode('video');
                   }}
                   className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
@@ -304,16 +431,16 @@ export default function BananaVisionStudio() {
                 </div>
               ))}
             </div>
-          </div>
+          )}
 
-          {/* Section: OCR Engine Specs */}
+          {/* Engine Specs Status Bar */}
           <div className="pt-2 border-t border-slate-800 text-[11px] font-mono text-slate-400 space-y-1">
             <div className="flex items-center gap-2 text-emerald-400">
               <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>EasyOCR & 24fps 영상 파이프라인 가속 가동</span>
+              <span>Apple Silicon M5 (32GB) 로컬 추론 파이프라인 가동</span>
             </div>
-            <div className="text-slate-500">
-              엔진: PyTorch MPS + ImageIO FFMPEG + LTX-Video Pipeline
+            <div className="text-slate-500 text-[10px]">
+              엔진: MLX-LM AI Director + PyTorch MPS + 3-Stage Video Harness
             </div>
           </div>
         </div>
@@ -321,3 +448,4 @@ export default function BananaVisionStudio() {
     </div>
   );
 }
+

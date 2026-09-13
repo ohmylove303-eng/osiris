@@ -81,12 +81,14 @@ interface DirectionsBarProps {
   onFollowChange?: (follow: boolean) => void;
   /** Hand the chosen route to the parent to drive live navigation. */
   onStartNavigation?: (route: RouteResult, destinationLabel: string) => void;
+  /** Seeded destination when navigating from a search result or place. */
+  initialTo?: { label: string; lat: number; lng: number } | null;
 }
 
 const MODES = [
-  { id: 'auto', label: 'Drive', Icon: Car },
-  { id: 'pedestrian', label: 'Walk', Icon: Footprints },
-  { id: 'bicycle', label: 'Bike', Icon: Bike },
+  { id: 'auto', label: '차량 (Drive)', Icon: Car },
+  { id: 'pedestrian', label: '도보 (Walk)', Icon: Footprints },
+  { id: 'bicycle', label: '자전거 (Bike)', Icon: Bike },
 ] as const;
 
 export function formatDistance(m: number): string {
@@ -194,8 +196,14 @@ export function segmentBetween(
   return coords.slice(Math.min(a, b), Math.max(a, b) + 1);
 }
 
-export function formatDuration(s: number): string {
+export function formatDuration(s: number, lang: 'en' | 'ko' = 'en'): string {
   const total = Math.max(1, Math.round(s / 60));
+  if (lang === 'ko') {
+    if (total < 60) return `약 ${total}분`;
+    const h = Math.floor(total / 60);
+    const m = total % 60;
+    return m ? `약 ${h}시간 ${m}분` : `약 ${h}시간`;
+  }
   if (total < 60) return `${total} min`;
   const h = Math.floor(total / 60);
   const m = total % 60;
@@ -206,6 +214,14 @@ export function formatDuration(s: number): string {
 export function viaRoad(steps: RouteStep[]): string | null {
   let best: { road: string; dist: number } | null = null;
   for (const s of steps) {
+    const km = s.instruction.match(/([가-힣0-9a-zA-Z·/-]+(?:로|길|대로|번길|고속도로|순환로|대교|지하차도|터널))(?:\s*에서|\s*방면|\s*진입|\s*따라)?/);
+    if (km) {
+      const road = km[1].trim();
+      if (road && (!best || s.distance > best.dist)) {
+        best = { road, dist: s.distance };
+        continue;
+      }
+    }
     const m = s.instruction.match(/\b(?:onto|on)\s+(.+?)(?:\.|,|$)/i);
     if (!m) continue;
     const road = m[1].trim().replace(/\s+/g, ' ');
@@ -416,11 +432,21 @@ function PlaceInput({
   );
 }
 
-export default function DirectionsBar({ onRoute, onLocate, onClose, center = null, onLiveLocation, onActiveSegment, onFollowChange, onStartNavigation }: DirectionsBarProps) {
+export default function DirectionsBar({
+  onRoute,
+  onLocate,
+  onClose,
+  center = null,
+  onLiveLocation,
+  onActiveSegment,
+  onFollowChange,
+  onStartNavigation,
+  initialTo = null,
+}: DirectionsBarProps) {
   const [fromText, setFromText] = useState('');
-  const [toText, setToText] = useState('');
+  const [toText, setToText] = useState(initialTo?.label || '');
   const [from, setFrom] = useState<Place | null>(null);
-  const [to, setTo] = useState<Place | null>(null);
+  const [to, setTo] = useState<Place | null>(initialTo ? { label: initialTo.label, lat: initialTo.lat, lng: initialTo.lng } : null);
   const [mode, setMode] = useState<string>('auto');
   const [route, setRoute] = useState<RouteResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -578,6 +604,17 @@ export default function DirectionsBar({ onRoute, onLocate, onClose, center = nul
     setLocating(false);
   }, [to, mode, runRoute, onLocate, stops, avoid]);
 
+  useEffect(() => {
+    if (initialTo) {
+      const dest: Place = { label: initialTo.label, lat: initialTo.lat, lng: initialTo.lng };
+      setTo(dest);
+      setToText(initialTo.label);
+      if (from) {
+        runRoute(from, dest, mode, stops(), avoid);
+      }
+    }
+  }, [initialTo]);
+
   const pickFrom = (p: Place) => { setFrom(p); if (to) runRoute(p, to, mode, stops(), avoid); };
   const pickTo = (p: Place) => { setTo(p); if (from) runRoute(from, p, mode, stops(), avoid); };
   const pickMode = (m: string) => { setMode(m); if (from && to) runRoute(from, to, m, stops(), avoid); };
@@ -636,20 +673,20 @@ export default function DirectionsBar({ onRoute, onLocate, onClose, center = nul
           style={{ background: 'var(--gold-primary)', boxShadow: '0 0 8px rgba(var(--gold-rgb),0.6)' }}
         />
         <Route className="w-3.5 h-3.5 text-[var(--gold-primary)]" />
-        <h2 className="instrument-title flex-1">Route</h2>
+        <h2 className="instrument-title flex-1">🧭 실시간 내비게이션</h2>
 
         {/* State at a glance: standby until both ends are set, then the leg. */}
         <span
           className="instrument-chip"
           style={{ color: route ? 'var(--alert-green)' : 'var(--text-muted)' }}
         >
-          {route ? `${route.steps.length} STEPS` : ready ? 'PLOTTING' : 'STANDBY'}
+          {route ? `${route.steps.length}구간` : ready ? '경로탐색' : '대기'}
         </span>
 
         <button
           onClick={toggleTracking}
           aria-pressed={tracking}
-          title={tracking ? 'Stop live tracking' : 'Track my location live'}
+          title={tracking ? '실시간 위치 추적 중지' : '실시간 GPS 위치 추적'}
           className={`p-1.5 rounded transition-colors ${
             tracking
               ? 'text-[#4285F4] bg-[rgba(66,133,244,0.14)]'
@@ -663,7 +700,7 @@ export default function DirectionsBar({ onRoute, onLocate, onClose, center = nul
           <button
             onClick={() => { const n = !follow; setFollow(n); onFollowChange?.(n); }}
             aria-pressed={follow}
-            title={follow ? 'Stop following' : 'Keep the map centred on me'}
+            title={follow ? '지도 고정 해제' : '내 위치로 화면 중심 유지'}
             className={`p-1.5 rounded transition-colors ${
               follow
                 ? 'text-[var(--gold-primary)] bg-[rgba(var(--gold-rgb),0.14)]'
@@ -706,7 +743,7 @@ export default function DirectionsBar({ onRoute, onLocate, onClose, center = nul
         <div className="flex-1 min-w-0 flex flex-col divide-y divide-[var(--border-secondary)]">
           <PlaceInput
             value={fromText} onChange={setFromText} onPick={pickFrom}
-            placeholder="Choose starting point" autoFocus
+            placeholder="출발지 선택 (현재 위치 / 검색)..." autoFocus
             biasLat={center?.lat} biasLng={center?.lng}
             onLocate={useMyLocation} locating={locating} liveFix={live}
           />
@@ -730,7 +767,7 @@ export default function DirectionsBar({ onRoute, onLocate, onClose, center = nul
           ))}
           <PlaceInput
             value={toText} onChange={setToText} onPick={pickTo}
-            placeholder="Choose destination"
+            placeholder="도착지 선택 (주소 / 장소 / 좌표)..."
             biasLat={center?.lat} biasLng={center?.lng} liveFix={live}
           />
         </div>
@@ -809,20 +846,23 @@ export default function DirectionsBar({ onRoute, onLocate, onClose, center = nul
 
       {showOptions && (
         <div className="px-3 pb-2.5 flex gap-1.5">
-          {(['tolls', 'highways', 'ferries'] as const).map((k) => (
-            <button
-              key={k}
-              onClick={() => toggleAvoid(k)}
-              aria-pressed={avoid[k]}
-              className={`flex-1 py-1.5 rounded-md border text-[10px] capitalize transition-all ${
-                avoid[k]
-                  ? 'border-[var(--border-active)] bg-[rgba(var(--gold-rgb),0.12)] text-[var(--gold-primary)]'
-                  : 'border-[var(--border-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-              }`}
-            >
-              Avoid {k}
-            </button>
-          ))}
+          {(['tolls', 'highways', 'ferries'] as const).map((k) => {
+            const labelMap = { tolls: '유료도로 제외', highways: '고속도로 제외', ferries: '페리 제외' };
+            return (
+              <button
+                key={k}
+                onClick={() => toggleAvoid(k)}
+                aria-pressed={avoid[k]}
+                className={`flex-1 py-1.5 rounded-md border text-[10px] transition-all ${
+                  avoid[k]
+                    ? 'border-[var(--border-active)] bg-[rgba(var(--gold-rgb),0.12)] text-[var(--gold-primary)]'
+                    : 'border-[var(--border-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                }`}
+              >
+                {labelMap[k]}
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -851,7 +891,7 @@ export default function DirectionsBar({ onRoute, onLocate, onClose, center = nul
           <div className="px-3 py-4 text-center">
             <p className="text-[11px] text-[var(--alert-red)]">{error}</p>
             <p className="text-[10px] text-[var(--text-muted)] mt-1">
-              Try a different point, or switch travel mode.
+              다른 지점을 선택하거나 이동 수단(차량/도보/자전거)을 변경해 보세요.
             </p>
           </div>
         )}
@@ -859,19 +899,18 @@ export default function DirectionsBar({ onRoute, onLocate, onClose, center = nul
         {!loading && !error && !route && (
           <div className="px-3 py-4">
             {ready ? (
-              <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">Calculating…</p>
+              <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">경로 계산 중…</p>
             ) : (
               <>
-                <p className="hud-label mb-2">Accepted input</p>
-                {/* Showing the formats beats describing them: the sample is the
-                    documentation, and it is scannable at a glance. */}
+                <p className="hud-label mb-2">입력 형식 예시</p>
+                {/* Showing the formats beats describing them */}
                 <div className="flex flex-wrap gap-1.5">
-                  <span className="instrument-sample">Heathrow</span>
-                  <span className="instrument-sample">10 Downing St</span>
-                  <span className="instrument-sample">51.5074,-0.1278</span>
+                  <span className="instrument-sample">서울역</span>
+                  <span className="instrument-sample">인천국제공항</span>
+                  <span className="instrument-sample">37.5665, 126.9780</span>
                 </div>
                 <p className="mt-2.5 text-[11px] text-[var(--text-muted)] leading-relaxed">
-                  Set a start and a destination to plot a route.
+                  출발지와 도착지를 지정하면 최적 경로와 실시간 음성 내비게이션을 지원합니다.
                 </p>
               </>
             )}
@@ -884,7 +923,7 @@ export default function DirectionsBar({ onRoute, onLocate, onClose, center = nul
               <div className="px-3 py-2.5 border-b border-[var(--border-secondary)] bg-[rgba(66,133,244,0.07)]">
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <Navigation className="w-2.5 h-2.5 text-[#4285F4]" />
-                  <span className="text-[9px] uppercase tracking-[0.15em] text-[#4285F4]">Next turn</span>
+                  <span className="text-[9px] uppercase tracking-[0.15em] text-[#4285F4]">다음 회전</span>
                 </div>
                 <div className="flex items-start gap-2.5">
                   <span className="mt-0.5 flex-shrink-0"><StepIcon type={guidance.step.type} /></span>
@@ -903,11 +942,11 @@ export default function DirectionsBar({ onRoute, onLocate, onClose, center = nul
             <div className="sticky top-0 z-10 px-3 py-2.5 border-b border-[var(--border-secondary)] bg-[var(--bg-panel)] backdrop-blur-xl">
               <div className="flex items-baseline justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-[17px] leading-none text-[var(--gold-primary)] tabular-nums">
-                    {formatDuration(route.duration)}
+                  <div className="text-[17px] leading-none text-[var(--gold-primary)] tabular-nums font-bold">
+                    {formatDuration(route.duration, 'ko')}
                   </div>
                   {via && (
-                    <div className="text-[10px] text-[var(--text-muted)] truncate mt-1">via {via}</div>
+                    <div className="text-[10px] text-[var(--text-muted)] truncate mt-1">{via} 방면 경유</div>
                   )}
                 </div>
                 <div className="text-right flex-shrink-0">
@@ -923,9 +962,9 @@ export default function DirectionsBar({ onRoute, onLocate, onClose, center = nul
 
               {(route.hasToll || route.hasHighway || route.hasFerry) && (
                 <div className="flex gap-1.5 mt-2">
-                  {route.hasToll && <span className="px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider border border-[var(--border-secondary)] text-[var(--alert-orange)]">Toll</span>}
-                  {route.hasHighway && <span className="px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider border border-[var(--border-secondary)] text-[var(--text-muted)]">Motorway</span>}
-                  {route.hasFerry && <span className="px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider border border-[var(--border-secondary)] text-[var(--cyan-primary)]">Ferry</span>}
+                  {route.hasToll && <span className="px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider border border-[var(--border-secondary)] text-[var(--alert-orange)]">유료도로</span>}
+                  {route.hasHighway && <span className="px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider border border-[var(--border-secondary)] text-[var(--text-muted)]">고속화도로</span>}
+                  {route.hasFerry && <span className="px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider border border-[var(--border-secondary)] text-[var(--cyan-primary)]">페리/해상</span>}
                 </div>
               )}
 
@@ -933,7 +972,7 @@ export default function DirectionsBar({ onRoute, onLocate, onClose, center = nul
                 <div className="mt-2.5">
                   <div className="flex items-center justify-between mb-1">
                     <span className="flex items-center gap-1 text-[9px] uppercase tracking-[0.15em] text-[var(--text-muted)]">
-                      <Mountain className="w-2.5 h-2.5" /> Elevation
+                      <Mountain className="w-2.5 h-2.5" /> 고도 변화
                     </span>
                     <span className="text-[10px] text-[var(--text-secondary)] tabular-nums">
                       ↑{route.ascent ?? 0} m · ↓{route.descent ?? 0} m
@@ -955,14 +994,14 @@ export default function DirectionsBar({ onRoute, onLocate, onClose, center = nul
 
               {onStartNavigation && (
                 <button
-                  onClick={() => onStartNavigation(route, to?.label || 'your destination')}
-                  className="w-full mt-2.5 flex items-center justify-center gap-2 py-2 rounded-lg
-                             bg-[rgba(66,133,244,0.16)] border border-[rgba(66,133,244,0.45)]
-                             text-[#7BAAF7] text-[12px] tracking-wide
-                             hover:bg-[rgba(66,133,244,0.24)] transition-colors"
+                  onClick={() => onStartNavigation(route, to?.label || '목적지')}
+                  className="w-full mt-2.5 flex items-center justify-center gap-2 py-2.5 rounded-xl
+                             bg-[rgba(66,133,244,0.22)] border border-[rgba(66,133,244,0.6)]
+                             text-[#8AB4F8] font-bold text-[12px] tracking-wide shadow-[0_0_12px_rgba(66,133,244,0.3)]
+                             hover:bg-[rgba(66,133,244,0.35)] transition-all cursor-pointer"
                 >
-                  <Play className="w-3.5 h-3.5" />
-                  Start navigation
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                  🚀 실시간 내비게이션 시작 (Start Navigation)
                 </button>
               )}
 
@@ -994,9 +1033,9 @@ export default function DirectionsBar({ onRoute, onLocate, onClose, center = nul
                             : 'border-[var(--border-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
                         }`}
                       >
-                        <span className="block tabular-nums">{formatDuration(r.duration)}</span>
+                        <span className="block tabular-nums font-semibold">{formatDuration(r.duration, 'ko')}</span>
                         <span className="block text-[9px] opacity-70 tabular-nums">
-                          {i === 0 ? 'Fastest' : slower > 0 ? `+${slower} min` : formatDistance(r.distance)}
+                          {i === 0 ? '최단시간' : slower > 0 ? `+${slower}분` : formatDistance(r.distance)}
                         </span>
                       </button>
                     );
@@ -1038,7 +1077,7 @@ export default function DirectionsBar({ onRoute, onLocate, onClose, center = nul
             </ol>
 
             <p className="px-3 py-2 text-[9px] text-[var(--text-muted)] tracking-wider uppercase border-t border-[var(--border-secondary)]">
-              Routing via {route.provider} · OpenStreetMap
+              경로 엔진: {route.provider.toUpperCase()} · OpenStreetMap 실시간 도로망
             </p>
           </>
         )}

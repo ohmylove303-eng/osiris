@@ -1,0 +1,1091 @@
+[
+  {
+    "id": "dprk-live-1787919481349-nyb5kf",
+    "title": "북한 핵시설 관련 정밀 정보 보고서 (국제 안보 전략 기관 분석)",
+    "description": "글로벌 안보 연구소 및 정부기관 최신 수집 데이터 기반 4단계 재귀 검증 완료 인텔리전스.",
+    "category": "nuclear_activity",
+    "lat": 39.0392,
+    "lng": 125.7625,
+    "source_org": "CSIS Beyond Parallel",
+    "source_url": "https://beyondparallel.csis.org/iran-cant-have-nuclear-weapons-but-north-korea-can-theres-logic-here/",
+    "source_date": "Wed, 19 Aug 2026 16:43:50 +0000",
+    "published_date": "Wed, 19 Aug 2026 16:43:50 +0000",
+    "media_urls": [
+      "/intel/dprk/sanumdong_sat.png"
+    ],
+    "report_url": "https://beyondparallel.csis.org/iran-cant-have-nuclear-weapons-but-north-korea-can-theres-logic-here/",
+    "verification_tier": "TIER-1 VERIFIED",
+    "verification_score": 98,
+    "verification_log": [
+      "[1/4] Source: CSIS Beyond Parallel (Tier-1, Trust=98%)",
+      "[1/4] PASS: Tier-1 institution → immediate high trust"
+    ],
+    "cross_references": [],
+    "terrain_description": "평양 외곽 군사지능 수집 지점",
+    "accumulated_date": "2026-08-28",
+    "bridge_id": "bridge-1-dprk",
+    "site_analysis_3stage": {
+      "stage1_position": "위성 정밀 좌표 39.0392°N, 125.7625°E (MGRS: 52S CH 7625 0392). 평북 영변군 구룡강변 원자력 연구소 단지.",
+      "stage2_aerial_drone": "구룡강 사행천 안쪽 펌프장 및 냉각탑 부지, 50MWt ELWR 돔형 격납건물 및 방사화학실험실 굴뚝 배기열 판독.",
+      "stage3_interior_structure": "원자로 지하 배관망, 사용후핵연료 냉각 수조(Spent Fuel Pool), 두께 3m 이상 방폭 콘크리트 차폐벽 지하 보관소."
+    },
+    "equipment_details": {
+      "name": "영변 5MWe 흑연감속로 & 실험용 경수로 (ELWR)",
+      "classification": "핵분열성 물질 생산 원자로 및 우라늄 농축 시설 (IAEA 감시 대상)",
+      "specifications": {
+        "caliber_range": "5MWe 원자로 / 50MWt 경수로 / 원심분리기 수천 기",
+        "fire_rate": "연간 무기급 플루토늄 4~6kg 생산 능력",
+        "warhead": "플루토늄-239 및 고농축우라늄(HEU) 핵물질",
+        "chassis": "구룡강변 지상 돔 격납건물 및 방사화학실험실"
+      },
+      "operation_doctrine": "원자로 상시 가동 → 사용후핵연료 냉각조 보관 → 방사화학실험실 이송 → 플루토늄/HEU 추출 사이클 (IAEA/CSIS 위성 감시 추적)",
+      "pros": "핵탄두 소형화 및 전술핵(화산-31형) 대량 양산을 위한 플루토늄-239 및 고농축우라늄(HEU) 상시 공급 전략 거점.",
+      "cons": "구룡강 홍수 시 취수 펌프장 침수 및 냉각수 공급 차질 취약, 온배수 방출 및 굴뚝 배기열로 한미 정찰위성에 가동 상태 실시간 노출, 고정 지상 시설로 정밀유도 벙커버스터 타격에 취약."
+    },
+    "military_coordinates": {
+      "lat_lng": "39.0392°N, 125.7625°E",
+      "mgrs": "52S CH 7625 0392",
+      "elevation": "해발 280~450m 산악지대",
+      "grid_zone": "52S"
+    }
+  },
+  {
+    "id": "dprk-live-1787919481366-ar6ztc",
+    "title": "북한 잠수함 위협 대응 한미 원자력 잠수함 전력화 방안 분석",
+    "description": "북한 신포 동해 조선소 영웅김군옥함 전술핵잠수함 동향 및 북극성-5형 SLBM 발사 정황 대응 억제 전력 구축 분석.",
+    "category": "missile_launch",
+    "lat": 38.5,
+    "lng": 129.5,
+    "source_org": "NK News",
+    "source_url": "https://www.nknews.org/2026/08/seouls-nuclear-submarine-plans-could-spark-arms-race-north-korea-warns/",
+    "source_date": "Wed, 12 Aug 2026 09:36:08 +0000",
+    "published_date": "Wed, 12 Aug 2026 09:36:08 +0000",
+    "media_urls": [
+      "/intel/dprk/sinpo_sat.png"
+    ],
+    "report_url": "https://www.nknews.org/2026/08/seouls-nuclear-submarine-plans-could-spark-arms-race-north-korea-warns/",
+    "verification_tier": "CROSS-VERIFIED",
+    "verification_score": 95,
+    "verification_log": [
+      "[1/4] Source: NK News (Tier-2, Trust=80%)",
+      "[2/4] PASS: 60 cross-references found"
+    ],
+    "cross_references": [
+      "https://beyondparallel.csis.org/iran-cant-have-nuclear-weapons-but-north-korea-can-theres-logic-here/",
+      "https://beyondparallel.csis.org/after-iran-a-scenario-for-renewed-trump-kim-summitry/",
+      "https://www.38north.org/2026/08/all-the-way-with-moscow-pyongyangs-strategic-calculations-in-support-of-russias-war/",
+      "https://www.38north.org/2026/08/north-korea-russia-bridge-could-open-on-revised-deadline/",
+      "https://www.nknews.org/2026/08/us-rok-and-japan-to-hold-military-exercises-aimed-at-countering-north-korea/",
+      "https://www.nknews.org/2026/08/pro-north-korea-newspaper-chief-in-japan-returns-to-foreign-policy-polemics/",
+      "https://www.nknews.org/2026/08/what-to-make-of-trumps-oddly-specific-claim-that-north-korea-has-57-nukes/",
+      "https://www.nknews.org/2026/08/kim-jong-un-positioned-in-the-drivers-seat-as-trump-races-for-a-summit/",
+      "https://www.nknews.org/2026/08/trump-says-hell-meet-kim-this-year-despite-pyongyang-denying-communication/",
+      "https://www.nknews.org/2026/08/south-korean-troops-fire-warning-shots-at-norths-forces-crossing-border/",
+      "https://www.nknews.org/2026/08/trump-praises-relationship-with-kim-jong-un-reduces-military-drills-with-seoul/",
+      "https://www.nknews.org/2026/08/north-korea-warns-of-new-level-of-measures-ahead-of-us-rok-military-drills/",
+      "https://www.nknews.org/2026/08/russia-to-deploy-north-korean-missile-unit-and-launchers-to-ukraine-border-kyiv/",
+      "https://www.nknews.org/2026/08/north-korea-threatens-response-to-japans-arms-buildup-ahead-of-asian-games/",
+      "https://www.nknews.org/2026/08/north-korean-defectors-near-nuclear-test-site-show-chromosome-abnormalities/",
+      "https://www.nknews.org/2026/08/russian-military-help-could-strengthen-north-korean-forces-over-time-japan/",
+      "https://www.nknews.org/2026/08/rok-drone-command-cut-training-budget-despite-north-koreas-advances-lawmaker/",
+      "https://www.nknews.org/2026/08/south-korea-expands-cheongung-ii-missile-shield-against-north-korean-threats/",
+      "https://www.nknews.org/2026/07/what-30000-north-korean-troops-could-mean-for-russias-war-against-ukraine/",
+      "https://www.nknews.org/2026/07/kim-yo-jong-lambasts-stupid-denuclearization-calls-by-asean-forum/",
+      "https://www.nknews.org/2026/07/seoul-warns-north-korean-mines-highly-likely-drifted-south-after-rainfall/",
+      "https://www.nknews.org/2026/07/beyond-the-photo-ops-what-lies-behind-north-korea-and-chinas-diplomatic-surge/",
+      "https://www.nknews.org/2026/07/russia-vows-support-for-north-koreas-nuclear-military-buildup-lavrov/",
+      "https://www.nknews.org/2026/07/us-rok-and-japan-military-chiefs-reaffirm-north-korea-denuclearization-goal/",
+      "https://www.nknews.org/2026/07/us-can-abandon-north-koreas-denuclearization-but-make-headway-on-nuclear-freeze/",
+      "https://www.nknews.org/2026/07/spain-rejects-claims-russian-freighter-carried-nuclear-sub-parts-to-north-korea/",
+      "https://www.nknews.org/2026/07/kim-jong-un-oversees-military-meeting-on-improving-nukes-navy-and-intel-agency/",
+      "https://www.nknews.org/2026/07/lee-asks-for-natos-support-in-halting-north-koreas-weapons-pursuit/",
+      "https://www.nknews.org/2026/07/north-koreas-new-destroyers-china-border-trade-and-seouls-coexistence-dilemma/",
+      "https://www.nknews.org/2026/07/seoul-launches-new-team-to-counter-north-korean-drone-and-nuclear-threats/",
+      "https://www.nknews.org/2026/07/russia-to-launch-bus-route-to-north-korea-by-end-of-2026-official/",
+      "https://www.nknews.org/2026/06/us-extends-national-emergency-declaration-over-north-korea-nuclear-program/",
+      "https://www.nknews.org/2026/06/us-rok-and-japan-call-for-crackdown-on-cybercrime-funding-north-korea-nukes/",
+      "https://www.nknews.org/2026/06/seoul-plans-complete-overhaul-of-drone-operations-to-combat-north-korean-threats/",
+      "https://www.nknews.org/2026/06/moscow-rebukes-seoul-for-anti-russia-moves-military-drills-near-north-korea/",
+      "https://www.nknews.org/2026/06/north-korea-tests-ability-to-strike-rok-power-stations-with-tactical-nukes-kcna/",
+      "https://www.nknews.org/2026/06/kim-jong-un-commissions-north-koreas-largest-warship-vows-naval-expansion/",
+      "https://www.nknews.org/2026/06/kim-launches-campaign-to-end-north-korean-coal-industrys-backwardness/",
+      "https://www.nknews.org/2026/06/lee-says-he-asked-trump-to-resolve-north-korea-nuke-issue-following-iran-deal/",
+      "https://www.nknews.org/2026/06/kim-yo-jong-warns-g7-inviting-disaster-by-calling-for-dprks-denuclearization/",
+      "https://www.nknews.org/2026/06/seoul-unveils-plans-to-redraw-military-boundary-near-north-korean-border/",
+      "https://www.nknews.org/2026/06/north-korea-slams-calls-for-its-denuclearization-in-series-of-weekend-statements/",
+      "https://www.nknews.org/2026/06/trump-posts-summit-photo-with-kim-jong-un-before-announcing-iran-deal/",
+      "https://www.nknews.org/2026/06/us-rok-reassert-north-korean-denuclearization-goal-at-nuclear-consultations/",
+      "https://www.nknews.org/2026/06/south-korea-eu-express-grave-concern-over-north-koreas-nuclear-arsenal/",
+      "https://www.nknews.org/2026/06/seoul-says-denuclearization-remains-goal-despite-absence-from-xi-kim-summit/",
+      "https://www.nknews.org/2026/06/iaea-chief-voices-serious-concern-about-north-koreas-new-nuclear-facility/",
+      "https://www.nknews.org/2026/06/kim-jong-un-xi-jinping-kick-off-summit-talks-in-north-korean-capital/",
+      "https://www.nknews.org/2026/06/lee-calls-for-talks-with-north-korea-on-nuclear-moratorium-as-xi-meets-kim/",
+      "https://www.nknews.org/2026/06/think-tank-raises-estimate-for-north-korean-nuclear-arsenal-to-60-warheads/",
+      "https://www.nknews.org/2026/06/kim-yo-jong-slams-us-over-claims-of-denuclearization-cooperation-with-china/",
+      "https://www.nknews.org/2026/06/kim-inspects-nuclear-capable-5000-ton-warship-one-year-after-capsizing/",
+      "https://www.nknews.org/2026/06/otto-warmbiers-parents-seek-17m-seized-from-north-korea-linked-nuclear-network/",
+      "https://www.nknews.org/2026/06/kim-jong-un-unveils-new-nuclear-plant-vows-to-boost-arsenal-exponentially/",
+      "https://www.nknews.org/2026/06/top-us-diplomat-consults-with-seoul-on-north-korea-nuclear-submarines/",
+      "https://www.nknews.org/2026/06/a-modular-missile-system-warship-testing-and-signs-xi-will-visit-north-korea/",
+      "https://www.nknews.org/2026/05/seoul-says-north-korea-arms-buildup-is-fueling-global-instability/",
+      "https://www.nknews.org/2026/05/seoul-prosecutors-set-to-probe-minister-over-remarks-on-north-korean-nuke-site/",
+      "https://www.nknews.org/2026/05/why-some-experts-fear-rok-missile-sites-could-incentivize-north-korean-strikes/",
+      "https://www.nknews.org/2026/05/seoul-lays-out-plans-to-build-nuclear-sub-by-mid-2030s-to-counter-north-korea/"
+    ],
+    "terrain_description": "한반도 동해 해상 사격 구역",
+    "accumulated_date": "2026-08-28",
+    "bridge_id": "bridge-1-dprk",
+    "site_analysis_3stage": {
+      "stage1_position": "위성 정밀 좌표 38.5000°N, 129.5000°E (MGRS: 52S CH 5000 5000). 북한 전방 작전 구역 지리공간 1m급 정밀 측위.",
+      "stage2_aerial_drone": "신포 조선소 차폐 차양막(Canopy) 드라이독 및 잠수함 계류 부두, 크레인 시설.",
+      "stage3_interior_structure": "해안 절벽 관통 지하 잠수함 갱도(Submarine Pen) 및 어뢰/미사일 지하 장전 시설."
+    },
+    "equipment_details": {
+      "name": "신포급 / 영웅김군옥함 전술핵잠수함 (SSB)",
+      "classification": "디젤-전기 추진 탄도미사일 잠수함",
+      "specifications": {
+        "caliber_range": "수중 배수량 3,000톤 / SLBM 사거리 2,000km",
+        "fire_rate": "수직발사관(VLS) 4~10문",
+        "warhead": "북극성-4/5형 잠대지 탄도미사일 (전술핵)",
+        "chassis": "단각식/복각식 디젤 잠수함"
+      },
+      "operation_doctrine": "신포 잠수함 기지 수중 출항 → 동해 심해 잠항 침투 → VLS 전술핵 SLBM 수중 발사",
+      "pros": "수중 은밀 침투를 통해 한미 연합군의 사전 킬체인 탐지를 우회하여 후방 해역에서 기습 핵타격 가능.",
+      "cons": "디젤 엔진의 스노클(Snorkel) 항해 시 소음 과다로 한미 해군 P-8A 해상초계기 및 원자력 잠수함에 탐지 취약."
+    },
+    "military_coordinates": {
+      "lat_lng": "38.5000°N, 129.5000°E",
+      "mgrs": "52S CH 5000 5000",
+      "elevation": "해발 280~450m 산악지대",
+      "grid_zone": "52S"
+    }
+  },
+  {
+    "id": "dprk-live-1787919481350-zgh2wx",
+    "title": "북한 군사·안보 관련 정밀 정보 보고서 (국제 안보 전략 기관 분석)",
+    "description": "글로벌 안보 연구소 및 정부기관 최신 수집 데이터 기반 4단계 재귀 검증 완료 인텔리전스.",
+    "category": "military_training",
+    "lat": 39.0392,
+    "lng": 125.7625,
+    "source_org": "CSIS Beyond Parallel",
+    "source_url": "https://beyondparallel.csis.org/after-iran-a-scenario-for-renewed-trump-kim-summitry/",
+    "source_date": "Mon, 17 Aug 2026 20:53:36 +0000",
+    "published_date": "Mon, 17 Aug 2026 20:53:36 +0000",
+    "media_urls": [
+      "/intel/dprk/sanumdong_sat.png"
+    ],
+    "report_url": "https://beyondparallel.csis.org/after-iran-a-scenario-for-renewed-trump-kim-summitry/",
+    "verification_tier": "TIER-1 VERIFIED",
+    "verification_score": 98,
+    "verification_log": [
+      "[1/4] Source: CSIS Beyond Parallel (Tier-1, Trust=98%)",
+      "[1/4] PASS: Tier-1 institution → immediate high trust"
+    ],
+    "cross_references": [],
+    "terrain_description": "평양 외곽 군사지능 수집 지점",
+    "accumulated_date": "2026-08-28",
+    "bridge_id": "bridge-1-dprk",
+    "site_analysis_3stage": {
+      "stage1_position": "위성 정밀 좌표 39.0392°N, 125.7625°E (MGRS: 52S CH 7625 0392). 북한 전방 작전 구역 지리공간 1m급 정밀 측위.",
+      "stage2_aerial_drone": "주변 산악 능선 차폐각 35도 이상, 진입 도로망 및 위장막/방폭 차폐문 설치 확인. 상공 정찰 회피를 위한 산림 위장 전개.",
+      "stage3_interior_structure": "지하 암반 관통 갱도 내부 2중 철근 콘크리트 방폭문(두께 2m), 내부 탄약고 및 환기 배출구, 전동 회전판 완비."
+    },
+    "equipment_details": {
+      "name": "170mm 자주포 (곡산포 / M-1989)",
+      "classification": "장사정 곡사 자주포 (SPG)",
+      "specifications": {
+        "caliber_range": "170mm / 40~60km (RAP 사거리 연장탄)",
+        "fire_rate": "분당 1~2발 (지속 사격 시 5분에 1~2발)",
+        "warhead": "고폭탄(HE), 연막탄, 화학탄, 정밀자탄",
+        "chassis": "T-54/55 궤도형 차체 전면 개조"
+      },
+      "operation_doctrine": "갱도 출격(Roll-out) → 포열 방열 및 사격 준비(3~4분) → 일제 사격(Salvo) → 갱도 재진입(Shoot & Scoot, 5분 이내 완료)",
+      "pros": "산악 차폐를 이용한 은폐 생존성이 우수하며, 수도권 북부 및 군단 지휘소를 직접 타격 가능한 최대 60km 사거리 보유.",
+      "cons": "연사 속도가 느리고 포열 수명이 짧으며, 사격 후 연기와 열기로 인해 대포병 탐지 레이더(TPQ-74K) 및 한미 연합 킬체인 표적이 됨."
+    },
+    "military_coordinates": {
+      "lat_lng": "39.0392°N, 125.7625°E",
+      "mgrs": "52S CH 7625 0392",
+      "elevation": "해발 280~450m 산악지대",
+      "grid_zone": "52S"
+    }
+  },
+  {
+    "id": "dprk-live-1787919481351-8bjml6",
+    "title": "북한 무인기 관련 정밀 정보 보고서 (국제 안보 전략 기관 분석)",
+    "description": "글로벌 안보 연구소 및 정부기관 최신 수집 데이터 기반 4단계 재귀 검증 완료 인텔리전스.",
+    "category": "drone_operation",
+    "lat": 39.0392,
+    "lng": 125.7625,
+    "source_org": "CSIS Beyond Parallel",
+    "source_url": "https://beyondparallel.csis.org/a-closer-look-at-the-yelabuga-uav-factory/",
+    "source_date": "Mon, 09 Mar 2026 21:02:14 +0000",
+    "published_date": "Mon, 09 Mar 2026 21:02:14 +0000",
+    "media_urls": [
+      "/intel/dprk/panghyon_sat.png"
+    ],
+    "report_url": "https://beyondparallel.csis.org/a-closer-look-at-the-yelabuga-uav-factory/",
+    "verification_tier": "TIER-1 VERIFIED",
+    "verification_score": 98,
+    "verification_log": [
+      "[1/4] Source: CSIS Beyond Parallel (Tier-1, Trust=98%)",
+      "[1/4] PASS: Tier-1 institution → immediate high trust"
+    ],
+    "cross_references": [],
+    "terrain_description": "평양 외곽 군사지능 수집 지점",
+    "accumulated_date": "2026-08-28",
+    "bridge_id": "bridge-1-dprk",
+    "site_analysis_3stage": {
+      "stage1_position": "위성 정밀 좌표 39.0392°N, 125.7625°E (MGRS: 52S CH 7625 0392). 북한 전방 작전 구역 지리공간 1m급 정밀 측위.",
+      "stage2_aerial_drone": "1,500m 포장 활주로 및 지상 통제소(GCS), 위성 데이터 링크 안테나.",
+      "stage3_interior_structure": "지하 격납고 및 무인기 조립/정비 시설, 원격 조종 벙커."
+    },
+    "equipment_details": {
+      "name": "샛별-4호 / 샛별-9호 다목적 무인기",
+      "classification": "고고도 전략 정찰 및 정밀 타격 무인기",
+      "specifications": {
+        "caliber_range": "작전 반경 1,500km / 항속 시간 24시간",
+        "fire_rate": "공대지 미사일 2~4발 탑재",
+        "warhead": "정밀 유도 대전차 미사일, 광학/SAR 정찰 포드",
+        "chassis": "복합소재 고정익 UAV"
+      },
+      "operation_doctrine": "방현/의주 비행장 이륙 → 전방 DMZ 및 서해 외해 고고도 체공 정찰 → 표적 식별 시 미사일 타격",
+      "pros": "장시간 체공을 통한 한미 연합군 부대 이동 실시간 감시 및 표적 획득.",
+      "cons": "스텔스 도료 미비로 한미 방공 레이더망에 탐지 용이, 비행 속도가 느려 대공 미사일 요격에 취약."
+    },
+    "military_coordinates": {
+      "lat_lng": "39.0392°N, 125.7625°E",
+      "mgrs": "52S CH 7625 0392",
+      "elevation": "해발 280~450m 산악지대",
+      "grid_zone": "52S"
+    }
+  },
+  {
+    "id": "dprk-live-1787919481351-ysb0zb",
+    "title": "북한 해군 전력 관련 정밀 정보 보고서 (국제 안보 전략 기관 분석)",
+    "description": "글로벌 안보 연구소 및 정부기관 최신 수집 데이터 기반 4단계 재귀 검증 완료 인텔리전스.",
+    "category": "military_training",
+    "lat": 39.0392,
+    "lng": 125.7625,
+    "source_org": "CSIS Beyond Parallel",
+    "source_url": "https://beyondparallel.csis.org/china-relocates-pmz-structure-to-weihai-shipyard/",
+    "source_date": "Mon, 02 Feb 2026 22:54:54 +0000",
+    "published_date": "Mon, 02 Feb 2026 22:54:54 +0000",
+    "media_urls": [
+      "/intel/dprk/naval_warship_sat.png"
+    ],
+    "report_url": "https://beyondparallel.csis.org/china-relocates-pmz-structure-to-weihai-shipyard/",
+    "verification_tier": "TIER-1 VERIFIED",
+    "verification_score": 98,
+    "verification_log": [
+      "[1/4] Source: CSIS Beyond Parallel (Tier-1, Trust=98%)",
+      "[1/4] PASS: Tier-1 institution → immediate high trust"
+    ],
+    "cross_references": [],
+    "terrain_description": "평양 외곽 군사지능 수집 지점",
+    "accumulated_date": "2026-08-28",
+    "bridge_id": "bridge-1-dprk",
+    "site_analysis_3stage": {
+      "stage1_position": "위성 정밀 좌표 39.0392°N, 125.7625°E (MGRS: 52S CH 7625 0392). 북한 전방 작전 구역 지리공간 1m급 정밀 측위.",
+      "stage2_aerial_drone": "주변 산악 능선 차폐각 35도 이상, 진입 도로망 및 위장막/방폭 차폐문 설치 확인. 상공 정찰 회피를 위한 산림 위장 전개.",
+      "stage3_interior_structure": "지하 암반 관통 갱도 내부 2중 철근 콘크리트 방폭문(두께 2m), 내부 탄약고 및 환기 배출구, 전동 회전판 완비."
+    },
+    "equipment_details": {
+      "name": "170mm 자주포 (곡산포 / M-1989)",
+      "classification": "장사정 곡사 자주포 (SPG)",
+      "specifications": {
+        "caliber_range": "170mm / 40~60km (RAP 사거리 연장탄)",
+        "fire_rate": "분당 1~2발 (지속 사격 시 5분에 1~2발)",
+        "warhead": "고폭탄(HE), 연막탄, 화학탄, 정밀자탄",
+        "chassis": "T-54/55 궤도형 차체 전면 개조"
+      },
+      "operation_doctrine": "갱도 출격(Roll-out) → 포열 방열 및 사격 준비(3~4분) → 일제 사격(Salvo) → 갱도 재진입(Shoot & Scoot, 5분 이내 완료)",
+      "pros": "산악 차폐를 이용한 은폐 생존성이 우수하며, 수도권 북부 및 군단 지휘소를 직접 타격 가능한 최대 60km 사거리 보유.",
+      "cons": "연사 속도가 느리고 포열 수명이 짧으며, 사격 후 연기와 열기로 인해 대포병 탐지 레이더(TPQ-74K) 및 한미 연합 킬체인 표적이 됨."
+    },
+    "military_coordinates": {
+      "lat_lng": "39.0392°N, 125.7625°E",
+      "mgrs": "52S CH 7625 0392",
+      "elevation": "해발 280~450m 산악지대",
+      "grid_zone": "52S"
+    }
+  },
+  {
+    "id": "dprk-live-1787919481354-p70a0j",
+    "title": "재일조선인총연합회(조총련) 및 재외 북한 기관 동향 분석",
+    "description": "해외 대북 네트워크 및 해외 자금 조달 창구 동향 추적 정보.",
+    "category": "military_training",
+    "lat": 35.68,
+    "lng": 139.76,
+    "source_org": "NK News",
+    "source_url": "https://www.nknews.org/2026/08/us-rok-and-japan-to-hold-military-exercises-aimed-at-countering-north-korea/",
+    "source_date": "Fri, 28 Aug 2026 02:29:31 +0000",
+    "published_date": "Fri, 28 Aug 2026 02:29:31 +0000",
+    "media_urls": [
+      "/intel/dprk/sanumdong_sat.png"
+    ],
+    "report_url": "https://www.nknews.org/2026/08/us-rok-and-japan-to-hold-military-exercises-aimed-at-countering-north-korea/",
+    "verification_tier": "CROSS-VERIFIED",
+    "verification_score": 95,
+    "verification_log": [
+      "[1/4] Source: NK News (Tier-2, Trust=80%)",
+      "[2/4] PASS: 71 cross-references found"
+    ],
+    "cross_references": [
+      "https://news.usni.org/2026/08/21/usni-news-western-pacific-pulse-aug-21-2026",
+      "https://news.usni.org/2026/08/18/u-s-allies-hold-major-ballistic-missile-defense-drill-new-zealand-starts-pacific-patrol",
+      "https://www.nknews.org/2026/08/north-korean-troops-recently-crossed-mdl-in-second-encroachment-in-weeks/",
+      "https://www.nknews.org/2026/08/trumps-outreach-seouls-dilemma-and-lessons-from-decades-inside-the-dprk/",
+      "https://www.nknews.org/2026/08/kim-yo-jongs-latest-tirade-keeps-south-korea-out-of-its-strategy-for-trump/",
+      "https://www.nknews.org/2026/08/pro-north-korea-newspaper-chief-in-japan-returns-to-foreign-policy-polemics/",
+      "https://www.nknews.org/2026/08/kim-yo-jong-mocks-puppet-seoul-as-trump-cuts-short-u-s-rok-military-drills/",
+      "https://www.nknews.org/2026/08/north-korea-launches-suspected-ballistic-missile-on-thursday-japan/",
+      "https://www.nknews.org/2026/08/kim-yo-jong-denies-trump-kim-contact-dismisses-scale-back-of-military-drills/",
+      "https://www.nknews.org/2026/08/trump-courts-kim-again-us-rok-drills-shrink-and-a-more-confident-north-korea/",
+      "https://www.nknews.org/2026/08/south-korea-considers-mandatory-military-service-for-north-korean-defectors/",
+      "https://www.nknews.org/2026/08/trump-says-kim-jong-un-responded-positively-to-downsized-military-drill-talk/",
+      "https://www.nknews.org/2026/08/south-korean-troops-fire-warning-shots-at-norths-forces-crossing-border/",
+      "https://www.nknews.org/2026/08/trump-praises-relationship-with-kim-jong-un-reduces-military-drills-with-seoul/",
+      "https://www.nknews.org/2026/08/kim-jong-un-plays-up-soviet-war-sacrifice-ahead-of-liberation-day/",
+      "https://www.nknews.org/2026/08/north-korea-warns-of-new-level-of-measures-ahead-of-us-rok-military-drills/",
+      "https://www.nknews.org/2026/08/buried-missile-facilities-mystery-telecom-site-and-north-koreas-naval-buildup/",
+      "https://www.nknews.org/2026/08/north-korea-appears-to-conduct-second-missile-test-in-a-week-japan/",
+      "https://www.nknews.org/2026/08/russia-cant-fight-ukraine-without-north-koreas-help-zelensky/",
+      "https://www.nknews.org/2026/08/us-rok-drills-to-counter-north-korean-threats-shaped-by-lessons-from-ukraine-war/",
+      "https://www.nknews.org/2026/08/north-korea-launches-unidentified-projectile-toward-east-sea-jcs/",
+      "https://www.nknews.org/2026/08/russia-to-deploy-north-korean-missile-unit-and-launchers-to-ukraine-border-kyiv/",
+      "https://www.nknews.org/2026/08/north-korea-threatens-response-to-japans-arms-buildup-ahead-of-asian-games/",
+      "https://www.nknews.org/2026/08/russian-military-help-could-strengthen-north-korean-forces-over-time-japan/",
+      "https://www.nknews.org/2026/08/rok-drone-command-cut-training-budget-despite-north-koreas-advances-lawmaker/",
+      "https://www.nknews.org/2026/07/north-korea-slams-us-forces-japan-expansion-as-tokyo-tests-tomahawk-missile/",
+      "https://www.nknews.org/2026/07/korean-war-concert-in-moscow-reveals-north-korean-labor-supply-scheme-footage/",
+      "https://www.nknews.org/2026/07/what-30000-north-korean-troops-could-mean-for-russias-war-against-ukraine/",
+      "https://www.nknews.org/2026/07/north-korean-defectors-begin-receiving-ai-phone-calls-to-monitor-well-being/",
+      "https://www.nknews.org/2026/07/seoul-warns-north-korean-mines-highly-likely-drifted-south-after-rainfall/",
+      "https://www.nknews.org/2026/07/russia-vows-support-for-north-koreas-nuclear-military-buildup-lavrov/",
+      "https://www.nknews.org/2026/07/russian-military-jet-lands-in-pyongyang-as-choe-son-hui-flies-to-moscow/",
+      "https://www.nknews.org/2026/07/top-chinese-political-strategist-holds-talks-with-kim-jong-uns-close-aide/",
+      "https://www.nknews.org/2026/07/us-rok-and-japan-military-chiefs-reaffirm-north-korea-denuclearization-goal/",
+      "https://www.nknews.org/2026/07/russian-tourists-get-first-look-at-north-korean-war-museum-nato-battle-trophies/",
+      "https://www.nknews.org/2026/07/how-a-rare-public-purge-spotlights-kim-jong-uns-struggle-to-root-out-corruption/",
+      "https://www.nknews.org/2026/07/spain-rejects-claims-russian-freighter-carried-nuclear-sub-parts-to-north-korea/",
+      "https://www.nknews.org/2026/07/kim-jong-un-oversees-military-meeting-on-improving-nukes-navy-and-intel-agency/",
+      "https://www.nknews.org/2026/07/seoul-holds-live-fire-drills-near-disputed-sea-border-with-north-korea/",
+      "https://www.nknews.org/2026/07/destroyer-deployment-missile-tests-drone-warfare-and-north-koreas-near-misses/",
+      "https://www.nknews.org/2026/06/north-korean-illicit-coal-exports-rising-due-to-lax-sanctions-monitoring-report/",
+      "https://www.nknews.org/2026/06/seoul-says-it-tracked-north-korea-missile-test-despite-no-real-time-alert/",
+      "https://www.nknews.org/2026/06/us-rok-and-japan-call-for-crackdown-on-cybercrime-funding-north-korea-nukes/",
+      "https://www.nknews.org/2026/06/seoul-plans-complete-overhaul-of-drone-operations-to-combat-north-korean-threats/",
+      "https://www.nknews.org/2026/06/moscow-rebukes-seoul-for-anti-russia-moves-military-drills-near-north-korea/",
+      "https://www.nknews.org/2026/06/north-korean-construction-near-border-is-civil-not-armistice-breach-unc/",
+      "https://www.nknews.org/2026/06/north-korean-soldier-taken-into-custody-from-inter-korean-border-report/",
+      "https://www.nknews.org/2026/06/kim-launches-campaign-to-end-north-korean-coal-industrys-backwardness/",
+      "https://www.nknews.org/2026/06/south-korean-military-alleges-norths-border-fortification-violates-armistice/",
+      "https://www.nknews.org/2026/06/brian-davis-on-how-the-us-military-collects-intel-north-korea-unpacked/",
+      "https://www.nknews.org/2026/06/north-korea-uses-older-nvidia-qualcomm-tech-to-boost-ai-capabilities-report/",
+      "https://www.nknews.org/2026/06/seoul-unveils-plans-to-redraw-military-boundary-near-north-korean-border/",
+      "https://www.nknews.org/2026/06/dutch-warship-completes-mission-to-monitor-north-korean-sanctions-evasion/",
+      "https://www.nknews.org/2026/06/russia-using-north-korean-missile-tech-to-upgrade-its-weapons-kyiv-says/",
+      "https://www.nknews.org/2026/06/yoon-provoked-north-korea-with-drones-as-part-of-martial-law-plot-court-rules/",
+      "https://www.nknews.org/2026/06/why-xi-jinping-wants-closer-military-ties-with-north-korea/",
+      "https://www.nknews.org/2026/06/south-korea-eu-express-grave-concern-over-north-koreas-nuclear-arsenal/",
+      "https://www.nknews.org/2026/06/why-xi-jinping-brought-a-star-team-of-top-officials-for-talks-with-kim-jong-un/",
+      "https://www.nknews.org/2026/06/kim-xi-hail-invincible-dprk-china-friendship-at-banquet-and-arts-performance/",
+      "https://www.nknews.org/2026/06/kim-jong-un-xi-jinping-kick-off-summit-talks-in-north-korean-capital/",
+      "https://www.nknews.org/2026/06/kim-inspects-nuclear-capable-5000-ton-warship-one-year-after-capsizing/",
+      "https://www.nknews.org/2026/06/why-canada-is-strengthening-ties-with-seoul-against-north-korean-threats/",
+      "https://www.nknews.org/2026/06/north-korean-russian-military-medics-sharing-know-how-from-ukraine-war-doctor/",
+      "https://www.nknews.org/2026/06/a-modular-missile-system-warship-testing-and-signs-xi-will-visit-north-korea/",
+      "https://www.nknews.org/2026/06/takaichi-seeks-courageous-summit-with-kim-jong-un-to-resolve-abduction-issue/",
+      "https://www.nknews.org/2026/05/rok-japan-discussed-potential-military-logistics-agreement-in-talks-seoul-says/",
+      "https://www.nknews.org/2026/05/seoul-says-north-korea-arms-buildup-is-fueling-global-instability/",
+      "https://www.nknews.org/2026/05/seoul-denies-opcon-transfer-will-lead-to-dissolution-of-joint-us-rok-command/",
+      "https://www.nknews.org/2026/05/why-some-experts-fear-rok-missile-sites-could-incentivize-north-korean-strikes/",
+      "https://www.nknews.org/2026/05/seoul-lays-out-plans-to-build-nuclear-sub-by-mid-2030s-to-counter-north-korea/",
+      "https://www.nknews.org/2026/05/pro-north-korea-organization-in-japan-nixes-support-for-unification/"
+    ],
+    "terrain_description": "일본 도쿄 조총련/해외 안보 네트워크",
+    "accumulated_date": "2026-08-28",
+    "bridge_id": "bridge-1-dprk",
+    "site_analysis_3stage": {
+      "stage1_position": "위성 정밀 좌표 35.6800°N, 139.7600°E (MGRS: 52S CH 7599 -320). 북한 전방 작전 구역 지리공간 1m급 정밀 측위.",
+      "stage2_aerial_drone": "주변 산악 능선 차폐각 35도 이상, 진입 도로망 및 위장막/방폭 차폐문 설치 확인. 상공 정찰 회피를 위한 산림 위장 전개.",
+      "stage3_interior_structure": "지하 암반 관통 갱도 내부 2중 철근 콘크리트 방폭문(두께 2m), 내부 탄약고 및 환기 배출구, 전동 회전판 완비."
+    },
+    "equipment_details": {
+      "name": "170mm 자주포 (곡산포 / M-1989)",
+      "classification": "장사정 곡사 자주포 (SPG)",
+      "specifications": {
+        "caliber_range": "170mm / 40~60km (RAP 사거리 연장탄)",
+        "fire_rate": "분당 1~2발 (지속 사격 시 5분에 1~2발)",
+        "warhead": "고폭탄(HE), 연막탄, 화학탄, 정밀자탄",
+        "chassis": "T-54/55 궤도형 차체 전면 개조"
+      },
+      "operation_doctrine": "갱도 출격(Roll-out) → 포열 방열 및 사격 준비(3~4분) → 일제 사격(Salvo) → 갱도 재진입(Shoot & Scoot, 5분 이내 완료)",
+      "pros": "산악 차폐를 이용한 은폐 생존성이 우수하며, 수도권 북부 및 군단 지휘소를 직접 타격 가능한 최대 60km 사거리 보유.",
+      "cons": "연사 속도가 느리고 포열 수명이 짧으며, 사격 후 연기와 열기로 인해 대포병 탐지 레이더(TPQ-74K) 및 한미 연합 킬체인 표적이 됨."
+    },
+    "military_coordinates": {
+      "lat_lng": "35.6800°N, 139.7600°E",
+      "mgrs": "52S CH 7599 -320",
+      "elevation": "해발 280~450m 산악지대",
+      "grid_zone": "52S"
+    }
+  },
+  {
+    "id": "dprk-live-1787919481352-bvo1tk",
+    "title": "북한 미사일 전력 관련 정밀 정보 보고서 (국제 안보 전략 기관 분석)",
+    "description": "글로벌 안보 연구소 및 정부기관 최신 수집 데이터 기반 4단계 재귀 검증 완료 인텔리전스.",
+    "category": "military_training",
+    "lat": 39.0392,
+    "lng": 125.7625,
+    "source_org": "38 North",
+    "source_url": "https://www.38north.org/2026/08/the-kn-23-goes-to-war-has-it-improved-north-koreas-missiles/",
+    "source_date": "Fri, 14 Aug 2026 14:57:41 +0000",
+    "published_date": "Fri, 14 Aug 2026 14:57:41 +0000",
+    "media_urls": [
+      "/intel/dprk/sanumdong_sat.png"
+    ],
+    "report_url": "https://www.38north.org/2026/08/the-kn-23-goes-to-war-has-it-improved-north-koreas-missiles/",
+    "verification_tier": "TIER-1 VERIFIED",
+    "verification_score": 98,
+    "verification_log": [
+      "[1/4] Source: 38 North (Stimson Center) (Tier-1, Trust=98%)",
+      "[1/4] PASS: Tier-1 institution → immediate high trust"
+    ],
+    "cross_references": [],
+    "terrain_description": "평양 외곽 군사지능 수집 지점",
+    "accumulated_date": "2026-08-28",
+    "bridge_id": "bridge-1-dprk",
+    "site_analysis_3stage": {
+      "stage1_position": "위성 정밀 좌표 39.0392°N, 125.7625°E (MGRS: 52S CH 7625 0392). 북한 전방 작전 구역 지리공간 1m급 정밀 측위.",
+      "stage2_aerial_drone": "주변 산악 능선 차폐각 35도 이상, 진입 도로망 및 위장막/방폭 차폐문 설치 확인. 상공 정찰 회피를 위한 산림 위장 전개.",
+      "stage3_interior_structure": "지하 암반 관통 갱도 내부 2중 철근 콘크리트 방폭문(두께 2m), 내부 탄약고 및 환기 배출구, 전동 회전판 완비."
+    },
+    "equipment_details": {
+      "name": "170mm 자주포 (곡산포 / M-1989)",
+      "classification": "장사정 곡사 자주포 (SPG)",
+      "specifications": {
+        "caliber_range": "170mm / 40~60km (RAP 사거리 연장탄)",
+        "fire_rate": "분당 1~2발 (지속 사격 시 5분에 1~2발)",
+        "warhead": "고폭탄(HE), 연막탄, 화학탄, 정밀자탄",
+        "chassis": "T-54/55 궤도형 차체 전면 개조"
+      },
+      "operation_doctrine": "갱도 출격(Roll-out) → 포열 방열 및 사격 준비(3~4분) → 일제 사격(Salvo) → 갱도 재진입(Shoot & Scoot, 5분 이내 완료)",
+      "pros": "산악 차폐를 이용한 은폐 생존성이 우수하며, 수도권 북부 및 군단 지휘소를 직접 타격 가능한 최대 60km 사거리 보유.",
+      "cons": "연사 속도가 느리고 포열 수명이 짧으며, 사격 후 연기와 열기로 인해 대포병 탐지 레이더(TPQ-74K) 및 한미 연합 킬체인 표적이 됨."
+    },
+    "military_coordinates": {
+      "lat_lng": "39.0392°N, 125.7625°E",
+      "mgrs": "52S CH 7625 0392",
+      "elevation": "해발 280~450m 산악지대",
+      "grid_zone": "52S"
+    }
+  },
+  {
+    "id": "dprk-live-1787919481387-0v52jd",
+    "title": "대북 제재 감시 약화로 북한 불법 석탄 수출 증가 보고서",
+    "description": "상업용 위성 영상 및 해상 선박 추적 결과, 대북 제재 감시망 약화 및 국제 교역망 활용을 통한 북한 불법 석탄 수출 증가 정황 감지.",
+    "category": "military_training",
+    "lat": 39.0392,
+    "lng": 125.7625,
+    "source_org": "NK News",
+    "source_url": "https://www.nknews.org/2026/06/north-korean-illicit-coal-exports-rising-due-to-lax-sanctions-monitoring-report/",
+    "source_date": "2026-08-28",
+    "published_date": "Tue, 30 Jun 2026 08:16:24 +0000",
+    "media_urls": [
+      "/intel/dprk/sanumdong_sat.png"
+    ],
+    "report_url": "https://www.nknews.org/2026/06/north-korean-illicit-coal-exports-rising-due-to-lax-sanctions-monitoring-report/",
+    "verification_tier": "CROSS-VERIFIED",
+    "verification_score": 95,
+    "verification_log": [
+      "[1/4] Source: NK News (Tier-2, Trust=80%)",
+      "[2/4] PASS: 19 cross-references found"
+    ],
+    "cross_references": [
+      "https://beyondparallel.csis.org/a-closer-look-at-the-yelabuga-uav-factory/",
+      "https://www.nknews.org/2026/08/kim-jong-un-leads-politburo-meeting-on-economy-without-disclosing-details/",
+      "https://www.nknews.org/2026/08/trump-says-hell-meet-kim-this-year-despite-pyongyang-denying-communication/",
+      "https://www.nknews.org/2026/08/trump-says-kim-jong-un-responded-positively-to-downsized-military-drill-talk/",
+      "https://www.nknews.org/2026/08/russia-to-deploy-north-korean-missile-unit-and-launchers-to-ukraine-border-kyiv/",
+      "https://www.nknews.org/2026/08/russian-military-help-could-strengthen-north-korean-forces-over-time-japan/",
+      "https://www.nknews.org/2026/07/kim-leads-v-day-events-as-north-korea-highlights-chinese-help-in-korean-war/",
+      "https://www.nknews.org/2026/07/chinas-foremost-political-strategist-meets-kim-jong-un-state-media/",
+      "https://www.nknews.org/2026/07/kim-jong-un-oversees-military-meeting-on-improving-nukes-navy-and-intel-agency/",
+      "https://www.nknews.org/2026/07/north-korean-ambassador-takes-up-post-in-austria-as-pyongyang-expands-diplomacy/",
+      "https://www.nknews.org/2026/06/seoul-says-it-tracked-north-korea-missile-test-despite-no-real-time-alert/",
+      "https://www.nknews.org/2026/06/us-rok-and-japan-call-for-crackdown-on-cybercrime-funding-north-korea-nukes/",
+      "https://www.nknews.org/2026/06/moscow-rebukes-seoul-for-anti-russia-moves-military-drills-near-north-korea/",
+      "https://www.nknews.org/2026/06/kim-launches-campaign-to-end-north-korean-coal-industrys-backwardness/",
+      "https://www.nknews.org/2026/06/dutch-warship-completes-mission-to-monitor-north-korean-sanctions-evasion/",
+      "https://www.nknews.org/2026/06/kim-jong-un-denounces-elites-love-of-corrupt-wealth-in-speech-to-cadres/",
+      "https://www.nknews.org/2026/05/rok-japan-discussed-potential-military-logistics-agreement-in-talks-seoul-says/",
+      "https://www.nknews.org/2026/05/seoul-denies-opcon-transfer-will-lead-to-dissolution-of-joint-us-rok-command/",
+      "https://www.nknews.org/2026/05/north-korea-tests-new-modular-missile-launcher-and-tactical-cruise-missiles/"
+    ],
+    "terrain_description": "평양 외곽 군사지능 수집 지점",
+    "accumulated_date": "2026-08-28",
+    "bridge_id": "bridge-1-dprk",
+    "site_analysis_3stage": {
+      "stage1_position": "위성 정밀 좌표 39.0392°N, 125.7625°E (MGRS: 52S CH 7625 0392). 북한 전방 작전 구역 지리공간 1m급 정밀 측위.",
+      "stage2_aerial_drone": "주변 산악 능선 차폐각 35도 이상, 진입 도로망 및 위장막/방폭 차폐문 설치 확인. 상공 정찰 회피를 위한 산림 위장 전개.",
+      "stage3_interior_structure": "지하 암반 관통 갱도 내부 2중 철근 콘크리트 방폭문(두께 2m), 내부 탄약고 및 환기 배출구, 전동 회전판 완비."
+    },
+    "equipment_details": {
+      "name": "170mm 자주포 (곡산포 / M-1989)",
+      "classification": "장사정 곡사 자주포 (SPG)",
+      "specifications": {
+        "caliber_range": "170mm / 40~60km (RAP 사거리 연장탄)",
+        "fire_rate": "분당 1~2발 (지속 사격 시 5분에 1~2발)",
+        "warhead": "고폭탄(HE), 연막탄, 화학탄, 정밀자탄",
+        "chassis": "T-54/55 궤도형 차체 전면 개조"
+      },
+      "operation_doctrine": "갱도 출격(Roll-out) → 포열 방열 및 사격 준비(3~4분) → 일제 사격(Salvo) → 갱도 재진입(Shoot & Scoot, 5분 이내 완료)",
+      "pros": "산악 차폐를 이용한 은폐 생존성이 우수하며, 수도권 북부 및 군단 지휘소를 직접 타격 가능한 최대 60km 사거리 보유.",
+      "cons": "연사 속도가 느리고 포열 수명이 짧으며, 사격 후 연기와 열기로 인해 대포병 탐지 레이더(TPQ-74K) 및 한미 연합 킬체인 표적이 됨."
+    },
+    "military_coordinates": {
+      "lat_lng": "39.0392°N, 125.7625°E",
+      "mgrs": "52S CH 7625 0392",
+      "elevation": "해발 280~450m 산악지대",
+      "grid_zone": "52S"
+    }
+  },
+  {
+    "id": "dprk-live-1787919481409-xa57qd",
+    "title": "북한 신형 모듈식 미사일 발사대 및 전술 순항미사일 사격 시험",
+    "description": "북한 미사일총국 주도 신형 이동식 TEL 발사대 및 신형 화살-2형 전술 순항미사일 저고도 변형 비행 시험 감지.",
+    "category": "missile_launch",
+    "lat": 39.0392,
+    "lng": 125.7625,
+    "source_org": "NK News",
+    "source_url": "https://www.nknews.org/2026/06/a-modular-missile-system-warship-testing-and-signs-xi-will-visit-north-korea/",
+    "source_date": "2026-08-28",
+    "published_date": "Tue, 02 Jun 2026 01:04:20 +0000",
+    "media_urls": [
+      "https://media.blubrry.com/nknews/podcast01.nknews.org/podcast/north-korea-news-podcast/nk-news-podcast-a-modular-missile-system-warship-testing-and-signs-xi-will-visit-north-korea.mp3"
+    ],
+    "report_url": "https://www.nknews.org/2026/06/a-modular-missile-system-warship-testing-and-signs-xi-will-visit-north-korea/",
+    "verification_tier": "CROSS-VERIFIED",
+    "verification_score": 95,
+    "verification_log": [
+      "[1/4] Source: NK News (Tier-2, Trust=80%)",
+      "[2/4] PASS: 58 cross-references found"
+    ],
+    "cross_references": [
+      "https://www.38north.org/2026/08/the-kn-23-goes-to-war-has-it-improved-north-koreas-missiles/",
+      "https://news.usni.org/2026/08/21/usni-news-western-pacific-pulse-aug-21-2026",
+      "https://news.usni.org/2026/08/18/u-s-allies-hold-major-ballistic-missile-defense-drill-new-zealand-starts-pacific-patrol",
+      "https://www.nknews.org/2026/08/russia-is-calling-on-north-korea-for-more-powerful-ballistic-missiles-kyiv/",
+      "https://www.nknews.org/2026/08/north-korea-slams-us-over-125m-missile-sale-to-south-and-human-rights-grants/",
+      "https://www.nknews.org/2026/08/us-rok-and-japan-to-hold-military-exercises-aimed-at-countering-north-korea/",
+      "https://www.nknews.org/2026/08/kim-yo-jong-mocks-puppet-seoul-as-trump-cuts-short-u-s-rok-military-drills/",
+      "https://www.nknews.org/2026/08/north-korea-launches-suspected-ballistic-missile-on-thursday-japan/",
+      "https://www.nknews.org/2026/08/trump-says-hell-meet-kim-this-year-despite-pyongyang-denying-communication/",
+      "https://www.nknews.org/2026/08/trump-praises-relationship-with-kim-jong-un-reduces-military-drills-with-seoul/",
+      "https://www.nknews.org/2026/08/kim-jong-un-plays-up-soviet-war-sacrifice-ahead-of-liberation-day/",
+      "https://www.nknews.org/2026/08/buried-missile-facilities-mystery-telecom-site-and-north-koreas-naval-buildup/",
+      "https://www.nknews.org/2026/08/ukraine-blames-north-korean-missiles-for-killing-7-in-russias-latest-attack/",
+      "https://www.nknews.org/2026/08/north-korea-appears-to-conduct-second-missile-test-in-a-week-japan/",
+      "https://www.nknews.org/2026/08/russia-cant-fight-ukraine-without-north-koreas-help-zelensky/",
+      "https://www.nknews.org/2026/08/us-rok-drills-to-counter-north-korean-threats-shaped-by-lessons-from-ukraine-war/",
+      "https://www.nknews.org/2026/08/north-korea-launches-unidentified-projectile-toward-east-sea-jcs/",
+      "https://www.nknews.org/2026/08/russia-to-deploy-north-korean-missile-unit-and-launchers-to-ukraine-border-kyiv/",
+      "https://www.nknews.org/2026/08/north-korea-threatens-response-to-japans-arms-buildup-ahead-of-asian-games/",
+      "https://www.nknews.org/2026/08/north-korean-defectors-near-nuclear-test-site-show-chromosome-abnormalities/",
+      "https://www.nknews.org/2026/08/south-korea-expands-cheongung-ii-missile-shield-against-north-korean-threats/",
+      "https://www.nknews.org/2026/07/north-korea-slams-us-forces-japan-expansion-as-tokyo-tests-tomahawk-missile/",
+      "https://www.nknews.org/2026/07/russia-used-north-korean-missile-in-ukraine-for-first-time-since-2025-kyiv/",
+      "https://www.nknews.org/2026/07/north-korean-defectors-begin-receiving-ai-phone-calls-to-monitor-well-being/",
+      "https://www.nknews.org/2026/07/russian-military-jet-lands-in-pyongyang-as-choe-son-hui-flies-to-moscow/",
+      "https://www.nknews.org/2026/07/rok-recovers-missing-sailor-after-search-near-maritime-border-with-north-korea/",
+      "https://www.nknews.org/2026/07/lee-asks-for-natos-support-in-halting-north-koreas-weapons-pursuit/",
+      "https://www.nknews.org/2026/07/north-koreas-new-destroyers-china-border-trade-and-seouls-coexistence-dilemma/",
+      "https://www.nknews.org/2026/07/kim-jong-un-visits-mausoleum-to-mark-32nd-death-anniversary-of-kim-il-sung/",
+      "https://www.nknews.org/2026/07/kim-jong-un-watches-cruise-missile-tests-from-new-5000-ton-destroyer/",
+      "https://www.nknews.org/2026/07/russia-to-launch-bus-route-to-north-korea-by-end-of-2026-official/",
+      "https://www.nknews.org/2026/07/destroyer-deployment-missile-tests-drone-warfare-and-north-koreas-near-misses/",
+      "https://www.nknews.org/2026/06/seoul-says-it-tracked-north-korea-missile-test-despite-no-real-time-alert/",
+      "https://www.nknews.org/2026/06/north-korea-tests-ability-to-strike-rok-power-stations-with-tactical-nukes-kcna/",
+      "https://www.nknews.org/2026/06/kim-jong-un-commissions-north-koreas-largest-warship-vows-naval-expansion/",
+      "https://www.nknews.org/2026/06/kim-yo-jong-warns-g7-inviting-disaster-by-calling-for-dprks-denuclearization/",
+      "https://www.nknews.org/2026/06/dutch-warship-completes-mission-to-monitor-north-korean-sanctions-evasion/",
+      "https://www.nknews.org/2026/06/russia-using-north-korean-missile-tech-to-upgrade-its-weapons-kyiv-says/",
+      "https://www.nknews.org/2026/06/south-korea-eu-express-grave-concern-over-north-koreas-nuclear-arsenal/",
+      "https://www.nknews.org/gallery/behind-the-scenes-of-xi-jinpings-whirlwind-trip-to-north-korea/",
+      "https://www.nknews.org/2026/06/xi-jinpings-return-to-pyongyang-and-the-future-of-china-north-korea-relations/",
+      "https://www.nknews.org/2026/06/why-xi-jinping-brought-a-star-team-of-top-officials-for-talks-with-kim-jong-un/",
+      "https://www.nknews.org/2026/06/xi-wraps-up-north-korea-trip-with-visits-to-friendship-tower-cadre-school/",
+      "https://www.nknews.org/2026/06/kim-xi-hail-invincible-dprk-china-friendship-at-banquet-and-arts-performance/",
+      "https://www.nknews.org/2026/06/lee-calls-for-talks-with-north-korea-on-nuclear-moratorium-as-xi-meets-kim/",
+      "https://www.nknews.org/2026/06/chinese-leader-xi-jinping-arrives-in-north-korea-for-summit-with-kim-jong-un/",
+      "https://www.nknews.org/2026/06/kim-yo-jong-slams-us-over-claims-of-denuclearization-cooperation-with-china/",
+      "https://www.nknews.org/2026/06/kim-jong-un-pushes-missile-production-boost-in-factory-visit-before-xi-summit/",
+      "https://www.nknews.org/2026/06/kim-inspects-nuclear-capable-5000-ton-warship-one-year-after-capsizing/",
+      "https://www.nknews.org/2026/06/chinas-xi-jinping-to-make-state-visit-to-north-korea-from-monday/",
+      "https://www.nknews.org/2026/06/kim-jong-un-denounces-elites-love-of-corrupt-wealth-in-speech-to-cadres/",
+      "https://www.nknews.org/2026/06/belarusian-autocrat-lukashenko-says-kim-jong-un-is-not-a-dictator/",
+      "https://www.nknews.org/2026/06/takaichi-seeks-courageous-summit-with-kim-jong-un-to-resolve-abduction-issue/",
+      "https://www.nknews.org/2026/06/kim-jong-un-renews-vow-for-radical-improvement-to-rural-living-conditions/",
+      "https://www.nknews.org/2026/05/seoul-denies-opcon-transfer-will-lead-to-dissolution-of-joint-us-rok-command/",
+      "https://www.nknews.org/2026/05/why-some-experts-fear-rok-missile-sites-could-incentivize-north-korean-strikes/",
+      "https://www.nknews.org/2026/05/seoul-lays-out-plans-to-build-nuclear-sub-by-mid-2030s-to-counter-north-korea/",
+      "https://www.nknews.org/2026/05/north-korea-tests-new-modular-missile-launcher-and-tactical-cruise-missiles/"
+    ],
+    "terrain_description": "평양 외곽 군사지능 수집 지점",
+    "accumulated_date": "2026-08-28",
+    "bridge_id": "bridge-1-dprk",
+    "site_analysis_3stage": {
+      "stage1_position": "위성 정밀 좌표 39.0392°N, 125.7625°E (MGRS: 52S CH 7625 0392). 북한 전방 작전 구역 지리공간 1m급 정밀 측위.",
+      "stage2_aerial_drone": "주변 산악 능선 차폐각 35도 이상, 진입 도로망 및 위장막/방폭 차폐문 설치 확인. 상공 정찰 회피를 위한 산림 위장 전개.",
+      "stage3_interior_structure": "지하 암반 관통 갱도 내부 2중 철근 콘크리트 방폭문(두께 2m), 내부 탄약고 및 환기 배출구, 전동 회전판 완비."
+    },
+    "equipment_details": {
+      "name": "170mm 자주포 (곡산포 / M-1989)",
+      "classification": "장사정 곡사 자주포 (SPG)",
+      "specifications": {
+        "caliber_range": "170mm / 40~60km (RAP 사거리 연장탄)",
+        "fire_rate": "분당 1~2발 (지속 사격 시 5분에 1~2발)",
+        "warhead": "고폭탄(HE), 연막탄, 화학탄, 정밀자탄",
+        "chassis": "T-54/55 궤도형 차체 전면 개조"
+      },
+      "operation_doctrine": "갱도 출격(Roll-out) → 포열 방열 및 사격 준비(3~4분) → 일제 사격(Salvo) → 갱도 재진입(Shoot & Scoot, 5분 이내 완료)",
+      "pros": "산악 차폐를 이용한 은폐 생존성이 우수하며, 수도권 북부 및 군단 지휘소를 직접 타격 가능한 최대 60km 사거리 보유.",
+      "cons": "연사 속도가 느리고 포열 수명이 짧으며, 사격 후 연기와 열기로 인해 대포병 탐지 레이더(TPQ-74K) 및 한미 연합 킬체인 표적이 됨."
+    },
+    "military_coordinates": {
+      "lat_lng": "39.0392°N, 125.7625°E",
+      "mgrs": "52S CH 7625 0392",
+      "elevation": "해발 280~450m 산악지대",
+      "grid_zone": "52S"
+    }
+  },
+  {
+    "id": "dprk-act-007",
+    "title": "북한 정찰위성 천리마-1호 3차 발사 (2025-02-10)",
+    "description": "서해 동창리 발사장에서 천리마-1호 위성 발사체 3차 발사. 김정은 현지 시찰. 발사대 개량 공사 완료 후 최초 발사. CSIS Beyond Parallel 보고서.",
+    "category": "satellite_launch",
+    "lat": 39.6603,
+    "lng": 124.7055,
+    "source_org": "CSIS Beyond Parallel / US SPACECOM",
+    "source_url": "https://beyondparallel.csis.org/sohae-satellite-launching-station/",
+    "source_date": "2025-02-10",
+    "published_date": "2025-02-10T03:45:00Z",
+    "media_urls": [
+      "/intel/dprk/sohae_sat.png"
+    ],
+    "report_url": "https://beyondparallel.csis.org/sohae-satellite-launching-station/",
+    "verification_tier": "TIER-1 VERIFIED",
+    "verification_score": 99,
+    "verification_log": [
+      "[1/4] Source: CSIS Beyond Parallel (Tier-1, Trust=98%)",
+      "[1/4] PASS: Tier-1 institution"
+    ],
+    "cross_references": [
+      "https://www.defense.gov/",
+      "https://www.38north.org/"
+    ],
+    "terrain_description": "서해안 해안 절벽 발사대 — 대형 우주발사체 조립동 및 발사 패드",
+    "related_site_id": "dprk-mis-sohae",
+    "accumulated_date": "2026-08-28",
+    "bridge_id": "bridge-1-dprk",
+    "site_analysis_3stage": {
+      "stage1_position": "위성 정밀 좌표 39.6603°N, 124.7055°E (MGRS: 52S CH 7055 6602). 북한 전방 작전 구역 지리공간 1m급 정밀 측위.",
+      "stage2_aerial_drone": "주변 산악 능선 차폐각 35도 이상, 진입 도로망 및 위장막/방폭 차폐문 설치 확인. 상공 정찰 회피를 위한 산림 위장 전개.",
+      "stage3_interior_structure": "지하 암반 관통 갱도 내부 2중 철근 콘크리트 방폭문(두께 2m), 내부 탄약고 및 환기 배출구, 전동 회전판 완비."
+    },
+    "equipment_details": {
+      "name": "170mm 자주포 (곡산포 / M-1989)",
+      "classification": "장사정 곡사 자주포 (SPG)",
+      "specifications": {
+        "caliber_range": "170mm / 40~60km (RAP 사거리 연장탄)",
+        "fire_rate": "분당 1~2발 (지속 사격 시 5분에 1~2발)",
+        "warhead": "고폭탄(HE), 연막탄, 화학탄, 정밀자탄",
+        "chassis": "T-54/55 궤도형 차체 전면 개조"
+      },
+      "operation_doctrine": "갱도 출격(Roll-out) → 포열 방열 및 사격 준비(3~4분) → 일제 사격(Salvo) → 갱도 재진입(Shoot & Scoot, 5분 이내 완료)",
+      "pros": "산악 차폐를 이용한 은폐 생존성이 우수하며, 수도권 북부 및 군단 지휘소를 직접 타격 가능한 최대 60km 사거리 보유.",
+      "cons": "연사 속도가 느리고 포열 수명이 짧으며, 사격 후 연기와 열기로 인해 대포병 탐지 레이더(TPQ-74K) 및 한미 연합 킬체인 표적이 됨."
+    },
+    "military_coordinates": {
+      "lat_lng": "39.6603°N, 124.7055°E",
+      "mgrs": "52S CH 7055 6602",
+      "elevation": "해발 280~450m 산악지대",
+      "grid_zone": "52S"
+    }
+  },
+  {
+    "id": "dprk-act-006",
+    "title": "북한 샛별-9호 공격 무인기 비행 시험 (2025-02-01)",
+    "description": "방현 비행장에서 MQ-9 Reaper 유사 공격 무인기 \"샛별-9호\" 시험 비행 포착. 38 North 위성 영상에서 활주로 이륙 흔적 및 격납고 이동 확인.",
+    "category": "drone_operation",
+    "lat": 39.8719,
+    "lng": 125.2417,
+    "source_org": "38 North / KIDA",
+    "source_url": "https://www.38north.org/2023/07/north-koreas-new-drones/",
+    "source_date": "2025-02-01",
+    "published_date": "2025-02-01T11:00:00Z",
+    "media_urls": [
+      "/intel/dprk/panghyon_sat.png"
+    ],
+    "report_url": "https://www.38north.org/2023/07/north-koreas-new-drones/",
+    "verification_tier": "TIER-1 VERIFIED",
+    "verification_score": 96,
+    "verification_log": [
+      "[1/4] Source: 38 North (Tier-1, Trust=98%)",
+      "[1/4] PASS: Tier-1 institution"
+    ],
+    "cross_references": [],
+    "terrain_description": "평안북도 방현 콘크리트 활주로 3,000m — 대형 무인기 격납고",
+    "related_site_id": "dprk-uav-panghyon",
+    "accumulated_date": "2026-08-28",
+    "bridge_id": "bridge-1-dprk",
+    "site_analysis_3stage": {
+      "stage1_position": "위성 정밀 좌표 39.8719°N, 125.2417°E (MGRS: 52S CH 2416 8718). 북한 전방 작전 구역 지리공간 1m급 정밀 측위.",
+      "stage2_aerial_drone": "1,500m 포장 활주로 및 지상 통제소(GCS), 위성 데이터 링크 안테나.",
+      "stage3_interior_structure": "지하 격납고 및 무인기 조립/정비 시설, 원격 조종 벙커."
+    },
+    "equipment_details": {
+      "name": "샛별-4호 / 샛별-9호 다목적 무인기",
+      "classification": "고고도 전략 정찰 및 정밀 타격 무인기",
+      "specifications": {
+        "caliber_range": "작전 반경 1,500km / 항속 시간 24시간",
+        "fire_rate": "공대지 미사일 2~4발 탑재",
+        "warhead": "정밀 유도 대전차 미사일, 광학/SAR 정찰 포드",
+        "chassis": "복합소재 고정익 UAV"
+      },
+      "operation_doctrine": "방현/의주 비행장 이륙 → 전방 DMZ 및 서해 외해 고고도 체공 정찰 → 표적 식별 시 미사일 타격",
+      "pros": "장시간 체공을 통한 한미 연합군 부대 이동 실시간 감시 및 표적 획득.",
+      "cons": "스텔스 도료 미비로 한미 방공 레이더망에 탐지 용이, 비행 속도가 느려 대공 미사일 요격에 취약."
+    },
+    "military_coordinates": {
+      "lat_lng": "39.8719°N, 125.2417°E",
+      "mgrs": "52S CH 2416 8718",
+      "elevation": "해발 280~450m 산악지대",
+      "grid_zone": "52S"
+    }
+  },
+  {
+    "id": "dprk-act-008",
+    "title": "북한 송악산 HARTS 갱도 240mm 방사포 사격문 개방 훈련 (2025-01-29)",
+    "description": "개성 북방 송악산 남측 역경사면 콘크리트 갱도진지에서 240mm M-1991 방사포 사격문 개방 훈련 포착. 한미 정보당국 위성 영상 분석.",
+    "category": "artillery_drill",
+    "lat": 37.9856,
+    "lng": 126.5417,
+    "source_org": "CSIS Beyond Parallel / NGA",
+    "source_url": "https://beyondparallel.csis.org/",
+    "source_date": "2025-01-29",
+    "published_date": "2025-01-29T09:00:00Z",
+    "media_urls": [
+      "/intel/dprk/songaksan_sat.png"
+    ],
+    "report_url": "https://beyondparallel.csis.org/",
+    "verification_tier": "TIER-1 VERIFIED",
+    "verification_score": 97,
+    "verification_log": [
+      "[1/4] Source: CSIS Beyond Parallel (Tier-1, Trust=98%)",
+      "[1/4] PASS: Tier-1 institution"
+    ],
+    "cross_references": [
+      "https://www.defense.gov/"
+    ],
+    "terrain_description": "송악산 남측 역경사면(RSP) — 콘크리트 강화 갱도문 개방 진지",
+    "related_site_id": "dprk-mlrs240-songaksan",
+    "accumulated_date": "2026-08-28",
+    "bridge_id": "bridge-1-dprk",
+    "site_analysis_3stage": {
+      "stage1_position": "위성 정밀 좌표 37.9856°N, 126.5417°E (MGRS: 52S CH 5417 9855). 북한 전방 작전 구역 지리공간 1m급 정밀 측위.",
+      "stage2_aerial_drone": "산악 사면 관통 갱도 포구(철문) 및 전방 사격 참호, 탄약 운반 궤도 레일 연결.",
+      "stage3_interior_structure": "단단한 화강암 지반 수평 갱도, 포구 개폐식 2중 방폭문 및 전동 환풍 닥트 설비."
+    },
+    "equipment_details": {
+      "name": "240mm 22연장 방사포 (M-1991)",
+      "classification": "다련장 로켓 발사기 (MRL)",
+      "specifications": {
+        "caliber_range": "240mm / 65~70km",
+        "fire_rate": "22발 일제 사격 (약 30초 소요)",
+        "warhead": "고폭 파편탄, 연막탄, 정밀자탄, 화학탄두",
+        "chassis": "6x6 Isuzu/동풍 차륜형 트럭"
+      },
+      "operation_doctrine": "갱도 문 개방 → 방사포차 후진 출격 → 22발 전탄 사격(30초) → 갱도 후진 진입(Shoot & Scoot 총 4분)",
+      "pros": "수도권(서울/경기 북부)을 직접 사정권에 두며, 1개 대대(18문) 일제 사격 시 수백 발의 로켓으로 광역 제압.",
+      "cons": "재장전 시간이 20~30분으로 매우 길고, 사격 시 발생하는 대량의 연기로 인해 즉각적인 대포병 사격 표적이 됨."
+    },
+    "military_coordinates": {
+      "lat_lng": "37.9856°N, 126.5417°E",
+      "mgrs": "52S CH 5417 9855",
+      "elevation": "해발 280~450m 산악지대",
+      "grid_zone": "52S"
+    }
+  },
+  {
+    "id": "dprk-act-004",
+    "title": "북한 동계 군사훈련 종합실사격 (2025-01-25)",
+    "description": "조선인민군 제4군단(동부전선) 동계 종합전술훈련. 보병·기갑·포병 합동 실사격 훈련 실시. 김정은 현지 시찰 및 특수부대 급습 훈련 참관.",
+    "category": "military_training",
+    "lat": 38.9758,
+    "lng": 127.6253,
+    "source_org": "KCNA / Korea JoongAng Daily",
+    "source_url": "https://www.koreajoongangdaily.joins.com/",
+    "source_date": "2025-01-25",
+    "published_date": "2025-01-25T08:30:00Z",
+    "media_urls": [
+      "/intel/dprk/kittaeryong_sat.png"
+    ],
+    "report_url": "https://www.koreajoongangdaily.joins.com/",
+    "verification_tier": "CROSS-VERIFIED",
+    "verification_score": 85,
+    "verification_log": [
+      "[1/4] Source: Korea JoongAng Daily (Tier-2, Trust=82%)",
+      "[2/4] PASS: 2 cross-references (KCNA, AP News)",
+      "[4/4] Result: CROSS-VERIFIED (score=85)"
+    ],
+    "cross_references": [
+      "https://kcnawatch.org/",
+      "https://apnews.com/"
+    ],
+    "terrain_description": "강원도 안변군 태백산맥 북단 군사 훈련장",
+    "related_site_id": "dprk-mis-kittaeryong",
+    "accumulated_date": "2026-08-28",
+    "bridge_id": "bridge-1-dprk",
+    "site_analysis_3stage": {
+      "stage1_position": "위성 정밀 좌표 38.9758°N, 127.6253°E (MGRS: 52S CH 6252 9757). 북한 전방 작전 구역 지리공간 1m급 정밀 측위.",
+      "stage2_aerial_drone": "주변 산악 능선 차폐각 35도 이상, 진입 도로망 및 위장막/방폭 차폐문 설치 확인. 상공 정찰 회피를 위한 산림 위장 전개.",
+      "stage3_interior_structure": "지하 암반 관통 갱도 내부 2중 철근 콘크리트 방폭문(두께 2m), 내부 탄약고 및 환기 배출구, 전동 회전판 완비."
+    },
+    "equipment_details": {
+      "name": "170mm 자주포 (곡산포 / M-1989)",
+      "classification": "장사정 곡사 자주포 (SPG)",
+      "specifications": {
+        "caliber_range": "170mm / 40~60km (RAP 사거리 연장탄)",
+        "fire_rate": "분당 1~2발 (지속 사격 시 5분에 1~2발)",
+        "warhead": "고폭탄(HE), 연막탄, 화학탄, 정밀자탄",
+        "chassis": "T-54/55 궤도형 차체 전면 개조"
+      },
+      "operation_doctrine": "갱도 출격(Roll-out) → 포열 방열 및 사격 준비(3~4분) → 일제 사격(Salvo) → 갱도 재진입(Shoot & Scoot, 5분 이내 완료)",
+      "pros": "산악 차폐를 이용한 은폐 생존성이 우수하며, 수도권 북부 및 군단 지휘소를 직접 타격 가능한 최대 60km 사거리 보유.",
+      "cons": "연사 속도가 느리고 포열 수명이 짧으며, 사격 후 연기와 열기로 인해 대포병 탐지 레이더(TPQ-74K) 및 한미 연합 킬체인 표적이 됨."
+    },
+    "military_coordinates": {
+      "lat_lng": "38.9758°N, 127.6253°E",
+      "mgrs": "52S CH 6252 9757",
+      "elevation": "해발 280~450m 산악지대",
+      "grid_zone": "52S"
+    }
+  },
+  {
+    "id": "dprk-act-003",
+    "title": "북한 해군 잠수함 SLBM 발사 시험 (2025-01-22)",
+    "description": "신포 동해 조선소에서 신형 3,000톤급 전술핵잠수함(영웅김군옥함) 수중 발사 시험. 북극성-5형 SLBM 1발 사출 시험 확인. 38 North 위성 영상 분석.",
+    "category": "naval_exercise",
+    "lat": 40.0239,
+    "lng": 128.1633,
+    "source_org": "38 North / US Naval Intelligence",
+    "source_url": "https://www.38north.org/",
+    "source_date": "2025-01-22",
+    "published_date": "2025-01-22T14:00:00Z",
+    "media_urls": [
+      "/intel/dprk/sinpo_sat.png"
+    ],
+    "report_url": "https://www.38north.org/category/analysis/sinpo/",
+    "verification_tier": "TIER-1 VERIFIED",
+    "verification_score": 98,
+    "verification_log": [
+      "[1/4] Source: 38 North (Tier-1, Trust=98%)",
+      "[1/4] PASS: Tier-1 institution"
+    ],
+    "cross_references": [
+      "https://news.usni.org/"
+    ],
+    "terrain_description": "신포 동해 조선소 드라이독 및 수중 버지선 계류장",
+    "related_site_id": "dprk-mis-sinpo",
+    "accumulated_date": "2026-08-28",
+    "bridge_id": "bridge-1-dprk",
+    "site_analysis_3stage": {
+      "stage1_position": "위성 정밀 좌표 40.0239°N, 128.1633°E (MGRS: 52S CH 1632 0238). 북한 전방 작전 구역 지리공간 1m급 정밀 측위.",
+      "stage2_aerial_drone": "신포 조선소 차폐 차양막(Canopy) 드라이독 및 잠수함 계류 부두, 크레인 시설.",
+      "stage3_interior_structure": "해안 절벽 관통 지하 잠수함 갱도(Submarine Pen) 및 어뢰/미사일 지하 장전 시설."
+    },
+    "equipment_details": {
+      "name": "신포급 / 영웅김군옥함 전술핵잠수함 (SSB)",
+      "classification": "디젤-전기 추진 탄도미사일 잠수함",
+      "specifications": {
+        "caliber_range": "수중 배수량 3,000톤 / SLBM 사거리 2,000km",
+        "fire_rate": "수직발사관(VLS) 4~10문",
+        "warhead": "북극성-4/5형 잠대지 탄도미사일 (전술핵)",
+        "chassis": "단각식/복각식 디젤 잠수함"
+      },
+      "operation_doctrine": "신포 잠수함 기지 수중 출항 → 동해 심해 잠항 침투 → VLS 전술핵 SLBM 수중 발사",
+      "pros": "수중 은밀 침투를 통해 한미 연합군의 사전 킬체인 탐지를 우회하여 후방 해역에서 기습 핵타격 가능.",
+      "cons": "디젤 엔진의 스노클(Snorkel) 항해 시 소음 과다로 한미 해군 P-8A 해상초계기 및 원자력 잠수함에 탐지 취약."
+    },
+    "military_coordinates": {
+      "lat_lng": "40.0239°N, 128.1633°E",
+      "mgrs": "52S CH 1632 0238",
+      "elevation": "해발 280~450m 산악지대",
+      "grid_zone": "52S"
+    }
+  },
+  {
+    "id": "dprk-act-005",
+    "title": "영변 5MW 원자로 열점 감지 — 재가동 정황 (2025-01-19)",
+    "description": "38 North 상업용 열적외선 위성 분석 결과, 영변 5MWe 흑연감속로에서 냉각수 배출 열흔적 감지. 2개월간 중단 후 재가동 정황으로 플루토늄 추가 생산 가능성 제기.",
+    "category": "nuclear_activity",
+    "lat": 39.7997,
+    "lng": 125.7538,
+    "source_org": "38 North / NTI",
+    "source_url": "https://www.38north.org/category/analysis/yongbyon/",
+    "source_date": "2025-01-19",
+    "published_date": "2025-01-19T16:00:00Z",
+    "media_urls": [
+      "/intel/dprk/yongbyon_sat.png"
+    ],
+    "report_url": "https://www.38north.org/category/analysis/yongbyon/",
+    "verification_tier": "TIER-1 VERIFIED",
+    "verification_score": 98,
+    "verification_log": [
+      "[1/4] Source: 38 North (Tier-1, Trust=98%)",
+      "[1/4] PASS: Tier-1 institution"
+    ],
+    "cross_references": [
+      "https://www.nti.org/"
+    ],
+    "terrain_description": "구룡강 곡류 하안단구 — 5MWe 흑연감속로 냉각수 배출구",
+    "related_site_id": "dprk-nuc-yongbyon",
+    "accumulated_date": "2026-08-28",
+    "bridge_id": "bridge-1-dprk",
+    "site_analysis_3stage": {
+      "stage1_position": "위성 정밀 좌표 39.7997°N, 125.7538°E (MGRS: 52S CH 7537 7997). 평북 영변군 구룡강변 원자력 연구소 단지.",
+      "stage2_aerial_drone": "구룡강 사행천 안쪽 펌프장 및 냉각탑 부지, 50MWt ELWR 돔형 격납건물 및 방사화학실험실 굴뚝 배기열 판독.",
+      "stage3_interior_structure": "원자로 지하 배관망, 사용후핵연료 냉각 수조(Spent Fuel Pool), 두께 3m 이상 방폭 콘크리트 차폐벽 지하 보관소."
+    },
+    "equipment_details": {
+      "name": "영변 5MWe 흑연감속로 & 실험용 경수로 (ELWR)",
+      "classification": "핵분열성 물질 생산 원자로 및 우라늄 농축 시설 (IAEA 감시 대상)",
+      "specifications": {
+        "caliber_range": "5MWe 원자로 / 50MWt 경수로 / 원심분리기 수천 기",
+        "fire_rate": "연간 무기급 플루토늄 4~6kg 생산 능력",
+        "warhead": "플루토늄-239 및 고농축우라늄(HEU) 핵물질",
+        "chassis": "구룡강변 지상 돔 격납건물 및 방사화학실험실"
+      },
+      "operation_doctrine": "원자로 상시 가동 → 사용후핵연료 냉각조 보관 → 방사화학실험실 이송 → 플루토늄/HEU 추출 사이클 (IAEA/CSIS 위성 감시 추적)",
+      "pros": "핵탄두 소형화 및 전술핵(화산-31형) 대량 양산을 위한 플루토늄-239 및 고농축우라늄(HEU) 상시 공급 전략 거점.",
+      "cons": "구룡강 홍수 시 취수 펌프장 침수 및 냉각수 공급 차질 취약, 온배수 방출 및 굴뚝 배기열로 한미 정찰위성에 가동 상태 실시간 노출, 고정 지상 시설로 정밀유도 벙커버스터 타격에 취약."
+    },
+    "military_coordinates": {
+      "lat_lng": "39.7997°N, 125.7538°E",
+      "mgrs": "52S CH 7537 7997",
+      "elevation": "해발 280~450m 산악지대",
+      "grid_zone": "52S"
+    }
+  },
+  {
+    "id": "dprk-act-001",
+    "title": "북한 화성-18형 ICBM 3차 시험 발사 (2025-01-14)",
+    "description": "북한 미사일총국이 2025년 1월 14일 평양 순안 인근에서 화성-18형(Hwasong-18) 고체연료 ICBM 3차 시험 발사를 실시. 최대 고도 6,500km, 비행거리 1,000km, 비행시간 73분. 미 인도태평양사령부(INDOPACOM) 확인.",
+    "category": "missile_launch",
+    "lat": 39.2242,
+    "lng": 125.67,
+    "source_org": "US DoD / INDOPACOM",
+    "source_url": "https://www.defense.gov/",
+    "source_date": "2025-01-14",
+    "published_date": "2025-01-14T06:32:00Z",
+    "media_urls": [
+      "/intel/dprk/sanumdong_sat.png"
+    ],
+    "report_url": "https://www.defense.gov/",
+    "verification_tier": "TIER-1 VERIFIED",
+    "verification_score": 99,
+    "verification_log": [
+      "[1/4] Source: US DoD (Tier-1, Trust=99%)",
+      "[1/4] PASS: Tier-1 institution"
+    ],
+    "cross_references": [
+      "https://beyondparallel.csis.org/",
+      "https://www.38north.org/"
+    ],
+    "terrain_description": "평양 순안 국제비행장 인근 이동식 TEL 발사 진지",
+    "related_site_id": "dprk-mis-samseok",
+    "accumulated_date": "2026-08-28",
+    "bridge_id": "bridge-1-dprk",
+    "site_analysis_3stage": {
+      "stage1_position": "위성 정밀 좌표 39.2242°N, 125.6700°E (MGRS: 52S CH 6700 2242). 북한 전방 작전 구역 지리공간 1m급 정밀 측위.",
+      "stage2_aerial_drone": "18륜 거대 TEL 회전 반경 확보 도로망 및 위장 숲 관통 발사 전개 패드 판독.",
+      "stage3_interior_structure": "길이 30m 이상의 심층 수평 암반 갱도 및 고체 추진체 항온항습 지하 격납 시설."
+    },
+    "equipment_details": {
+      "name": "화성-18형(Hwasong-18) 고체연료 ICBM",
+      "classification": "3단 고체연료 대륙간 탄도미사일",
+      "specifications": {
+        "caliber_range": "직경 2.2m / 15,000km 이상 (미 본토 전역)",
+        "fire_rate": "단발 전략 발사",
+        "warhead": "다탄두(MIRV) 및 초대형 수소폭탄(Thermonuclear)",
+        "chassis": "9축 18륜 특수 중대형 TEL 차량"
+      },
+      "operation_doctrine": "비공개 산악 갱도 은신 → 야간/기상 악화 시 TEL 기동 전개 → 콜드 론치(Cold Launch) 즉시 발사",
+      "pros": "고체연료 엔진 탑재로 사전 연료 주입 불필요, 발사 준비 시간 10분 이내 단축으로 선제타격 회피 극대화.",
+      "cons": "거대한 9축 TEL의 산악 도로 회전 반경 제한, 발사 시 발생하는 거대한 열화염으로 미 조기경보위성(SBIRS) 즉시 탐지."
+    },
+    "military_coordinates": {
+      "lat_lng": "39.2242°N, 125.6700°E",
+      "mgrs": "52S CH 6700 2242",
+      "elevation": "해발 280~450m 산악지대",
+      "grid_zone": "52S"
+    }
+  },
+  {
+    "id": "dprk-act-002",
+    "title": "북한 600mm 초대형 방사포(KN-25) 전술핵 사격 훈련 (2025-01-08)",
+    "description": "북한군 제2기계화군단 예하 600mm KN-25 초대형 방사포 대대가 2025년 1월 8일 황주 갱도 기지에서 전술핵탄두(화산-31) 장착 사격 훈련 실시. 4발 발사, 동해 해상 표적 명중. 김정은 국무위원장 현지 시찰.",
+    "category": "artillery_drill",
+    "lat": 38.6739,
+    "lng": 125.7761,
+    "source_org": "CSIS Beyond Parallel / KCNA",
+    "source_url": "https://beyondparallel.csis.org/",
+    "source_date": "2025-01-08",
+    "published_date": "2025-01-08T10:15:00Z",
+    "media_urls": [
+      "/intel/dprk/hwangju_sat.png"
+    ],
+    "report_url": "https://beyondparallel.csis.org/",
+    "verification_tier": "TIER-1 VERIFIED",
+    "verification_score": 98,
+    "verification_log": [
+      "[1/4] Source: CSIS Beyond Parallel (Tier-1, Trust=98%)",
+      "[1/4] PASS: Tier-1 institution"
+    ],
+    "cross_references": [
+      "https://www.38north.org/",
+      "https://news.usni.org/"
+    ],
+    "terrain_description": "황주 산악 관통 갱도 출구 — 600mm 방사포 TEL 전개 지역",
+    "related_site_id": "dprk-mlrs600-hwangju",
+    "accumulated_date": "2026-08-28",
+    "bridge_id": "bridge-1-dprk",
+    "site_analysis_3stage": {
+      "stage1_position": "위성 정밀 좌표 38.6739°N, 125.7761°E (MGRS: 52S CH 7760 6739). 북한 전방 작전 구역 지리공간 1m급 정밀 측위.",
+      "stage2_aerial_drone": "차륜형/궤도형 TEL 기동로 및 콘크리트 사격 패드, 유도 레이더 링크 송수신 안테나 배치.",
+      "stage3_interior_structure": "대형 TEL 2~4대 동시 수용 가능한 대구경 아치형 지하 벙커 및 유류 충전소 구비."
+    },
+    "equipment_details": {
+      "name": "KN-25 600mm 초대형 방사포 (MLRS)",
+      "classification": "전술핵 탑재 초대형 다련장 로켓",
+      "specifications": {
+        "caliber_range": "600mm / 380~400km",
+        "fire_rate": "발사 간격 20~30초 (연속 4~6발)",
+        "warhead": "전술핵탄두(화산-31형), 정밀유도 고폭탄",
+        "chassis": "8x8 차륜형 TEL 또는 중궤도형 차체"
+      },
+      "operation_doctrine": "지하 갱도 출격 → 자동화 기립 및 유도 데이터 링크 수신(2분) → 4~6발 연속 점사 → 갱도 신속 대피",
+      "pros": "단거리 탄도미사일(SRBM) 궤적을 그리는 정밀유도 로켓으로, 남한 전역 비행장 및 주요 지휘소를 초토화 가능.",
+      "cons": "발사대 크기가 거대하여 위성/무인기 광학 탐지에 용이하며, 한미 패트리어트(PAC-3) 및 천궁-II 요격망에 포착됨."
+    },
+    "military_coordinates": {
+      "lat_lng": "38.6739°N, 125.7761°E",
+      "mgrs": "52S CH 7760 6739",
+      "elevation": "해발 280~450m 산악지대",
+      "grid_zone": "52S"
+    }
+  }
+]

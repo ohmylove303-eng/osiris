@@ -1,0 +1,138 @@
+{
+  "version": 34,
+  "bgMode": "mountain",
+  "speedKmh": 20,
+  "isPlaying": false,
+  "harnessLocked": true,
+  "waypoints": [
+    {
+      "x": 44,
+      "y": 84,
+      "altitudeM": 110
+    },
+    {
+      "x": 42,
+      "y": 76,
+      "altitudeM": 125
+    },
+    {
+      "x": 40,
+      "y": 70,
+      "altitudeM": 140
+    },
+    {
+      "x": 37,
+      "y": 63,
+      "altitudeM": 160
+    },
+    {
+      "x": 33,
+      "y": 56,
+      "altitudeM": 190
+    },
+    {
+      "x": 30,
+      "y": 52,
+      "altitudeM": 220
+    },
+    {
+      "x": 34,
+      "y": 48,
+      "altitudeM": 250
+    }
+  ],
+  "targets": [
+    {
+      "id": "AFV-01",
+      "code": "AFV-01",
+      "name": "교육용 가상 표적 AFV-01 (기동 장갑차)",
+      "category": "AFV",
+      "x": 42,
+      "y": 74,
+      "isMoving": false,
+      "speedKmh": 43,
+      "progress": 0.58,
+      "headingDeg": 333,
+      "aspectIndex": 180,
+      "distanceM": 889,
+      "identified": true,
+      "reported": true,
+      "destroyed": false,
+      "maneuverPoints": [],
+      "currentWpIndex": 0
+    },
+    {
+      "id": "SPH-01",
+      "code": "SPH-01",
+      "name": "교육용 가상 표적 SPH-01",
+      "category": "SPH",
+      "x": 22,
+      "y": 58,
+      "isMoving": false,
+      "speedKmh": 20,
+      "progress": 0.4,
+      "headingDeg": 280,
+      "aspectIndex": 90,
+      "distanceM": 993,
+      "identified": true,
+      "reported": false,
+      "destroyed": false,
+      "maneuverPoints": [],
+      "currentWpIndex": 0
+    },
+    {
+      "id": "CP-01",
+      "code": "CP-01",
+      "name": "교육용 가상 표적 CP-01",
+      "category": "CP",
+      "x": 64,
+      "y": 62,
+      "isMoving": false,
+      "speedKmh": 10,
+      "progress": 0,
+      "headingDeg": 331,
+      "aspectIndex": 180,
+      "distanceM": 967,
+      "identified": true,
+      "reported": false,
+      "destroyed": false,
+      "maneuverPoints": [],
+      "currentWpIndex": 0,
+      "destX": null,
+      "destY": null
+    },
+    {
+      "id": "INF-01",
+      "code": "INF-01",
+      "name": "교육용 가상 표적 INF-01",
+      "category": "INF",
+      "x": 36,
+      "y": 72,
+      "isMoving": false,
+      "speedKmh": 0,
+      "progress": 0,
+      "headingDeg": 180,
+      "aspectIndex": 0,
+      "distanceM": 902,
+      "identified": false,
+      "reported": false,
+      "destroyed": false,
+      "maneuverPoints": [],
+      "currentWpIndex": 0,
+      "destX": null,
+      "destY": null
+    }
+  ],
+  "cffState": "STANDBY",
+  "selectedTargetId": "SPH-01",
+  "scores": {
+    "identification": 18,
+    "report": 20,
+    "callForFire": 17,
+    "safety": 16,
+    "bda": 17
+  },
+  "feedback": "전반적으로 우수합니다. 표적 식별 정확도를 더 향상시켜 보세요.",
+  "updatedAt": 1789122844526,
+  "syncedAt": "오후 7:34:04"
+}
