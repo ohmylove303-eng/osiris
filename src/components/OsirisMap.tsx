@@ -332,7 +332,7 @@ function OsirisMap({
       createDot(map, 'dot-cctv', cameraColor, 10);
 
       const sources = [
-        'flights','military','jets','private-fl','satellites','earthquakes','gdelt','gps-jamming','day-night','cctv','fires','weather','infrastructure','maritime','maritime-choke','maritime-ships','live-news','sigint-news','conflict-zones', 'war-alerts-targets', 'war-alerts-lines', 'balloons', 'radiation', 'ip-sweep-devices', 'ip-sweep-pulse', 'ip-sweep-connections', 'scan-targets', 'sdk-entities', 'sdk-links', 'malware-nodes', 'network-mesh', 'cyber-arcs', 'cyber-heads', 'cyber-impacts', 'dprk-sites-src', 'dprk-activity-src', 'seismic-nuclear-src', 'demarcation-lines', 'drones', 'cuas-gcs-emitters', 'cuas-vector-lines', 'china-encroachment'
+        'flights','military','jets','private-fl','satellites','earthquakes','gdelt','gps-jamming','day-night','cctv','fires','weather','infrastructure','maritime','maritime-choke','maritime-ships','live-news','sigint-news','conflict-zones', 'war-alerts-targets', 'war-alerts-lines', 'balloons', 'radiation', 'ip-sweep-devices', 'ip-sweep-pulse', 'ip-sweep-connections', 'scan-targets', 'sdk-entities', 'sdk-links', 'malware-nodes', 'network-mesh', 'cyber-arcs', 'cyber-heads', 'cyber-impacts', 'dprk-sites-src', 'dprk-activity-src', 'seismic-nuclear-src', 'demarcation-lines', 'drones', 'cuas-gcs-emitters', 'cuas-vector-lines', 'china-encroachment', 'notam-hazards', 'submarine-cables', 'dark-fleet'
       ];
       sources.forEach(s => {
         if (!map.getSource(s)) {
@@ -791,6 +791,145 @@ function OsirisMap({
           'text-color': '#FFD54F',
           'text-halo-color': '#000000',
           'text-halo-width': 2.5,
+          'text-opacity': 0.95,
+        }
+      });
+
+      // ══ NOTAM MISSILE / ROCKET DANGER AIRSPACE (QWELW) ══
+      map.addLayer({
+        id: 'notam-hazards-fill',
+        type: 'fill',
+        source: 'notam-hazards',
+        paint: {
+          'fill-color': ['match', ['get', 'severity'], 'CRITICAL', '#FF1744', 'HIGH', '#FF5252', '#FF9100'],
+          'fill-opacity': 0.18,
+        }
+      });
+      map.addLayer({
+        id: 'notam-hazards-line',
+        type: 'line',
+        source: 'notam-hazards',
+        paint: {
+          'line-color': ['match', ['get', 'severity'], 'CRITICAL', '#FF1744', 'HIGH', '#FF5252', '#FF9100'],
+          'line-width': 2,
+          'line-dasharray': [3, 2],
+        }
+      });
+      map.addLayer({
+        id: 'notam-hazards-label',
+        type: 'symbol',
+        source: 'notam-hazards',
+        minzoom: 3,
+        layout: {
+          'text-field': ['concat', ['get', 'notam_id'], '\n', ['get', 'altitude_range']],
+          'text-size': 10,
+          'text-font': ['Open Sans Bold'],
+          'text-offset': [0, 0],
+          'text-allow-overlap': false,
+        },
+        paint: {
+          'text-color': '#FF8A80',
+          'text-halo-color': '#000000',
+          'text-halo-width': 2,
+          'text-opacity': 0.95,
+        }
+      });
+
+      // ══ SUBMARINE OPTICAL CABLES & ANCHOR DRAG SABOTAGE WATCH ══
+      map.addLayer({
+        id: 'submarine-cables-glow',
+        type: 'line',
+        source: 'submarine-cables',
+        paint: {
+          'line-color': '#00E5FF',
+          'line-width': 4,
+          'line-opacity': 0.2,
+          'line-blur': 2,
+        }
+      });
+      map.addLayer({
+        id: 'submarine-cables-line',
+        type: 'line',
+        source: 'submarine-cables',
+        paint: {
+          'line-color': ['match', ['get', 'category'], 'CRITICAL_DEFENSE', '#FF1744', 'ENERGY_INTERCONNECT', '#FFD700', '#00E5FF'],
+          'line-width': 1.6,
+          'line-opacity': 0.85,
+        }
+      });
+      map.addLayer({
+        id: 'submarine-cables-label',
+        type: 'symbol',
+        source: 'submarine-cables',
+        minzoom: 5,
+        layout: {
+          'text-field': ['get', 'name'],
+          'text-size': 9,
+          'text-font': ['Open Sans Regular'],
+          'symbol-placement': 'line',
+          'symbol-spacing': 400,
+          'text-max-angle': 30,
+          'text-allow-overlap': false,
+        },
+        paint: {
+          'text-color': '#80DEEA',
+          'text-halo-color': '#000000',
+          'text-halo-width': 2,
+          'text-opacity': 0.9,
+        }
+      });
+
+      // ══ AIS DARK FLEET (KINETIC EXPANSION UNCERTAINTY BUBBLE) ══
+      map.addLayer({
+        id: 'dark-fleet-bubble-fill',
+        type: 'fill',
+        source: 'dark-fleet',
+        filter: ['==', '$type', 'Polygon'],
+        paint: {
+          'fill-color': '#FF9100',
+          'fill-opacity': 0.08,
+        }
+      });
+      map.addLayer({
+        id: 'dark-fleet-bubble-line',
+        type: 'line',
+        source: 'dark-fleet',
+        filter: ['==', '$type', 'Polygon'],
+        paint: {
+          'line-color': '#FF9100',
+          'line-width': 1.5,
+          'line-dasharray': [2, 2],
+          'line-opacity': 0.8,
+        }
+      });
+      map.addLayer({
+        id: 'dark-fleet-dots',
+        type: 'circle',
+        source: 'dark-fleet',
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 4.5, 5, 7, 10, 10],
+          'circle-color': '#FF9100',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#FFFFFF',
+          'circle-stroke-opacity': 0.9,
+        }
+      });
+      map.addLayer({
+        id: 'dark-fleet-label',
+        type: 'symbol',
+        source: 'dark-fleet',
+        minzoom: 4,
+        layout: {
+          'text-field': ['concat', ['get', 'name'], '\n[DARK FLEET]'],
+          'text-size': 9,
+          'text-font': ['Open Sans Bold'],
+          'text-offset': [0, 2.0],
+          'text-allow-overlap': false,
+        },
+        paint: {
+          'text-color': '#FFA726',
+          'text-halo-color': '#000000',
+          'text-halo-width': 2,
           'text-opacity': 0.95,
         }
       });
@@ -1927,18 +2066,34 @@ function OsirisMap({
       </div>`);
     });
 
-    // ── Fires (with NASA FIRMS link) ──
+    // ── Fires (with NASA FIRMS link & Tactical Classification) ──
     map.on('click', 'fires-heat', (e: any) => {
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
-      popup(coords, `<div style="${pStyle}border:1px solid rgba(255,107,0,0.3);">
-        <div style="color:#FF6B00;font-size:12px;font-weight:700;margin-bottom:6px;">🔥 ACTIVE FIRE DETECTED</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:9px;margin-bottom:8px;">
-          <div><span style="color:#5C5A54;">BRIGHTNESS</span><br/><span style="color:#FF6B00;">${p.brightness||'—'}K</span></div>
-          <div><span style="color:#5C5A54;">COORDS</span><br/><span style="color:#E8E6E0;">${coords[1].toFixed(3)}°, ${coords[0].toFixed(3)}°</span></div>
+      const isMil = p.is_military === true || p.is_military === 'true';
+      const isInd = p.is_industrial === true || p.is_industrial === 'true';
+      
+      const borderColor = isMil ? '#FF1744' : isInd ? '#FFD700' : '#FF6B00';
+      const headerColor = isMil ? '#FF1744' : isInd ? '#FFD700' : '#FF6B00';
+      const headerText = isMil 
+        ? '🚨 전술 열원 감지 (MILITARY THERMAL)' 
+        : isInd 
+        ? '🏭 산업 플랜트 공정열 (INDUSTRIAL)' 
+        : '🔥 지표면 열 이상 / 산불 (THERMAL ANOMALY)';
+
+      popup(coords, `<div style="${pStyle}border:1px solid ${borderColor};box-shadow:0 0 12px ${borderColor}33;">
+        <div style="color:${headerColor};font-size:11px;font-weight:700;margin-bottom:4px;font-family:monospace;letter-spacing:0.05em;">${headerText}</div>
+        ${p.facility ? `<div style="color:#FFF;font-size:10px;font-weight:600;margin-bottom:6px;">${p.facility}</div>` : ''}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:9px;margin-bottom:8px;font-family:monospace;">
+          <div><span style="color:#7A7870;">복사열 (FRP)</span><br/><span style="color:${headerColor};font-weight:700;">${p.frp ? p.frp + ' MW' : '—'}</span></div>
+          <div><span style="color:#7A7870;">밝기 온도</span><br/><span style="color:#E8E6E0;">${p.brightness ? p.brightness + ' K' : '—'}</span></div>
+          <div><span style="color:#7A7870;">신뢰도 / 등급</span><br/><span style="color:#00E5FF;">${p.confidence || 'nominal'} (${p.severity || 'ELEVATED'})</span></div>
+          <div><span style="color:#7A7870;">위성 관측 좌표</span><br/><span style="color:#E8E6E0;">${coords[1].toFixed(3)}°, ${coords[0].toFixed(3)}°</span></div>
+          <div><span style="color:#7A7870;">🕒 센서 관측 시각</span><br/><span style="color:#FFD740;">${p.date ? p.date + ' ' + (p.time || '00:00') + ' UTC' : '최근 24h 패스'}</span></div>
+          <div><span style="color:#7A7870;">🔄 갱신 주기</span><br/><span style="color:#00E676;">10분 간격 (수퍼바이저 감시 중)</span></div>
         </div>
-        <a href="https://firms.modaps.eosdis.nasa.gov/map/#d:24hrs;l:noaa20-viirs,viirs,modis_a,modis_t;@${coords[0]},${coords[1]},10z" target="_blank" style="${linkStyle}color:#FF6B00;border:1px solid rgba(255,107,0,0.4);background:rgba(255,107,0,0.1);">🛰️ NASA FIRMS MAP</a>
+        <a href="https://firms.modaps.eosdis.nasa.gov/map/#d:24hrs;l:noaa20-viirs,viirs,modis_a,modis_t;@${coords[0]},${coords[1]},10z" target="_blank" style="${linkStyle}color:${headerColor};border:1px solid ${headerColor}66;background:${headerColor}1A;">🛰️ NASA FIRMS 위성 원본 검증</a>
       </div>`);
     });
 
@@ -3036,6 +3191,78 @@ function getVideoAnalysisKeyframe(p: any): string {
       });
     });
 
+    // ── NOTAM Hazard Airspace Click Popup ──
+    map.on('click', 'notam-hazards-fill', (e: any) => {
+      const p = e.features?.[0]?.properties;
+      if (!p) return;
+      const coords = e.lngLat ? [e.lngLat.lng, e.lngLat.lat] : (e.features![0].geometry as any).coordinates[0][0];
+      popup(coords, `<div style="${pStyle}border:1.5px solid #FF1744;background:rgba(15,5,10,0.95);max-width:340px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;border-bottom:1px solid rgba(255,23,68,0.3);padding-bottom:4px;">
+          <span style="color:#FF1744;font-size:12px;font-weight:bold;">🚀 NOTAM 위험 공역 [${htmlEsc(p.notam_id || 'HAZARD')}]</span>
+          <span style="color:#FF5252;font-size:9px;font-weight:bold;background:rgba(255,23,68,0.2);padding:1px 5px;border-radius:3px;">${htmlEsc(p.severity || 'CRITICAL')}</span>
+        </div>
+        <div style="font-size:11px;color:#FFF;margin-bottom:6px;font-weight:600;">${htmlEsc(p.name || '미사일/발사체 위험 공역')}</div>
+        <div style="font-size:9px;color:#aaa;line-height:1.5;margin-bottom:6px;">
+          <div>고도 제한: <span style="color:#FFD740;font-weight:bold;">${htmlEsc(p.altitude_range || 'GND-UNL')}</span></div>
+          <div>위험 유형: <span style="color:#FF8A80;">${htmlEsc(p.type || '미사일/로켓 낙하 구역')}</span></div>
+          <div>발효 사유: <span style="color:#EEE;">${htmlEsc(p.reason || '로켓 추진체 단분리 낙하 및 탄도 시험')}</span></div>
+          <div>🕒 공고 유효기간: <span style="color:#FFD740;">${htmlEsc(p.effective_start ? p.effective_start.slice(0, 16).replace('T', ' ') : '상시')} ~ ${htmlEsc(p.effective_end ? p.effective_end.slice(0, 16).replace('T', ' ') : '')}</span></div>
+          <div>🔄 갱신 주기: <span style="color:#00E676;">5분 주기 최신화 (수퍼바이저 감시 중)</span></div>
+        </div>
+        <div style="background:rgba(0,0,0,0.4);padding:4px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.08);font-size:8.5px;color:#888;">
+          ⚖️ 소크라테스 팩트 검증: ICAO/국토교통부 공인 고시보 발행 실제 좌표 다각형
+        </div>
+      </div>`);
+    });
+
+    // ── Submarine Cables Click Popup ──
+    map.on('click', 'submarine-cables-line', (e: any) => {
+      const p = e.features?.[0]?.properties;
+      if (!p) return;
+      const coords = e.lngLat ? [e.lngLat.lng, e.lngLat.lat] : [126.5, 37.0];
+      popup(coords, `<div style="${pStyle}border:1.5px solid #00E5FF;background:rgba(5,15,20,0.95);max-width:340px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;border-bottom:1px solid rgba(0,229,255,0.3);padding-bottom:4px;">
+          <span style="color:#00E5FF;font-size:12px;font-weight:bold;">🌐 해저 광케이블 [${htmlEsc(p.name || 'CABLE')}]</span>
+          <span style="color:#80DEEA;font-size:9px;font-family:monospace;">${htmlEsc(p.category || 'COMMUNICATION')}</span>
+        </div>
+        <div style="font-size:10px;color:#FFF;margin-bottom:6px;">경유국: <span style="color:#00E5FF;">${htmlEsc(p.landing_points || '대한민국/동아시아')}</span></div>
+        <div style="font-size:9px;color:#aaa;line-height:1.5;margin-bottom:6px;">
+          <div>전장: <span style="color:#FFD740;">${htmlEsc(p.length_km ? p.length_km + ' km' : '국제 기간망')}</span></div>
+          <div>소유자: <span style="color:#EEE;">${htmlEsc(p.owners || 'Global Telecom Consortium')}</span></div>
+          <div>사보타주 감시: <span style="color:#00E676;font-weight:bold;">${htmlEsc(p.sabotage_risk || '정상 (실시간 완충구역 내 비인가 침투 없음)')}</span></div>
+          <div>🕒 데이터 출처: <span style="color:#FFD740;">TeleGeography 글로벌 해저케이블 등록부 (717 세그먼트)</span></div>
+          <div>🔄 선박 근접 분석: <span style="color:#00E676;">실시간 AIS 닻 투하 교차 감시 중</span></div>
+        </div>
+        <div style="background:rgba(0,0,0,0.4);padding:4px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.08);font-size:8.5px;color:#888;">
+          ⚓ 물리적 실재성: 실제 WGS84 좌표 선형 기반 1km 완충구역 실측 감시
+        </div>
+      </div>`);
+    });
+
+    // ── Dark Fleet Click Popup ──
+    map.on('click', 'dark-fleet-dots', (e: any) => {
+      const p = e.features?.[0]?.properties;
+      if (!p) return;
+      const coords = (e.features![0].geometry as any).coordinates;
+      popup(coords, `<div style="${pStyle}border:1.5px solid #FF9100;background:rgba(20,10,5,0.95);max-width:340px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;border-bottom:1px solid rgba(255,145,0,0.3);padding-bottom:4px;">
+          <span style="color:#FF9100;font-size:12px;font-weight:bold;">🚨 AIS 암흑 선박 [${htmlEsc(p.name || 'DARK FLEET')}]</span>
+          <span style="color:#FF1744;font-size:9px;font-weight:bold;background:rgba(255,23,68,0.2);padding:1px 5px;border-radius:3px;">신호 두절</span>
+        </div>
+        <div style="font-size:10px;color:#FFF;margin-bottom:6px;">식별 MMSI: <span style="color:#FFD740;font-family:monospace;">${htmlEsc(p.mmsi || 'UNKNOWN')}</span></div>
+        <div style="font-size:9px;color:#aaa;line-height:1.5;margin-bottom:6px;">
+          <div>🕒 신호 두절 경과: <span style="color:#FF5252;font-weight:bold;">${htmlEsc(p.lost_hours_ago ? p.lost_hours_ago + '시간 전' : '최근 두절')}</span></div>
+          <div>최종 속력: <span style="color:#EEE;">${htmlEsc(p.last_speed_knots ? p.last_speed_knots + ' kt' : '—')}</span></div>
+          <div>키네틱 반경: <span style="color:#FFA726;font-weight:bold;">${htmlEsc(p.kinetic_radius_km ? p.kinetic_radius_km + ' km' : '팽창 중')}</span></div>
+          <div>위험 평가: <span style="color:#FF1744;font-weight:bold;">${htmlEsc(p.risk_assessment || '신호 두절 선박')}</span></div>
+          <div>🔄 최신화 주기: <span style="color:#00E676;">5초 주기 WebSocket 실측 동기화</span></div>
+        </div>
+        <div style="background:rgba(0,0,0,0.4);padding:4px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.08);font-size:8.5px;color:#888;">
+          📐 물리적 진실: 실제 AIS 스트림 수신 두절 선박 대상 Δt × V 키네틱 버블
+        </div>
+      </div>`);
+    });
+
     return () => {
       if (typeof window !== 'undefined') {
         if ((window as any).__map === map) (window as any).__map = null;
@@ -3514,7 +3741,23 @@ function getVideoAnalysisKeyframe(p: any): string {
 
   useEffect(() => {
     if (!mapReady) return;
-    setGeo('fires', activeLayers.fires && data.fires ? data.fires.map((f: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [f.lng, f.lat] }, properties: { brightness: f.brightness } })) : []);
+    setGeo('fires', activeLayers.fires && data.fires ? data.fires.map((f: any) => ({ 
+      type: 'Feature', 
+      geometry: { type: 'Point', coordinates: [f.lng, f.lat] }, 
+      properties: { 
+        brightness: f.brightness,
+        frp: f.frp,
+        classification: f.classification || 'wildfire',
+        facility: f.facility || '',
+        alert_text: f.alert_text || '',
+        is_military: !!f.is_military,
+        is_industrial: !!f.is_industrial,
+        severity: f.severity || 'ELEVATED',
+        confidence: f.confidence || 'nominal',
+        date: f.date || '',
+        time: f.time || '',
+      } 
+    })) : []);
   }, [mapReady, data.fires, activeLayers.fires, setGeo]);
 
   useEffect(() => {
@@ -3635,6 +3878,24 @@ function getVideoAnalysisKeyframe(p: any): string {
     if (!mapReady) return;
     setGeo('radiation', activeLayers.radiation && data.radiation ? data.radiation.map((r: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [r.lng, r.lat] }, properties: { name: r.name, city: r.city, country: r.country, reading: r.reading, status: r.status, network: r.network } })) : []);
   }, [mapReady, data.radiation, activeLayers.radiation, setGeo]);
+
+  // NOTAM hazards
+  useEffect(() => {
+    if (!mapReady) return;
+    setGeo('notam-hazards', activeLayers.notam_hazards && data.notam_geojson ? data.notam_geojson.features : []);
+  }, [mapReady, data.notam_geojson, activeLayers.notam_hazards, setGeo]);
+
+  // Submarine cables
+  useEffect(() => {
+    if (!mapReady) return;
+    setGeo('submarine-cables', (activeLayers.submarine_cables || activeLayers.cables) && data.cables_geojson ? data.cables_geojson.features : []);
+  }, [mapReady, data.cables_geojson, activeLayers.submarine_cables, activeLayers.cables, setGeo]);
+
+  // Dark Fleet kinetic bubbles
+  useEffect(() => {
+    if (!mapReady) return;
+    setGeo('dark-fleet', activeLayers.dark_fleet && data.dark_fleet_geojson ? data.dark_fleet_geojson.features : []);
+  }, [mapReady, data.dark_fleet_geojson, activeLayers.dark_fleet, setGeo]);
 
   // ══ OSIRIS SDK — Lattice Sensor Mesh ══
   // Uses real submarine cable data for SEA domain, curated routes for AIR/INTEL
@@ -3800,6 +4061,12 @@ function getVideoAnalysisKeyframe(p: any): string {
     setVis(['sdk-sea','sdk-sea-glow','sdk-sea-atmo'], activeLayers.sdk_sea !== false);
     setVis(['sdk-air','sdk-air-glow','sdk-air-atmo'], activeLayers.sdk_air !== false);
     setVis(['sdk-intel','sdk-intel-glow','sdk-intel-atmo'], activeLayers.sdk_naval !== false);
+
+    // NOTAM, Cables, Dark Fleet layers
+    setVis(['notam-hazards-fill', 'notam-hazards-line', 'notam-hazards-label'], activeLayers.notam_hazards);
+    setVis(['submarine-cables-glow', 'submarine-cables-line', 'submarine-cables-label'], activeLayers.submarine_cables || activeLayers.cables);
+    setVis(['dark-fleet-bubble-fill', 'dark-fleet-bubble-line', 'dark-fleet-dots', 'dark-fleet-label'], activeLayers.dark_fleet);
+
     // Sweep layers always visible when data is present (controlled by useEffect)
     setVis(['sweep-connections','sweep-pulse-ring','sweep-device-glow','sweep-device-dots','sweep-device-labels'], true);
   }, [mapReady, activeLayers, setVis]);

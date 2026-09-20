@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState, useRef, useCallback, useMemo, use } from 'react';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Layers, BarChart3, Newspaper, Search, X, Globe, MapPinned, Route, Radar, Satellite, Moon, ExternalLink, AlertTriangle, Activity, Database, Wifi, Play, Network, Crosshair, Bluetooth, Pentagon, Radio, PenLine, Zap, Navigation, ChevronDown } from 'lucide-react';
+import { Layers, BarChart3, Newspaper, Search, X, Globe, MapPinned, Route, Radar, Satellite, Moon, ExternalLink, AlertTriangle, Activity, Database, Wifi, Play, Network, Crosshair, Bluetooth, Pentagon, Radio, PenLine, Zap, Navigation, ChevronDown, Film } from 'lucide-react';
 import { type TerrainStatus } from '@/lib/map-terrain';
 import { loadCameraCatalog, mergeCameraCatalog } from '@/lib/camera-catalog';
 import IntelFeed from '@/components/IntelFeed';
@@ -36,6 +36,7 @@ const DrawingToolbar = dynamic(() => import('@/components/DrawingToolbar'), { ss
 const DrawHud = dynamic(() => import('@/components/DrawHud'), { ssr: false });
 const DprkReportDossierModal = dynamic(() => import('@/components/DprkReportDossierModal'), { ssr: false });
 const ChinaEncroachmentModal = dynamic(() => import('@/components/ChinaEncroachmentModal'), { ssr: false });
+const AudioCommsHud = dynamic(() => import('@/components/AudioCommsHud'), { ssr: false });
 // The measurement helpers are pure functions — importing them directly keeps
 // them out of the lazy chunk, so a finished polygon can be measured whether or
 // not the toolbar has loaded yet.
@@ -43,6 +44,7 @@ import { toShape, queryRing, type DrawMode, type DrawnShape, type DrawProgress, 
 import { selectInPolygon } from '@/lib/aoi';
 import { diffSweep, appendEvents, type WatchBaseline, type WatchEvent } from '@/lib/watch';
 import { STORAGE_KEY, serializeShapes, deserializeShapes, shapesToGeoJSON, downloadFile } from '@/lib/aoi-export';
+import { watchdog } from '@/lib/staleness-watchdog';
 const TokenPanel = dynamic(() => import('@/components/TokenPanel'));
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -218,6 +220,7 @@ export default function Dashboard(props?: {
 
   const [dprkReportModalData, setDprkReportModalData] = useState<any>(null);
   const [chinaEncroachmentModalSiteId, setChinaEncroachmentModalSiteId] = useState<string | null>(null);
+  const [showAudioComms, setShowAudioComms] = useState(false);
 
   // The popup lives in raw map HTML, so it hands aircraft and DPRK dossiers over through globals.
   useEffect(() => {
@@ -374,6 +377,9 @@ export default function Dashboard(props?: {
     war_alerts: false,
     day_night: true,
     cables: true,
+    submarine_cables: true,
+    notam_hazards: true,
+    dark_fleet: true,
     sdk_sea: true,
     sdk_air: true,
     sdk_naval: true,
@@ -657,8 +663,18 @@ export default function Dashboard(props?: {
       const res = await fetch(url, { ...options, cache: 'no-store' });
       if (res.ok) {
         const json = await res.json();
+        // Register or update feed with Staleness Watchdog
+        if (json.temporal) {
+          watchdog.registerFeed(
+            url,
+            json.temporal.source_name || url,
+            url,
+            json.temporal,
+            () => { fetchEndpoint(url, transform, options); }
+          );
+        }
         const d = transform ? transform(json) : json;
-        dataRef.current = { ...dataRef.current, ...d };
+        dataRef.current = { ...dataRef.current, ...d, [`${url}_temporal`]: json.temporal };
         setDataVersion(v => v + 1);
         setBackendStatus('connected');
         return true;
@@ -751,8 +767,14 @@ export default function Dashboard(props?: {
       layerFetchedRef.current.add('fires');
     }
     // Maritime
-    if (activeLayers.maritime && !layerFetchedRef.current.has('maritime')) {
-      fetchEndpoint('/api/maritime', d => ({ maritime_ports: d.ports, maritime_chokepoints: d.chokepoints, maritime_ships: d.ships }));
+    if ((activeLayers.maritime || activeLayers.dark_fleet) && !layerFetchedRef.current.has('maritime')) {
+      fetchEndpoint('/api/maritime', d => ({
+        maritime_ports: d.ports,
+        maritime_chokepoints: d.chokepoints,
+        maritime_ships: d.ships,
+        dark_fleet: d.dark_fleet,
+        dark_fleet_geojson: d.dark_fleet_geojson
+      }));
       layerFetchedRef.current.add('maritime');
     }
     // Balloons
@@ -804,20 +826,23 @@ export default function Dashboard(props?: {
       layerFetchedRef.current.add('seismic_watch');
     }
 
-    // Submarine Cables
-    if (activeLayers.cables && !layerFetchedRef.current.has('cables')) {
-      (async () => {
-        try {
-          const ts = Date.now();
-      const res = await fetch(`/data/submarine-cables.json?v=${ts}`);
-          if (res.ok) {
-             const cablesData = await res.json();
-             dataRef.current = { ...dataRef.current, submarine_cables: cablesData.features };
-             setDataVersion(v => v + 1);
-          }
-        } catch (e) { console.warn('Cables fetch failed'); }
-      })();
+    // Submarine Cables & Anchor Drag Watch
+    if ((activeLayers.submarine_cables || activeLayers.cables) && !layerFetchedRef.current.has('cables')) {
+      fetchEndpoint('/api/cables', d => ({
+        cables_geojson: d.geojson,
+        cables_hazards: d.hazards,
+        submarine_cables: d.geojson?.features || []
+      }));
       layerFetchedRef.current.add('cables');
+    }
+
+    // NOTAM Missile & Rocket Airspace Hazard
+    if (activeLayers.notam_hazards && !layerFetchedRef.current.has('notam_hazards')) {
+      fetchEndpoint('/api/notam', d => ({
+        notam_geojson: d.geojson,
+        notam_hazards: d.hazards
+      }));
+      layerFetchedRef.current.add('notam_hazards');
     }
 
 
@@ -1447,6 +1472,31 @@ export default function Dashboard(props?: {
           >
             <Navigation className="w-3.5 h-3.5" />
             <span>🧭 내비게이션</span>
+          </button>
+
+          {/* 1.5 합동훈련 (시네마 & 장구류 검증 콘솔) */}
+          <Link
+            href="/joint-training"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-mono font-bold transition-all shrink-0 cursor-pointer bg-red-950/60 border border-red-500/50 hover:border-red-400 text-red-200 hover:bg-red-900/60 shadow-[0_0_10px_rgba(239,68,68,0.3)] animate-pulse"
+            title="합동훈련 — 전시 시네마 물리 영상 및 장구류/포병 검증 콘솔"
+          >
+            <Film className="w-3.5 h-3.5 text-red-400" />
+            <span>🎬 합동훈련 (시네마)</span>
+          </Link>
+
+          {/* 1.8 전술 무전 & RF 스펙트럼 (LiveATC / VHF Ch.16 / Squawk 7700) */}
+          <button
+            type="button"
+            onClick={() => setShowAudioComms(prev => !prev)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-mono font-bold transition-all shrink-0 cursor-pointer ${
+              showAudioComms
+                ? 'bg-cyan-900 border border-cyan-400 text-white shadow-[0_0_12px_rgba(6,182,212,0.5)]'
+                : 'bg-cyan-950/60 border border-cyan-500/50 hover:border-cyan-300 text-cyan-200 hover:bg-cyan-900/60 shadow-[0_0_8px_rgba(6,182,212,0.25)]'
+            }`}
+            title="실시간 전술 통신 및 주파수 스펙트럼 (LiveATC / Marine VHF / Squawk 7700)"
+          >
+            <Radio className="w-3.5 h-3.5 text-cyan-400" />
+            <span>📻 전술 무전 (SIGINT)</span>
           </button>
 
           {/* 2. OSIRIS 최신 인텔리전스 브릿지 */}
@@ -2212,6 +2262,18 @@ export default function Dashboard(props?: {
           isOpen={!!chinaEncroachmentModalSiteId}
           onClose={() => setChinaEncroachmentModalSiteId(null)}
           initialSiteId={chinaEncroachmentModalSiteId}
+        />
+      )}
+
+      {/* ── LiveATC / Marine VHF Tactical Audio Comms & RF Spectrum HUD ── */}
+      {showAudioComms && (
+        <AudioCommsHud
+          onClose={() => setShowAudioComms(false)}
+          emergencyFlights={[
+            ...(data.commercial_flights || []),
+            ...(data.military_flights || []),
+            ...(data.private_flights || [])
+          ]}
         />
       )}
 

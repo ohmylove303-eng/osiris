@@ -130,6 +130,36 @@ export default function GlobalStatusBar() {
     return () => clearInterval(iv);
   }, []);
 
+  const [watchdogState, setWatchdogState] = useState<{
+    totalFeeds: number;
+    freshCount: number;
+    overdueCount: number;
+    overdueFeedName?: string;
+    overdueSec?: number;
+  }>({
+    totalFeeds: 4,
+    freshCount: 4,
+    overdueCount: 0,
+  });
+
+  useEffect(() => {
+    const handleWatchdog = (e: any) => {
+      const detail = e.detail;
+      if (!detail) return;
+      const overdue = detail.feeds?.find((f: any) => f.isOverdue);
+      setWatchdogState({
+        totalFeeds: detail.totalFeeds || 0,
+        freshCount: detail.freshCount || 0,
+        overdueCount: detail.overdueCount || 0,
+        overdueFeedName: overdue?.name,
+        overdueSec: overdue?.overdueSeconds,
+      });
+    };
+
+    window.addEventListener('osiris:watchdog-update', handleWatchdog);
+    return () => window.removeEventListener('osiris:watchdog-update', handleWatchdog);
+  }, []);
+
   // Keep the bar mounted even with no feed data — the left-hand community and
   // docs links must stay reachable when CoinGecko/USGS are rate-limited or down.
   const hasTicker = crypto.length > 0 || quakes.length > 0;
@@ -140,9 +170,27 @@ export default function GlobalStatusBar() {
     <>
       <span className="text-[var(--border-primary)] mx-1 text-white/20">│</span>
       <span className="inline-flex items-center gap-1 mx-2">
-        <span className="text-[#FF1744] text-[10px] animate-pulse">🔴</span>
-        <span className="text-[#FF5252] font-bold tracking-wider">[긴급 05:58 KST] 북한 동해상 미상 발사체 탐지 (TestEvent: PASS / 체계식별: HOLD)</span>
-        <span className="text-[#00E676] text-[8px] bg-[#00E676]/15 px-1 py-0.2 rounded border border-[#00E676]/30">합참·로이터 공식 보고</span>
+        {watchdogState.overdueCount > 0 ? (
+          <>
+            <span className="text-[#FF1744] text-[10px] animate-ping">⚠️</span>
+            <span className="text-[#FF5252] font-bold tracking-wider">
+              [최신화 지연 감독] {watchdogState.overdueFeedName} 갱신 지연 (+{watchdogState.overdueSec}초) — 자동 재동기화 중
+            </span>
+            <span className="text-[#FFD600] text-[8px] bg-[#FFD600]/15 px-1 py-0.2 rounded border border-[#FFD600]/30">
+              감독관 재동기화 가동
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="text-[#00E676] text-[10px] animate-pulse">🟢</span>
+            <span className="text-[#00E676] font-bold tracking-wider">
+              [최신화 감독] 전술 피드 {watchdogState.totalFeeds}개 정시 갱신 중 (지연: 0건)
+            </span>
+            <span className="text-[#00E676] text-[8px] bg-[#00E676]/15 px-1 py-0.2 rounded border border-[#00E676]/30">
+              물리 실재성 보장
+            </span>
+          </>
+        )}
       </span>
       <span className="text-[var(--border-primary)] mx-1 text-white/20">│</span>
       <button

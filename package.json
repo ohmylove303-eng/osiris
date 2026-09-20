@@ -11,7 +11,9 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:live": "RUN_LIVE_TESTS=1 vitest run"
+    "test:live": "RUN_LIVE_TESTS=1 vitest run",
+    "audit:tactical": "node scripts/test_tactical_layers_backtest.mjs",
+    "audit:full": "node scripts/test_tactical_layers_backtest.mjs && npx tsc --noEmit"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

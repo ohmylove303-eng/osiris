@@ -65,6 +65,7 @@ const LAYER_GROUPS: LayerGroupDef[] = [
       { key: 'private', label: '일반 민간 비행기 (Private)', dataKey: 'private_flights' },
       { key: 'jets', label: 'VIP 비즈니스 제트 (Private Jets)', dataKey: 'private_jets' },
       { key: 'military', label: '전술 군용기 피아식별 (Military / ROKAF / DPRK / USAF)', dataKey: 'military_flights' },
+      { key: 'notam_hazards', label: '🔴 NOTAM 미사일/발사체 위험 공역 (Missile Hazard Airspace)', dataKey: 'notam_hazards' },
       { key: 'military_demarcation', label: '군사분계선 및 방공식별구역 (NLL · KADIZ · CADIZ · DMZ)', dataKey: '' },
     ],
   },
@@ -74,6 +75,7 @@ const LAYER_GROUPS: LayerGroupDef[] = [
     icon: Ship,
     layers: [
       { key: 'maritime', label: '해군 군함 및 상선 (Naval Warships / AIS)', dataKey: 'maritime_ships,maritime_ports,maritime_chokepoints' },
+      { key: 'dark_fleet', label: '🟠 AIS 암흑 선박 키네틱 버블 (Dark Fleet Kinetic Bubble)', dataKey: 'dark_fleet' },
     ],
   },
   {
@@ -129,6 +131,7 @@ const LAYER_GROUPS: LayerGroupDef[] = [
     fullLabel: 'NETWORK INTEL',
     icon: Network,
     layers: [
+      { key: 'submarine_cables', label: '🌐 해저 광케이블 & 닻 투하 사보타주 (Submarine Cables & Anchor Drag)', dataKey: 'cables_hazards' },
       { key: 'malware', label: 'Live Malware', dataKey: 'malware_threats' },
       { key: 'cyber_attacks', label: 'Live Attacks', dataKey: 'cyber_attacks' },
     ],

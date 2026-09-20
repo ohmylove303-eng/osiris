@@ -1,8 +1,8 @@
 {
-  "version": 34,
-  "bgMode": "mountain",
+  "version": 48,
+  "bgMode": "urban",
   "speedKmh": 20,
-  "isPlaying": false,
+  "isPlaying": true,
   "harnessLocked": true,
   "waypoints": [
     {
@@ -47,56 +47,183 @@
       "code": "AFV-01",
       "name": "교육용 가상 표적 AFV-01 (기동 장갑차)",
       "category": "AFV",
-      "x": 42,
-      "y": 74,
+      "x": 38.31735884693141,
+      "y": 68.63471769386283,
       "isMoving": false,
       "speedKmh": 43,
       "progress": 0.58,
       "headingDeg": 333,
       "aspectIndex": 180,
-      "distanceM": 889,
+      "distanceM": 924,
       "identified": true,
       "reported": true,
       "destroyed": false,
-      "maneuverPoints": [],
-      "currentWpIndex": 0
+      "maneuverPoints": [
+        {
+          "id": "WP-1",
+          "index": 1,
+          "x": 44,
+          "y": 84,
+          "headingDeg": 45,
+          "aspectIndex": 45
+        },
+        {
+          "id": "WP-2",
+          "index": 2,
+          "x": 40,
+          "y": 72,
+          "headingDeg": 90,
+          "aspectIndex": 90
+        },
+        {
+          "id": "WP-3",
+          "index": 3,
+          "x": 35,
+          "y": 62,
+          "headingDeg": 135,
+          "aspectIndex": 135
+        },
+        {
+          "id": "WP-4",
+          "index": 4,
+          "x": 30,
+          "y": 52,
+          "headingDeg": 180,
+          "aspectIndex": 180
+        },
+        {
+          "id": "WP-5",
+          "index": 5,
+          "x": 38,
+          "y": 48,
+          "headingDeg": 90,
+          "aspectIndex": 90
+        }
+      ],
+      "currentWpIndex": 2,
+      "destX": null,
+      "destY": null
     },
     {
       "id": "SPH-01",
       "code": "SPH-01",
       "name": "교육용 가상 표적 SPH-01",
       "category": "SPH",
-      "x": 22,
-      "y": 58,
+      "x": 27.604715292478936,
+      "y": 46.81414587743684,
       "isMoving": false,
       "speedKmh": 20,
       "progress": 0.4,
-      "headingDeg": 280,
-      "aspectIndex": 90,
-      "distanceM": 993,
+      "headingDeg": 342,
+      "aspectIndex": 180,
+      "distanceM": 1102,
       "identified": true,
       "reported": false,
-      "destroyed": false,
-      "maneuverPoints": [],
-      "currentWpIndex": 0
+      "destroyed": true,
+      "maneuverPoints": [
+        {
+          "id": "WP-1",
+          "index": 1,
+          "x": 44,
+          "y": 84,
+          "headingDeg": 45,
+          "aspectIndex": 45
+        },
+        {
+          "id": "WP-2",
+          "index": 2,
+          "x": 40,
+          "y": 72,
+          "headingDeg": 90,
+          "aspectIndex": 90
+        },
+        {
+          "id": "WP-3",
+          "index": 3,
+          "x": 35,
+          "y": 62,
+          "headingDeg": 135,
+          "aspectIndex": 135
+        },
+        {
+          "id": "WP-4",
+          "index": 4,
+          "x": 30,
+          "y": 52,
+          "headingDeg": 180,
+          "aspectIndex": 180
+        },
+        {
+          "id": "WP-5",
+          "index": 5,
+          "x": 38,
+          "y": 48,
+          "headingDeg": 90,
+          "aspectIndex": 90
+        }
+      ],
+      "currentWpIndex": 1,
+      "destX": null,
+      "destY": null
     },
     {
       "id": "CP-01",
       "code": "CP-01",
       "name": "교육용 가상 표적 CP-01",
       "category": "CP",
-      "x": 64,
-      "y": 62,
+      "x": 95,
+      "y": 49,
       "isMoving": false,
       "speedKmh": 10,
       "progress": 0,
       "headingDeg": 331,
       "aspectIndex": 180,
-      "distanceM": 967,
+      "distanceM": 1052,
       "identified": true,
       "reported": false,
       "destroyed": false,
-      "maneuverPoints": [],
+      "maneuverPoints": [
+        {
+          "id": "WP-1",
+          "index": 1,
+          "x": 44,
+          "y": 84,
+          "headingDeg": 45,
+          "aspectIndex": 45
+        },
+        {
+          "id": "WP-2",
+          "index": 2,
+          "x": 40,
+          "y": 72,
+          "headingDeg": 90,
+          "aspectIndex": 90
+        },
+        {
+          "id": "WP-3",
+          "index": 3,
+          "x": 35,
+          "y": 62,
+          "headingDeg": 135,
+          "aspectIndex": 135
+        },
+        {
+          "id": "WP-4",
+          "index": 4,
+          "x": 30,
+          "y": 52,
+          "headingDeg": 180,
+          "aspectIndex": 180
+        },
+        {
+          "id": "WP-5",
+          "index": 5,
+          "x": 38,
+          "y": 48,
+          "headingDeg": 90,
+          "aspectIndex": 90
+        }
+      ],
       "currentWpIndex": 0,
       "destX": null,
       "destY": null
@@ -117,7 +244,48 @@
       "identified": false,
       "reported": false,
       "destroyed": false,
-      "maneuverPoints": [],
+      "maneuverPoints": [
+        {
+          "id": "WP-1",
+          "index": 1,
+          "x": 44,
+          "y": 84,
+          "headingDeg": 45,
+          "aspectIndex": 45
+        },
+        {
+          "id": "WP-2",
+          "index": 2,
+          "x": 40,
+          "y": 72,
+          "headingDeg": 90,
+          "aspectIndex": 90
+        },
+        {
+          "id": "WP-3",
+          "index": 3,
+          "x": 35,
+          "y": 62,
+          "headingDeg": 135,
+          "aspectIndex": 135
+        },
+        {
+          "id": "WP-4",
+          "index": 4,
+          "x": 30,
+          "y": 52,
+          "headingDeg": 180,
+          "aspectIndex": 180
+        },
+        {
+          "id": "WP-5",
+          "index": 5,
+          "x": 38,
+          "y": 48,
+          "headingDeg": 90,
+          "aspectIndex": 90
+        }
+      ],
       "currentWpIndex": 0,
       "destX": null,
       "destY": null
@@ -128,11 +296,11 @@
   "scores": {
     "identification": 18,
     "report": 20,
-    "callForFire": 17,
+    "callForFire": 20,
     "safety": 16,
-    "bda": 17
+    "bda": 20
   },
   "feedback": "전반적으로 우수합니다. 표적 식별 정확도를 더 향상시켜 보세요.",
-  "updatedAt": 1789122844526,
-  "syncedAt": "오후 7:34:04"
+  "updatedAt": 1789708208088,
+  "syncedAt": "오후 2:10:07"
 }
