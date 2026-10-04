@@ -913,8 +913,8 @@ function OsirisMap({
         type: 'circle',
         source: 'cable-landings',
         paint: {
-          'circle-radius': ['case', ['boolean', ['get', 'is_korea'], false], 10, 6],
-          'circle-color': ['case', ['boolean', ['get', 'is_korea'], false], '#00E5FF', '#80DEEA'],
+          'circle-radius': ['match', ['get', 'hub_tier'], 'KOREA', 10, 6],
+          'circle-color': ['match', ['get', 'hub_tier'], 'KOREA', '#00E5FF', '#80DEEA'],
           'circle-opacity': 0.25,
           'circle-blur': 1,
         }
@@ -924,8 +924,8 @@ function OsirisMap({
         type: 'circle',
         source: 'cable-landings',
         paint: {
-          'circle-radius': ['case', ['boolean', ['get', 'is_korea'], false], 5, 3.5],
-          'circle-color': ['case', ['boolean', ['get', 'is_korea'], false], '#00E5FF', '#26A69A'],
+          'circle-radius': ['match', ['get', 'hub_tier'], 'KOREA', 5, 3.5],
+          'circle-color': ['match', ['get', 'hub_tier'], 'KOREA', '#00E5FF', '#26A69A'],
           'circle-opacity': 0.95,
           'circle-stroke-width': 2,
           'circle-stroke-color': '#FFFFFF',
@@ -945,7 +945,7 @@ function OsirisMap({
           'text-allow-overlap': false,
         },
         paint: {
-          'text-color': ['case', ['boolean', ['get', 'is_korea'], false], '#00E5FF', '#80DEEA'],
+          'text-color': ['match', ['get', 'hub_tier'], 'KOREA', '#00E5FF', '#80DEEA'],
           'text-halo-color': '#000000',
           'text-halo-width': 2,
           'text-opacity': 0.95,
@@ -4204,6 +4204,7 @@ function getVideoAnalysisKeyframe(p: any): string {
                     properties: {
                       name: isKr ? '한국 해저 광케이블 상륙국' : `${(f.properties?.name || 'CLS').split(' ')[0]} 상륙국`,
                       is_korea: isKr,
+                      hub_tier: isKr ? 'KOREA' : 'GLOBAL',
                       cable_count: 1,
                     }
                   });

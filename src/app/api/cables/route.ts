@@ -150,19 +150,23 @@ function loadRealCablesData() {
         }));
 
         // Build landing points GeoJSON
-        const landingFeatures = Array.from(landingMap.values()).map((lp, idx) => ({
-          type: 'Feature',
-          geometry: {
-            type: 'Point',
-            coordinates: [lp.lng, lp.lat]
-          },
-          properties: {
-            id: `landing-${idx}`,
-            name: lp.name,
-            cable_count: lp.cableCount,
-            is_korea: lp.name.includes('한국') || lp.name.includes('부산') || lp.name.includes('거제') || lp.name.includes('태안') || lp.name.includes('제주'),
-          }
-        }));
+        const landingFeatures = Array.from(landingMap.values()).map((lp, idx) => {
+          const isKr = lp.name.includes('한국') || lp.name.includes('부산') || lp.name.includes('거제') || lp.name.includes('태안') || lp.name.includes('제주');
+          return {
+            type: 'Feature',
+            geometry: {
+              type: 'Point',
+              coordinates: [lp.lng, lp.lat]
+            },
+            properties: {
+              id: `landing-${idx}`,
+              name: lp.name,
+              cable_count: lp.cableCount,
+              is_korea: isKr,
+              hub_tier: isKr ? 'KOREA' : 'GLOBAL',
+            }
+          };
+        });
 
         cachedGeoJson = {
           type: 'FeatureCollection',
