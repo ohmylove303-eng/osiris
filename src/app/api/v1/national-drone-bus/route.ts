@@ -32,7 +32,7 @@ export async function GET() {
   const provenance = createProvenanceMetadata({
     source_id: 'national-drone-bus:spec-v1.0',
     source_url: 'https://drone.onestop.go.kr',
-    provider: '국가 드론 안전 데이터 버스 연동 사업단 / OSIRIS C-UAS',
+    provider: '국가 드론 안전 데이터 버스 연동 사업단 / 번개의 눈동자 C-UAS',
     confidence: 0.99,
     raw_payload: spec,
   });

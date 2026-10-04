@@ -311,7 +311,7 @@ export default function SynapseGraphView({ onChatWithNode }: SynapseGraphViewPro
                   ))}
                 </div>
                 <div className="flex items-center justify-between text-[11px] text-[var(--text-muted)] pt-1">
-                  <span>출처: {selectedNode.source || 'OSIRIS Vault'}</span>
+                  <span>출처: {selectedNode.source || '번개의 눈동자 Vault'}</span>
                   <span>연결 차수: {selectedNode.val.toFixed(1)}</span>
                 </div>
               </div>

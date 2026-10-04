@@ -53,7 +53,7 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     status: 'success',
-    system: 'OSIRIS 국가 KC 전파인증 + 국토부 비행승인 통합 융합 API',
+    system: '번개의 눈동자 국가 KC 전파인증 + 국토부 비행승인 통합 융합 API',
     data: lookupResult,
     provenance,
     timestamp: new Date().toISOString(),

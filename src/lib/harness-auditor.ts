@@ -166,7 +166,7 @@ const AUTHORITATIVE_FALLBACK_PROVIDERS: Record<string, {
     }
   },
   '/api/tactical/session': {
-    sourceName: 'OSIRIS 화력유도 AR 전술 세션 내부 실시간 상태 버스',
+    sourceName: '번개의 눈동자 화력유도 AR 전술 세션 내부 실시간 상태 버스',
     executeRemediation: async () => {
       return { ok: true, count: 1, sample: '교관/교육생 세션 텔레메트리 정상' };
     }
@@ -367,7 +367,7 @@ export async function runAutonomousHarnessAudit(
       })),
     };
 
-    const systemPrompt = `당신은 '번개의 눈동자 (OSIRIS)' 전술 군사 관제 플랫폼의 수석 AI 시스템 엔지니어이자 자율 하네스 감사관입니다.
+    const systemPrompt = `당신은 '번개의 눈동자' 전술 군사 관제 플랫폼의 수석 AI 시스템 엔지니어이자 자율 하네스 감사관입니다.
 전달받은 API 스냅샷과 이번 감사가 실행된 구동 사유(Trigger Reason), 그리고 2차 공인 대체 출처 자가 치유(Self-Healing) 내역을 분석하여 반드시 아래 JSON 규격으로만 100% 순수 응답하십시오. 생각 태그나 마크다운은 금지합니다.
 
 [중요 평가 지침]

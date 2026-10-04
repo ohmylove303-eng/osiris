@@ -211,10 +211,63 @@ function connectAisStream() {
 // Start connection process asynchronously
 connectAisStream();
 
-// --- SCM Integration: VesselAPI Hybrid Fallback (Satellite AIS) ---
-let lastVesselApiFetch = 0;
-async function fetchVesselApiFallback() {
-  // Mock data removed per user request. We only rely on real live stream data.
+// --- Agent-Reach Multi-Tier Live Ingestion: Digitraffic Marine + Dead-Reckoning ---
+let lastMultiTierFetch = 0;
+async function fetchMultiTierAisFallback() {
+  const now = Date.now();
+  if (now - lastMultiTierFetch < 45_000) return; // 45s throttle
+  lastMultiTierFetch = now;
+
+  try {
+    const res = await fetch('https://meri.digitraffic.fi/api/ais/v1/locations', {
+      signal: AbortSignal.timeout(10000),
+      headers: {
+        'Accept': 'application/geo+json',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'User-Agent': 'LightningEye-Maritime/1.0',
+      },
+    });
+
+    if (!res.ok) return;
+    const data = await res.json();
+    const features = data?.features || [];
+
+    for (const f of features) {
+      const coords = f.geometry?.coordinates;
+      const props = f.properties;
+      if (!coords || coords.length < 2 || !props?.mmsi) continue;
+
+      const mmsi = Number(props.mmsi);
+      const lng = Number(coords[0]);
+      const lat = Number(coords[1]);
+      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) continue;
+
+      const sogRaw = typeof props.sog === 'number' ? props.sog / 10 : 0;
+      const cogRaw = typeof props.cog === 'number' ? props.cog / 10 : 0;
+      const heading = typeof props.heading === 'number' && props.heading !== 511 ? props.heading : cogRaw;
+      const speed = Math.round(sogRaw * 10) / 10;
+
+      // Only update if not already actively being updated by high-frequency WebSocket
+      const existing = shipsCache.get(mmsi);
+      if (!existing || (now - existing.timestamp > 15_000)) {
+        shipsCache.set(mmsi, {
+          id: `ship-${mmsi}`,
+          mmsi,
+          lat,
+          lng,
+          speed,
+          heading: Math.round(heading),
+          name: existing?.name || `MMSI ${mmsi}`,
+          destination: existing?.destination || '',
+          type: existing?.type || (props.navStat === 1 ? 'tanker' : 'cargo'),
+          timestamp: now,
+          source: 'Digitraffic Live AIS',
+        });
+      }
+    }
+  } catch {
+    // Non-critical fallback
+  }
 }
 
 function localizeShipName(ship: any): string {
@@ -253,8 +306,24 @@ function buildSnapshot(now: number): string {
     }
   }
 
-  // Real physical ships from aisstream.io WebSocket stream
-  const rawShips = Array.from(shipsCache.values()).filter(s => s.lat && s.lng);
+  // Real physical ships from aisstream.io + Digitraffic Multi-Tier AIS
+  // Apply Dead-Reckoning (추측 항법) to interpolate vessel position between packets
+  const rawShips = Array.from(shipsCache.values()).filter(s => s.lat && s.lng).map(s => {
+    const elapsedSec = (now - (s.timestamp || now)) / 1000;
+    if (elapsedSec > 5 && elapsedSec < 1800 && s.speed && s.speed > 1 && s.heading !== undefined) {
+      const distKm = (s.speed * 1.852 * (elapsedSec / 3600));
+      const rad = (s.heading * Math.PI) / 180;
+      const latDiff = (distKm * Math.cos(rad)) / 111.32;
+      const cosLat = Math.cos(s.lat * Math.PI / 180);
+      const lngDiff = cosLat !== 0 ? (distKm * Math.sin(rad)) / (111.32 * cosLat) : 0;
+      return {
+        ...s,
+        lat: Math.round((s.lat + latDiff) * 100000) / 100000,
+        lng: Math.round((s.lng + lngDiff) * 100000) / 100000,
+      };
+    }
+    return s;
+  });
 
   // Helper function for Navigational Status (항행 상태)
   const getNavigationalStatus = (s: any) => {
@@ -463,6 +532,7 @@ function generateCirclePolygon(centerLng: number, centerLat: number, radiusKm: n
     ships: ships,
     dark_fleet: darkTargets,
     dark_fleet_geojson: darkFleetGeojson,
+    total: ships.length,
     total_ports: dynamicPorts.length,
     total_chokepoints: dynamicChokepoints.length,
     total_ships: ships.length,
@@ -485,9 +555,9 @@ export function clearMaritimeSnapshot(): void {
   delete globalForSnapshot.maritimeSnapshot;
 }
 
-export async function GET() {
+export async function GET(request?: Request) {
   try {
-    await fetchVesselApiFallback();
+    await fetchMultiTierAisFallback();
 
     const now = Date.now();
     const cached = globalForSnapshot.maritimeSnapshot;
@@ -496,6 +566,50 @@ export async function GET() {
       ? cached
       : { body: buildSnapshot(now), builtAt: now };
     globalForSnapshot.maritimeSnapshot = snapshot;
+
+    // Area filtering (inspired by Gods-Eye-View /area-vessel-requests e8e49a4)
+    if (request) {
+      try {
+        const { searchParams } = new URL(request.url);
+        const latParam = searchParams.get('lat');
+        const lngParam = searchParams.get('lng') || searchParams.get('lon');
+        const radiusParam = searchParams.get('radius_km') || searchParams.get('radius');
+
+        if (latParam && lngParam && radiusParam) {
+          const centerLat = parseFloat(latParam);
+          const centerLng = parseFloat(lngParam);
+          const radiusKm = parseFloat(radiusParam);
+
+          if (!isNaN(centerLat) && !isNaN(centerLng) && !isNaN(radiusKm)) {
+            const data = JSON.parse(snapshot.body);
+            const filteredShips = (data.ships || []).filter((s: any) => {
+              const dLat = (s.lat - centerLat) * (Math.PI / 180);
+              const dLng = (s.lng - centerLng) * (Math.PI / 180);
+              const a = 
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(centerLat * Math.PI / 180) * Math.cos(s.lat * Math.PI / 180) * 
+                Math.sin(dLng / 2) * Math.sin(dLng / 2);
+              const distKm = 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+              return distKm <= radiusKm;
+            });
+
+            return NextResponse.json({
+              ...data,
+              ships: filteredShips,
+              total: filteredShips.length,
+              total_ships: filteredShips.length,
+              area_filter: { lat: centerLat, lng: centerLng, radius_km: radiusKm }
+            }, {
+              headers: {
+                'Cache-Control': 'public, max-age=5, s-maxage=5, stale-while-revalidate=15',
+              }
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[Maritime] Area filter parse error, returning full snapshot:', err);
+      }
+    }
 
     const maxAgeSeconds = Math.floor(SNAPSHOT_TTL_MS / 1000);
 

@@ -38,7 +38,7 @@ interface OsirisMapProps {
   onEntityClick?: (entity: any) => void;
   onMouseCoords?: (coords: { lat: number; lng: number }) => void;
   onRightClick?: (coords: { lat: number; lng: number }) => void;
-  onViewStateChange?: (vs: { zoom: number; latitude: number }) => void;
+  onViewStateChange?: (vs: { zoom: number; latitude: number; longitude?: number; bearing?: number; pitch?: number }) => void;
   flyToLocation?: { lat: number; lng: number; zoom?: number; ts: number } | null;
   projection?: 'mercator' | 'globe';
   mapStyle?: string;
@@ -332,7 +332,7 @@ function OsirisMap({
       createDot(map, 'dot-cctv', cameraColor, 10);
 
       const sources = [
-        'flights','military','jets','private-fl','satellites','earthquakes','gdelt','gps-jamming','day-night','cctv','fires','weather','infrastructure','maritime','maritime-choke','maritime-ships','live-news','sigint-news','conflict-zones', 'war-alerts-targets', 'war-alerts-lines', 'balloons', 'radiation', 'ip-sweep-devices', 'ip-sweep-pulse', 'ip-sweep-connections', 'scan-targets', 'sdk-entities', 'sdk-links', 'malware-nodes', 'network-mesh', 'cyber-arcs', 'cyber-heads', 'cyber-impacts', 'dprk-sites-src', 'dprk-activity-src', 'seismic-nuclear-src', 'demarcation-lines', 'drones', 'cuas-gcs-emitters', 'cuas-vector-lines', 'china-encroachment', 'notam-hazards', 'submarine-cables', 'dark-fleet'
+        'flights','military','jets','private-fl','satellites','earthquakes','gdelt','gps-jamming','day-night','cctv','fires','weather','infrastructure','maritime','maritime-choke','maritime-ships','live-news','sigint-news','conflict-zones', 'war-alerts-targets', 'war-alerts-lines', 'balloons', 'radiation', 'ip-sweep-devices', 'ip-sweep-pulse', 'ip-sweep-connections', 'scan-targets', 'sdk-entities', 'sdk-links', 'malware-nodes', 'network-mesh', 'cyber-arcs', 'cyber-heads', 'cyber-impacts', 'dprk-sites-src', 'dprk-activity-src', 'seismic-nuclear-src', 'demarcation-lines', 'drones', 'cuas-gcs-emitters', 'cuas-vector-lines', 'china-encroachment', 'notam-hazards', 'submarine-cables', 'dark-fleet', 'radio-stations', 'alpr-checkpoints'
       ];
       sources.forEach(s => {
         if (!map.getSource(s)) {
@@ -934,6 +934,70 @@ function OsirisMap({
         }
       });
 
+      // ══ STRATEGIC RADIO BROADCAST STATIONS ══
+      map.addLayer({
+        id: 'radio-stations-circle',
+        type: 'circle',
+        source: 'radio-stations',
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 4, 6, 7, 12, 11],
+          'circle-color': '#00E5FF',
+          'circle-stroke-width': 1.5,
+          'circle-stroke-color': '#FFFFFF',
+          'circle-opacity': 0.85,
+        }
+      });
+      map.addLayer({
+        id: 'radio-stations-label',
+        type: 'symbol',
+        source: 'radio-stations',
+        minzoom: 4,
+        layout: {
+          'text-field': ['concat', '📻 ', ['get', 'name']],
+          'text-size': 9,
+          'text-font': ['Open Sans Bold'],
+          'text-offset': [0, 1.4],
+          'text-allow-overlap': false,
+        },
+        paint: {
+          'text-color': '#00E5FF',
+          'text-halo-color': '#000000',
+          'text-halo-width': 2,
+        }
+      });
+
+      // ══ ALPR SURVEILLANCE & CHECKPOINTS ══
+      map.addLayer({
+        id: 'alpr-checkpoints-circle',
+        type: 'circle',
+        source: 'alpr-checkpoints',
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 4, 6, 6.5, 12, 10],
+          'circle-color': '#39FF14',
+          'circle-stroke-width': 1.5,
+          'circle-stroke-color': '#003300',
+          'circle-opacity': 0.9,
+        }
+      });
+      map.addLayer({
+        id: 'alpr-checkpoints-label',
+        type: 'symbol',
+        source: 'alpr-checkpoints',
+        minzoom: 5,
+        layout: {
+          'text-field': ['concat', '📷 ', ['get', 'name']],
+          'text-size': 9,
+          'text-font': ['Open Sans Bold'],
+          'text-offset': [0, 1.4],
+          'text-allow-overlap': false,
+        },
+        paint: {
+          'text-color': '#39FF14',
+          'text-halo-color': '#000000',
+          'text-halo-width': 2,
+        }
+      });
+
       // ══ DEDICATED DRONE & C-UAS GCS PILOT MAP LAYERS ══
       map.addLayer({
         id: 'cuas-vector-lines-layer',
@@ -1350,7 +1414,19 @@ function OsirisMap({
       }
     });
     map.on('contextmenu', (e: any) => { e.preventDefault(); onRightClick?.({ lat: e.lngLat.lat, lng: e.lngLat.lng }); });
-    map.on('moveend', () => { const c = map.getCenter(); onViewStateChange?.({ zoom: map.getZoom(), latitude: c.lat }); });
+    const notifyViewState = () => {
+      const c = map.getCenter();
+      onViewStateChange?.({
+        zoom: map.getZoom(),
+        latitude: c.lat,
+        longitude: c.lng,
+        bearing: map.getBearing(),
+        pitch: map.getPitch(),
+      });
+    };
+    map.on('moveend', notifyViewState);
+    map.on('rotateend', notifyViewState);
+    map.on('pitchend', notifyViewState);
 
     // ── POPUP HELPER (좌측 지도 시작 지점 고정 도킹 HUD) ──
     const popup = (coords: any, html: string) => {
@@ -1395,15 +1471,47 @@ function OsirisMap({
       let photoUrl = p.model_image || '/intel/aircraft/b777_kal.png';
       let specsSummary = '국제민간항공기구(ICAO) 등록 국제 표준 여객기';
 
-      // ── 사전 국가/적성 식별 규칙 (엄격한 피아식별) ──
-      const isDPRK = resolvedCountry === '북한' || csUpper.includes('북한') || csUpper.includes('조선인민군') || csUpper.includes('KPAF') || hex.startsWith('720') || csUpper.includes('MI-24') || csUpper.includes('MIG') || csUpper.includes('SU-25') || csUpper.includes('AN-2') || csUpper.includes('고려항공') || (p.affiliation && p.affiliation.includes('DPRK'));
-      const isChina = !isDPRK && (resolvedCountry === '중국' || csUpper.includes('중국') || csUpper.includes('PLAAF') || hex.startsWith('730') || csUpper.includes('J-20') || csUpper.includes('J-16') || csUpper.includes('J-15') || csUpper.includes('KJ-500') || csUpper.includes('H-6') || csUpper.includes('WZ-7') || (p.affiliation && p.affiliation.includes('CHINA')));
-      const isRussia = !isDPRK && (resolvedCountry === '러시아' || csUpper.includes('러시아') || csUpper.includes('VKS') || hex.startsWith('740') || csUpper.includes('SU-57') || csUpper.includes('SU-35') || csUpper.includes('SU-34') || csUpper.includes('TU-160') || csUpper.includes('TU-95') || csUpper.includes('A-50') || (p.affiliation && p.affiliation.includes('RUSSIA')));
-      const isUS = !isDPRK && (resolvedCountry === '미국' || csUpper.includes('미 공군') || csUpper.includes('미 해군') || csUpper.includes('미 해병대') || csUpper.includes('USAF') || csUpper.includes('USN') || csUpper.includes('USMC') || csUpper.includes('F-22') || csUpper.includes('B-2') || csUpper.includes('B-52') || csUpper.includes('U-2') || csUpper.includes('RC-135') || csUpper.includes('P-8') || csUpper.includes('리퍼') || csUpper.includes('MQ-9') || (p.affiliation && (p.affiliation.includes('USAF') || p.affiliation.includes('USMC') || p.affiliation.includes('US_NAVY'))));
-      const isROK = !isDPRK && (resolvedCountry === '대한민국' || csUpper.includes('대한민국 공군') || csUpper.includes('한국 공군') || csUpper.includes('대한민국 육군') || csUpper.includes('대한민국 해군') || csUpper.includes('ROKAF') || csUpper.includes('ROKA') || hex.startsWith('71002') || csUpper.includes('F-35A') || csUpper.includes('F-15K') || csUpper.includes('KF-16') || csUpper.includes('FA-50') || csUpper.includes('피스아이') || csUpper.includes('시그너스') || csUpper.includes('글로벌호크') || (p.affiliation && (p.affiliation.includes('ROK_AF') || p.affiliation.includes('ROK_ARMY'))));
+      // ── 사전 국가/적성 식별 규칙 (엄격한 피아식별: 제1원칙 메타데이터 우선) ──
+      const mdUpper = md.toUpperCase();
+      const hasRokAffiliation = resolvedCountry === '대한민국' || (p.affiliation && (p.affiliation.includes('ROK_AF') || p.affiliation.includes('ROK_ARMY') || p.affiliation.includes('ROK_NAVY') || p.affiliation.includes('ROK'))) || hex.startsWith('71002') || csUpper.includes('대한민국') || csUpper.includes('ROKAF') || csUpper.includes('ROKA') || csUpper.includes('육군') || csUpper.includes('공군') || csUpper.includes('해경') || csUpper.includes('해군') || csUpper.includes('아파치') || csUpper.includes('피스아이') || csUpper.includes('시그너스');
+      const hasDprkAffiliation = resolvedCountry === '북한' || (p.affiliation && p.affiliation.includes('DPRK')) || hex.startsWith('720') || csUpper.includes('북한') || csUpper.includes('조선인민군') || csUpper.includes('고려항공') || csUpper.includes('KPAF');
+      const hasUSAffiliation = resolvedCountry === '미국' || (p.affiliation && (p.affiliation.includes('USAF') || p.affiliation.includes('USMC') || p.affiliation.includes('US_NAVY') || p.affiliation.includes('US_ARMY'))) || csUpper.includes('USAF') || csUpper.includes('미 공군') || csUpper.includes('미 해군') || csUpper.includes('미 해병대');
+      const hasChinaAffiliation = resolvedCountry === '중국' || (p.affiliation && (p.affiliation.includes('CHINA') || p.affiliation.includes('PLAAF') || p.affiliation.includes('PLAN'))) || hex.startsWith('730') || csUpper.includes('중국 공군') || csUpper.includes('중국 해군') || csUpper.includes('PLAAF');
+      const hasRussiaAffiliation = resolvedCountry === '러시아' || (p.affiliation && p.affiliation.includes('RUSSIA')) || hex.startsWith('740') || csUpper.includes('러시아') || csUpper.includes('VKS');
 
-      // 1. [최우선 순위] 북한 조선인민군 공군 (DPRK KPAF - HOSTILE)
-      if (isDPRK) {
+      // 상호 배타적 국가 판정 (대한민국/미국 우군 우선 판정, 헬기 모델명 서브스트링 충돌 방지)
+      const isROK = !hasDprkAffiliation && !hasChinaAffiliation && hasRokAffiliation;
+      const isDPRK = hasDprkAffiliation || (!isROK && (csUpper.includes('MI-24') || csUpper.includes('MIG') || csUpper.includes('SU-25') || csUpper.includes('AN-2')));
+      const isUS = !isROK && !isDPRK && (hasUSAffiliation || csUpper.includes('F-22') || csUpper.includes('B-2') || csUpper.includes('B-52') || csUpper.includes('U-2') || csUpper.includes('RC-135') || csUpper.includes('P-8') || csUpper.includes('리퍼') || csUpper.includes('MQ-9'));
+      const isChina = !isROK && !isDPRK && !isUS && (hasChinaAffiliation || csUpper.includes('J-20') || csUpper.includes('J-16') || csUpper.includes('J-15') || csUpper.includes('KJ-500') || ((csUpper.includes('H-6') || mdUpper.includes('H-6')) && !csUpper.includes('AH-64') && !mdUpper.includes('AH-64') && !csUpper.includes('UH-60') && !mdUpper.includes('UH-60') && !csUpper.includes('MH-60') && !mdUpper.includes('MH-60')) || csUpper.includes('WZ-7'));
+      const isRussia = !isROK && !isDPRK && !isUS && !isChina && (hasRussiaAffiliation || csUpper.includes('SU-57') || csUpper.includes('SU-35') || csUpper.includes('SU-34') || csUpper.includes('TU-160') || csUpper.includes('TU-95') || csUpper.includes('A-50'));
+
+      // 1. [최우선 순위] 대한민국 국군 (ROK Armed Forces - FRIENDLY)
+      if (isROK) {
+        resolvedCountry = '대한민국';
+        flag = '🇰🇷';
+        themeColor = '#00E676';
+        affiliationLabel = '대한민국 국군 (ROK Armed Forces - FRIENDLY)';
+        if (cs.includes('F-35') || md.includes('F-35')) {
+          korTitle = '대한민국 공군 F-35A 스텔스 전투기'; photoUrl = '/intel/aircraft/f35a_rokaf.png'; specsSummary = '마하 1.6 / 5세대 스텔스 전술기 (청주 제17전투비행단)';
+        } else if (cs.includes('F-15') || md.includes('F-15')) {
+          korTitle = '대한민국 공군 F-15K 슬램이글 전폭기'; photoUrl = '/intel/aircraft/f15k_rokaf.png'; specsSummary = '마하 2.5 / 타우러스 순항미사일 정밀타격 (대구 제11전투비행단)';
+        } else if (cs.includes('KF-16') || md.includes('KF-16')) {
+          korTitle = '대한민국 공군 KF-16V 바이퍼 전투기'; photoUrl = '/intel/aircraft/kf16v_rokaf.png'; specsSummary = '마하 2.0 / AESA 레이더 탑재 (서산 제20전투비행단)';
+        } else if (cs.includes('FA-50') || md.includes('FA-50')) {
+          korTitle = '대한민국 공군 FA-50 파이팅이글 경공격기'; photoUrl = '/intel/aircraft/fa50_rokaf.png'; specsSummary = '마하 1.5 / 정밀유도폭탄 근접항공지원 (원주 제8전투비행단)';
+        } else if (cs.includes('피스아이') || cs.includes('E-737') || md.includes('E-737')) {
+          korTitle = '대한민국 공군 E-737 피스아이 조기경보통제기'; photoUrl = '/intel/aircraft/e737_rokaf.png'; specsSummary = '360도 MESA 다기능 레이더 / 400km 탐지 (김해 제51전대)';
+        } else if (cs.includes('시그너스') || cs.includes('KC-330') || md.includes('KC-330')) {
+          korTitle = '대한민국 공군 KC-330 시그너스 다목적 공중급유기'; photoUrl = '/intel/aircraft/kc330_rokaf.png'; specsSummary = '연료 111톤 공중급유 / 전략 수송 (김해 제5비행단)';
+        } else if (cs.includes('글로벌호크') || cs.includes('RQ-4') || md.includes('RQ-4')) {
+          korTitle = '대한민국 공군 RQ-4B 글로벌호크 무인정찰기'; photoUrl = '/intel/aircraft/rq4b_rokaf.png'; specsSummary = '60,000ft 고고도 / 34시간 체공 정찰 (청주 제39정찰비행단)';
+        } else if (cs.includes('아파치') || cs.includes('AH-64') || md.includes('AH-64')) {
+          korTitle = '대한민국 육군 AH-64E 아파치 가디언 공격헬기'; photoUrl = '/intel/aircraft/ah64e_roka.png'; specsSummary = '롱보우 밀리미터파 레이더 / 헬파이어 16발 / 서부전선 전차저지 초계 (육군항공사)';
+        }
+      }
+      // 2. 북한 조선인민군 공군 (DPRK KPAF - HOSTILE)
+      else if (isDPRK) {
         resolvedCountry = '북한';
         flag = '🇰🇵';
         themeColor = '#FF1744';
@@ -1431,47 +1539,7 @@ function OsirisMap({
           specsSummary = '조선인민군 전방 전술 비행편대 / 군사분계선(MDL) 근접 기동';
         }
       }
-      // 2. 중국 인민해방군 (China PLAAF & PLAN)
-      else if (isChina) {
-        resolvedCountry = '중국';
-        flag = '🇨🇳';
-        themeColor = '#FF9100';
-        affiliationLabel = '중국 인민해방군 (PLA Air Force & Navy - SUSPECT)';
-        if (cs.includes('J-20') || md.includes('J-20')) {
-          korTitle = '중국 공군 J-20A 마이티드래곤 스텔스 전투기'; photoUrl = '/intel/aircraft/j20a_plaaf.png'; specsSummary = '마하 2.0 / 카나드 델타익 5세대 스텔스 / PL-15 (동부전구)';
-        } else if (cs.includes('J-16') || md.includes('J-16')) {
-          korTitle = '중국 공군 J-16 다목적 중형 전폭기'; photoUrl = '/intel/aircraft/j16_plaaf.png'; specsSummary = '마하 2.0 / AESA 레이더 / 대함·대지 정밀타격 (닝보 기지)';
-        } else if (cs.includes('J-15') || md.includes('J-15')) {
-          korTitle = '중국 해군 J-15 비사 항모 함재기'; photoUrl = '/intel/aircraft/j15_plan.png'; specsSummary = '랴오닝·산둥함 탑재 / 공중우세 및 대함타격 (항모전단)';
-        } else if (cs.includes('KJ-500') || md.includes('KJ-500')) {
-          korTitle = '중국 공군 KJ-500 3면 AESA 조기경보기'; photoUrl = '/intel/aircraft/kj500_plaaf.png'; specsSummary = '고정형 3면 위상배열 레이더 / 450km 탐지 (칭다오 기지)';
-        } else if (cs.includes('H-6') || md.includes('H-6')) {
-          korTitle = '중국 공군 H-6K 장거리 전략폭격기'; photoUrl = '/intel/aircraft/h6k_plaaf.png'; specsSummary = 'CJ-20 순항미사일 6발 탑재 / 원거리 정밀타격 (안칭 기지)';
-        } else if (cs.includes('WZ-7') || md.includes('WZ-7')) {
-          korTitle = '중국 공군 WZ-7 샹룽 고고도 무인정찰기'; photoUrl = '/intel/aircraft/wz7_plaaf.png'; specsSummary = '60,000ft 고고도 / 다이아몬드 결합익 전략 정찰 (웨이하이 기지)';
-        }
-      }
-      // 3. 러시아 항공우주군 (Russia VKS)
-      else if (isRussia) {
-        resolvedCountry = '러시아';
-        flag = '🇷🇺';
-        themeColor = '#8D6E63';
-        affiliationLabel = '러시아 항공우주군 (VKS Russian Air Force - SUSPECT)';
-        if (cs.includes('Su-57') || md.includes('Su-57')) {
-          korTitle = '러시아 공군 Su-57 펠론 5세대 스텔스 전투기'; photoUrl = '/intel/aircraft/su57_vks.png'; specsSummary = '마하 2.0 / 내부무장창 / 3D 추력편향 5세대 스텔스 (아흐투빈스크)';
-        } else if (cs.includes('Su-35') || md.includes('Su-35')) {
-          korTitle = '러시아 공군 Su-35S 플랭커-E 제공전투기'; photoUrl = '/intel/aircraft/su35s_vks.png'; specsSummary = '3D 추력편향 노즐 / 이르비스-E 위상배열 레이더 (쿠르스크 기지)';
-        } else if (cs.includes('Su-34') || md.includes('Su-34')) {
-          korTitle = '러시아 공군 Su-34 풀백 초음속 전폭기'; photoUrl = '/intel/aircraft/su34_vks.png'; specsSummary = '병렬 2인승 장갑 조종석 / 활공유도폭탄 종심타격 (보로네시 기지)';
-        } else if (cs.includes('Tu-160') || md.includes('Tu-160')) {
-          korTitle = '러시아 공군 Tu-160M 블랙잭 초음속 전략폭격기'; photoUrl = '/intel/aircraft/tu160m_vks.png'; specsSummary = '마하 2.05 초음속 가변익 / Kh-101 스텔스 순항미사일 (엔겔스-2)';
-        } else if (cs.includes('Tu-95') || md.includes('Tu-95')) {
-          korTitle = '러시아 공군 Tu-95MS 베어 장거리 전략폭격기'; photoUrl = '/intel/aircraft/tu95ms_vks.png'; specsSummary = '이중반전 터보프롭 / Kh-55/102 핵순항미사일 플랫폼 (엔겔스 기지)';
-        } else if (cs.includes('A-50') || md.includes('A-50')) {
-          korTitle = '러시아 공군 A-50U 메인스테이 조기경보통제기'; photoUrl = '/intel/aircraft/a50u_vks.png'; specsSummary = '슈멜-M 회전 레이돔 / 600km 탐지 (이바노보 기지)';
-        }
-      }
-      // 4. 미합중국 군대 (USAF, USN, USMC - FRIENDLY)
+      // 3. 미합중국 군대 (USAF, USN, USMC - FRIENDLY)
       else if (isUS) {
         resolvedCountry = '미국';
         flag = '🇺🇸';
@@ -1495,28 +1563,44 @@ function OsirisMap({
           korTitle = '미 공군 MQ-9A 리퍼 무인 공격정찰기'; photoUrl = '/intel/aircraft/mq9_usaf.png'; specsSummary = '헬파이어 미사일 / 27시간 장기체공 정밀타격 (USAF 8th Fighter Wing)';
         }
       }
-      // 5. 대한민국 국군 (ROK AF, Army & Navy - FRIENDLY)
-      else if (isROK) {
-        resolvedCountry = '대한민국';
-        flag = '🇰🇷';
-        themeColor = '#00E676';
-        affiliationLabel = '대한민국 국군 (ROK Armed Forces - FRIENDLY)';
-        if (cs.includes('F-35') || md.includes('F-35')) {
-          korTitle = '대한민국 공군 F-35A 스텔스 전투기'; photoUrl = '/intel/aircraft/f35a_rokaf.png'; specsSummary = '마하 1.6 / 5세대 스텔스 전술기 (청주 제17전투비행단)';
-        } else if (cs.includes('F-15') || md.includes('F-15')) {
-          korTitle = '대한민국 공군 F-15K 슬램이글 전폭기'; photoUrl = '/intel/aircraft/f15k_rokaf.png'; specsSummary = '마하 2.5 / 타우러스 순항미사일 정밀타격 (대구 제11전투비행단)';
-        } else if (cs.includes('KF-16') || md.includes('KF-16')) {
-          korTitle = '대한민국 공군 KF-16V 바이퍼 전투기'; photoUrl = '/intel/aircraft/kf16v_rokaf.png'; specsSummary = '마하 2.0 / AESA 레이더 탑재 (서산 제20전투비행단)';
-        } else if (cs.includes('FA-50') || md.includes('FA-50')) {
-          korTitle = '대한민국 공군 FA-50 파이팅이글 경공격기'; photoUrl = '/intel/aircraft/fa50_rokaf.png'; specsSummary = '마하 1.5 / 정밀유도폭탄 근접항공지원 (원주 제8전투비행단)';
-        } else if (cs.includes('피스아이') || cs.includes('E-737') || md.includes('E-737')) {
-          korTitle = '대한민국 공군 E-737 피스아이 조기경보통제기'; photoUrl = '/intel/aircraft/e737_rokaf.png'; specsSummary = '360도 MESA 다기능 레이더 / 400km 탐지 (김해 제51전대)';
-        } else if (cs.includes('시그너스') || cs.includes('KC-330') || md.includes('KC-330')) {
-          korTitle = '대한민국 공군 KC-330 시그너스 다목적 공중급유기'; photoUrl = '/intel/aircraft/kc330_rokaf.png'; specsSummary = '연료 111톤 공중급유 / 전략 수송 (김해 제5비행단)';
-        } else if (cs.includes('글로벌호크') || cs.includes('RQ-4') || md.includes('RQ-4')) {
-          korTitle = '대한민국 공군 RQ-4B 글로벌호크 무인정찰기'; photoUrl = '/intel/aircraft/rq4b_rokaf.png'; specsSummary = '60,000ft 고고도 / 34시간 체공 정찰 (청주 제39정찰비행단)';
-        } else if (cs.includes('아파치') || cs.includes('AH-64') || md.includes('AH-64')) {
-          korTitle = '대한민국 육군 AH-64E 아파치 가디언 공격헬기'; photoUrl = '/intel/aircraft/ah64e_roka.png'; specsSummary = '롱보우 밀리미터파 레이더 / 헬파이어 16발 (육군항공사)';
+      // 4. 중국 인민해방군 (China PLAAF & PLAN)
+      else if (isChina) {
+        resolvedCountry = '중국';
+        flag = '🇨🇳';
+        themeColor = '#FF9100';
+        affiliationLabel = '중국 인민해방군 (PLA Air Force & Navy - SUSPECT)';
+        if (cs.includes('J-20') || md.includes('J-20')) {
+          korTitle = '중국 공군 J-20A 마이티드래곤 스텔스 전투기'; photoUrl = '/intel/aircraft/j20a_plaaf.png'; specsSummary = '마하 2.0 / 카나드 델타익 5세대 스텔스 / PL-15 (동부전구)';
+        } else if (cs.includes('J-16') || md.includes('J-16')) {
+          korTitle = '중국 공군 J-16 다목적 중형 전폭기'; photoUrl = '/intel/aircraft/j16_plaaf.png'; specsSummary = '마하 2.0 / AESA 레이더 / 대함·대지 정밀타격 (닝보 기지)';
+        } else if (cs.includes('J-15') || md.includes('J-15')) {
+          korTitle = '중국 해군 J-15 비사 항모 함재기'; photoUrl = '/intel/aircraft/j15_plan.png'; specsSummary = '랴오닝·산둥함 탑재 / 공중우세 및 대함타격 (항모전단)';
+        } else if (cs.includes('KJ-500') || md.includes('KJ-500')) {
+          korTitle = '중국 공군 KJ-500 3면 AESA 조기경보기'; photoUrl = '/intel/aircraft/kj500_plaaf.png'; specsSummary = '고정형 3면 위상배열 레이더 / 450km 탐지 (칭다오 기지)';
+        } else if ((cs.includes('H-6') || md.includes('H-6')) && !cs.includes('AH-64') && !md.includes('AH-64') && !cs.includes('UH-60') && !md.includes('UH-60') && !cs.includes('MH-60') && !md.includes('MH-60')) {
+          korTitle = '중국 공군 H-6K 장거리 전략폭격기'; photoUrl = '/intel/aircraft/h6k_plaaf.png'; specsSummary = 'CJ-20 순항미사일 6발 탑재 / 원거리 정밀타격 (안칭 기지)';
+        } else if (cs.includes('WZ-7') || md.includes('WZ-7')) {
+          korTitle = '중국 공군 WZ-7 샹룽 고고도 무인정찰기'; photoUrl = '/intel/aircraft/wz7_plaaf.png'; specsSummary = '60,000ft 고고도 / 다이아몬드 결합익 전략 정찰 (웨이하이 기지)';
+        }
+      }
+      // 5. 러시아 항공우주군 (Russia VKS)
+      else if (isRussia) {
+        resolvedCountry = '러시아';
+        flag = '🇷🇺';
+        themeColor = '#8D6E63';
+        affiliationLabel = '러시아 항공우주군 (VKS Russian Air Force - SUSPECT)';
+        if (cs.includes('Su-57') || md.includes('Su-57')) {
+          korTitle = '러시아 공군 Su-57 펠론 5세대 스텔스 전투기'; photoUrl = '/intel/aircraft/su57_vks.png'; specsSummary = '마하 2.0 / 내부무장창 / 3D 추력편향 5세대 스텔스 (아흐투빈스크)';
+        } else if (cs.includes('Su-35') || md.includes('Su-35')) {
+          korTitle = '러시아 공군 Su-35S 플랭커-E 제공전투기'; photoUrl = '/intel/aircraft/su35s_vks.png'; specsSummary = '3D 추력편향 노즐 / 이르비스-E 위상배열 레이더 (쿠르스크 기지)';
+        } else if (cs.includes('Su-34') || md.includes('Su-34')) {
+          korTitle = '러시아 공군 Su-34 풀백 초음속 전폭기'; photoUrl = '/intel/aircraft/su34_vks.png'; specsSummary = '병렬 2인승 장갑 조종석 / 활공유도폭탄 종심타격 (보로네시 기지)';
+        } else if (cs.includes('Tu-160') || md.includes('Tu-160')) {
+          korTitle = '러시아 공군 Tu-160M 블랙잭 초음속 전략폭격기'; photoUrl = '/intel/aircraft/tu160m_vks.png'; specsSummary = '마하 2.05 초음속 가변익 / Kh-101 스텔스 순항미사일 (엔겔스-2)';
+        } else if (cs.includes('Tu-95') || md.includes('Tu-95')) {
+          korTitle = '러시아 공군 Tu-95MS 베어 장거리 전략폭격기'; photoUrl = '/intel/aircraft/tu95ms_vks.png'; specsSummary = '이중반전 터보프롭 / Kh-55/102 핵순항미사일 플랫폼 (엔겔스 기지)';
+        } else if (cs.includes('A-50') || md.includes('A-50')) {
+          korTitle = '러시아 공군 A-50U 메인스테이 조기경보통제기'; photoUrl = '/intel/aircraft/a50u_vks.png'; specsSummary = '슈멜-M 회전 레이돔 / 600km 탐지 (이바노보 기지)';
         }
       }
       // 6. 이스라엘 공군 (Israel IAF)
@@ -3263,6 +3347,45 @@ function getVideoAnalysisKeyframe(p: any): string {
       </div>`);
     });
 
+    // ── Strategic Radio Click Popup ──
+    map.on('click', 'radio-stations-circle', (e: any) => {
+      const p = e.features?.[0]?.properties;
+      if (!p) return;
+      const coords = (e.features![0].geometry as any).coordinates;
+      popup(coords, `<div style="${pStyle}border:1.5px solid #00E5FF;background:rgba(5,15,25,0.95);max-width:320px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;border-bottom:1px solid rgba(0,229,255,0.3);padding-bottom:4px;">
+          <span style="color:#00E5FF;font-size:12px;font-weight:bold;">📻 ${htmlEsc(p.name || 'RADIO')}</span>
+          <span style="color:#00E5FF;font-size:9px;background:rgba(0,229,255,0.2);padding:1px 5px;border-radius:3px;">${htmlEsc(p.country || 'GLOBAL')}</span>
+        </div>
+        <div style="font-size:9px;color:#aaa;line-height:1.5;margin-bottom:8px;">
+          <div>도시/국가: <span style="color:#FFF;">${htmlEsc(p.city || '')}, ${htmlEsc(p.country || '')}</span></div>
+          <div>장르: <span style="color:#FFD740;">${htmlEsc(p.genre || 'News')}</span></div>
+          ${p.frequency ? `<div>주파수: <span style="color:#FFF;font-family:monospace;">${htmlEsc(p.frequency)}</span></div>` : ''}
+        </div>
+        <a href="${htmlEsc(p.streamUrl || '#')}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:3px 8px;background:rgba(0,229,255,0.2);border:1px solid #00E5FF;border-radius:4px;color:#00E5FF;text-decoration:none;font-size:10px;font-weight:bold;cursor:pointer;">
+          ▶ 실시간 방송 청취
+        </a>
+      </div>`);
+    });
+
+    // ── ALPR Checkpoints Click Popup ──
+    map.on('click', 'alpr-checkpoints-circle', (e: any) => {
+      const p = e.features?.[0]?.properties;
+      if (!p) return;
+      const coords = (e.features![0].geometry as any).coordinates;
+      popup(coords, `<div style="${pStyle}border:1.5px solid #39FF14;background:rgba(5,20,10,0.95);max-width:320px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;border-bottom:1px solid rgba(57,255,20,0.3);padding-bottom:4px;">
+          <span style="color:#39FF14;font-size:12px;font-weight:bold;">📷 ${htmlEsc(p.name || 'ALPR')}</span>
+          <span style="color:#39FF14;font-size:9px;background:rgba(57,255,20,0.2);padding:1px 5px;border-radius:3px;">${htmlEsc(p.type || 'ALPR')}</span>
+        </div>
+        <div style="font-size:9px;color:#aaa;line-height:1.5;">
+          <div>도로: <span style="color:#FFF;">${htmlEsc(p.road || '')}</span></div>
+          <div>방향: <span style="color:#FFD740;">${htmlEsc(p.direction || '양방향')}</span></div>
+          <div>운용: <span style="color:#FFF;">${htmlEsc(p.operator || '교통안전청')}</span></div>
+        </div>
+      </div>`);
+    });
+
     return () => {
       if (typeof window !== 'undefined') {
         if ((window as any).__map === map) (window as any).__map = null;
@@ -3897,6 +4020,18 @@ function getVideoAnalysisKeyframe(p: any): string {
     setGeo('dark-fleet', activeLayers.dark_fleet && data.dark_fleet_geojson ? data.dark_fleet_geojson.features : []);
   }, [mapReady, data.dark_fleet_geojson, activeLayers.dark_fleet, setGeo]);
 
+  // Strategic Radio stations
+  useEffect(() => {
+    if (!mapReady) return;
+    setGeo('radio-stations', activeLayers.radio && data.radio_geojson ? data.radio_geojson.features : []);
+  }, [mapReady, data.radio_geojson, activeLayers.radio, setGeo]);
+
+  // ALPR surveillance checkpoints
+  useEffect(() => {
+    if (!mapReady) return;
+    setGeo('alpr-checkpoints', activeLayers.alpr && data.alpr_geojson ? data.alpr_geojson.features : []);
+  }, [mapReady, data.alpr_geojson, activeLayers.alpr, setGeo]);
+
   // ══ OSIRIS SDK — Lattice Sensor Mesh ══
   // Uses real submarine cable data for SEA domain, curated routes for AIR/INTEL
   useEffect(() => {
@@ -4066,6 +4201,8 @@ function getVideoAnalysisKeyframe(p: any): string {
     setVis(['notam-hazards-fill', 'notam-hazards-line', 'notam-hazards-label'], activeLayers.notam_hazards);
     setVis(['submarine-cables-glow', 'submarine-cables-line', 'submarine-cables-label'], activeLayers.submarine_cables || activeLayers.cables);
     setVis(['dark-fleet-bubble-fill', 'dark-fleet-bubble-line', 'dark-fleet-dots', 'dark-fleet-label'], activeLayers.dark_fleet);
+    setVis(['radio-stations-circle', 'radio-stations-label'], activeLayers.radio);
+    setVis(['alpr-checkpoints-circle', 'alpr-checkpoints-label'], activeLayers.alpr);
 
     // Sweep layers always visible when data is present (controlled by useEffect)
     setVis(['sweep-connections','sweep-pulse-ring','sweep-device-glow','sweep-device-dots','sweep-device-labels'], true);

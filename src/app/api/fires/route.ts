@@ -73,7 +73,47 @@ function classifyThermalAnomaly(lat: number, lng: number, frpInput: number) {
   };
 }
 
+// ── IN-MEMORY SWR CACHE ──
+interface FireCacheEntry {
+  fires: any[];
+  military_hotspots: number;
+  industrial_hotspots: number;
+  source: string;
+  timestamp: number;
+}
+let memoryFireCache: FireCacheEntry | null = null;
+const FIRE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
 export async function GET() {
+  const now = Date.now();
+
+  // Return cached data if fresh
+  if (memoryFireCache && (now - memoryFireCache.timestamp < FIRE_TTL_MS)) {
+    const updateIntervalSec = 600;
+    const nextUpdateAt = new Date(memoryFireCache.timestamp + FIRE_TTL_MS).toISOString();
+    return NextResponse.json({
+      fires: memoryFireCache.fires,
+      total: memoryFireCache.fires.length,
+      military_hotspots: memoryFireCache.military_hotspots,
+      industrial_hotspots: memoryFireCache.industrial_hotspots,
+      source: `${memoryFireCache.source} (SWR In-Memory Cache)`,
+      temporal: {
+        observed_at: new Date(memoryFireCache.timestamp).toISOString(),
+        fetched_at: new Date(now).toISOString(),
+        next_update_at: nextUpdateAt,
+        interval_seconds: updateIntervalSec,
+        staleness: 'FRESH_CACHED',
+        source_name: memoryFireCache.source,
+        rate_limit_info: 'Agent-Reach SWR 보호 활성화 (API 한도 무제한 우회)'
+      },
+      timestamp: new Date().toISOString(),
+    }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1200',
+      },
+    });
+  }
+
   try {
     let fires: any[] = [];
     let source = '';
@@ -165,6 +205,16 @@ export async function GET() {
       rate_limit_info: 'NASA FIRMS 오픈 데이터 / 10분 캐시 주기'
     };
 
+    if (fires.length > 0) {
+      memoryFireCache = {
+        fires,
+        military_hotspots: militaryCount,
+        industrial_hotspots: industrialCount,
+        source,
+        timestamp: now,
+      };
+    }
+
     return NextResponse.json({
       fires,
       total: fires.length,
@@ -180,6 +230,25 @@ export async function GET() {
     });
   } catch (error) {
     console.error('Fire fetch error:', error);
+    if (memoryFireCache) {
+      return NextResponse.json({
+        fires: memoryFireCache.fires,
+        total: memoryFireCache.fires.length,
+        military_hotspots: memoryFireCache.military_hotspots,
+        industrial_hotspots: memoryFireCache.industrial_hotspots,
+        source: `${memoryFireCache.source} (Emergency Stale Cache)`,
+        temporal: {
+          observed_at: new Date(memoryFireCache.timestamp).toISOString(),
+          fetched_at: new Date().toISOString(),
+          next_update_at: new Date(Date.now() + 60000).toISOString(),
+          interval_seconds: 60,
+          staleness: 'STALE_CACHE',
+          source_name: memoryFireCache.source,
+          rate_limit_info: 'NASA API 일시 장애 대응 SWR 캐시 반환'
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
     return NextResponse.json({ fires: [], error: 'Failed to fetch fire data' }, { status: 500 });
   }
 }

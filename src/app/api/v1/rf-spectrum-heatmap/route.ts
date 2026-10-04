@@ -82,7 +82,7 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     status: 'success',
-    system: 'OSIRIS 국가 1km x 1km RF 전파 스펙트럼 히트맵 API',
+    system: '번개의 눈동자 국가 1km x 1km RF 전파 스펙트럼 히트맵 API',
     region,
     grids: gridCells,
     provenance,

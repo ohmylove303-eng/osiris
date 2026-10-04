@@ -1,7 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ['ranges-light-query-lease.trycloudflare.com', '*.trycloudflare.com'],
+  allowedDevOrigins: [
+    'grew-gym-arrow-workflow.trycloudflare.com',
+    'ranges-light-query-lease.trycloudflare.com',
+    '*.trycloudflare.com',
+    'localhost:3000',
+    '127.0.0.1:3000',
+  ],
   turbopack: {
     root: __dirname,
     rules: {
@@ -50,7 +56,10 @@ const nextConfig: NextConfig = {
       {
         source: '/(.*)',
         headers: [
-          { key: 'Content-Security-Policy', value: "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: wss: data: blob:;" },
+          {
+            key: 'Content-Security-Policy',
+            value: "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: wss: data: blob:; worker-src 'self' blob: https:; child-src 'self' blob: https:; connect-src 'self' https: wss: data: blob:; font-src 'self' https: data:; img-src 'self' https: data: blob:;",
+          },
           { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },

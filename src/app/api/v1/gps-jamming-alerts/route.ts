@@ -61,7 +61,7 @@ export async function GET() {
 
   return NextResponse.json({
     status: 'success',
-    system: 'OSIRIS 서해 NLL 및 접경지역 실시간 GPS 전파 교란(Jamming/Spoofing) 조기경보 API',
+    system: '번개의 눈동자 서해 NLL 및 접경지역 실시간 GPS 전파 교란(Jamming/Spoofing) 조기경보 API',
     alerts,
     total: alerts.length,
     provenance,

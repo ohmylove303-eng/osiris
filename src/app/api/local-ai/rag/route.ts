@@ -165,9 +165,9 @@ async function runIncrementalUpsert() {
       id: `feed-heartbeat-${new Date().toISOString().slice(0, 13)}`,
       title: 'RAG incremental heartbeat',
       category: 'live_heartbeat',
-      content: `OSIRIS live RAG heartbeat at ${new Date().toISOString()}. Feeds polled; no eligible high-risk items this cycle.`,
+      content: `번개의 눈동자 live RAG heartbeat at ${new Date().toISOString()}. Feeds polled; no eligible high-risk items this cycle.`,
       metadata: {
-        source_org: 'OSIRIS',
+        source_org: '번개의 눈동자',
         source_url: '/api/local-ai/rag',
         date: new Date().toISOString(),
         verification_tier: 'LIVE-FEED',

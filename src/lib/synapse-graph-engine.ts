@@ -160,7 +160,7 @@ export function buildSynapseGraph(): SynapseGraphData {
       val: type === 'domain' ? 8 : type === 'facility' ? 5 : 3,
       tags,
       parent: parentClean,
-      source: data.source || data.platform || 'OSIRIS Vault',
+      source: data.source || data.platform || '번개의 눈동자 Vault',
       content,
       filePath: relPath,
       inDegree: 0,

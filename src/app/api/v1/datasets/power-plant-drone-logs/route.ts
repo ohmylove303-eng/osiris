@@ -32,7 +32,7 @@ export async function GET() {
   try {
     const liveApiUrl = `https://api.odcloud.kr/api/15151019/v1/uddi:4aca4dc8-b864-4d96-93d2-d52342a4bf27?page=1&perPage=25&serviceKey=${serviceKey}`;
     const liveRes = await fetch(liveApiUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (OSIRIS-C-UAS/1.0)' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (LightningEye-C-UAS/1.0)' },
       next: { revalidate: 300 }
     });
 

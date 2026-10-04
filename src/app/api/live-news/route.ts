@@ -27,7 +27,12 @@ const LIVE_FEEDS = [
   // ── Middle East ──
   { id: 'aljazeera',  name: 'Al Jazeera EN', city: 'Doha', country: 'QA', lat: 25.286, lng: 51.534, url: 'https://www.youtube.com/embed/live_stream?channel=UCNye-wNBqNL5ZzHSJj3l8Bg&autoplay=1&mute=1', embed_allowed: true, category: 'mainstream', language: 'en' },
 
-  // ── Asia Pacific (verified embeddable) ──
+  // ── Asia Pacific & Korea (verified embeddable) ──
+  { id: 'ytn',        name: 'YTN 실시간 24 (Live)',    city: 'Seoul', country: 'KR', lat: 37.551, lng: 126.974, url: 'https://www.youtube.com/embed/live_stream?channel=UChlgI3UHCOnwUGzWzbJ3H5w&autoplay=1&mute=1', embed_allowed: true, category: 'mainstream', language: 'ko' },
+  { id: 'yonhapnews', name: '연합뉴스TV 24 (Live)',   city: 'Seoul', country: 'KR', lat: 37.579, lng: 126.977, url: 'https://www.youtube.com/embed/live_stream?channel=UCTHCOPwqNfZ0uiKOvFyhGwg&autoplay=1&mute=1', embed_allowed: true, category: 'mainstream', language: 'ko' },
+  { id: 'kbsnews',    name: 'KBS 뉴스 24 (Live)',      city: 'Seoul', country: 'KR', lat: 37.525, lng: 126.917, url: 'https://www.youtube.com/embed/live_stream?channel=UCcQTRi6ZKmxW_okYob8vWiA&autoplay=1&mute=1', embed_allowed: true, category: 'mainstream', language: 'ko' },
+  { id: 'mbcnews',    name: 'MBC 뉴스 실시간 (Live)',  city: 'Seoul', country: 'KR', lat: 37.581, lng: 126.890, url: 'https://www.youtube.com/embed/live_stream?channel=UCF4WxDo3inmxP-v583YKI-A&autoplay=1&mute=1', embed_allowed: true, category: 'mainstream', language: 'ko' },
+  { id: 'sbsnews',    name: 'SBS 뉴스 실시간 (Live)',  city: 'Seoul', country: 'KR', lat: 37.528, lng: 126.874, url: 'https://www.youtube.com/embed/live_stream?channel=UCkinYTS9IHqOEwR1Sze2JTw&autoplay=1&mute=1', embed_allowed: true, category: 'mainstream', language: 'ko' },
   { id: 'nhkworld', name: 'NHK World',  city: 'Tokyo',     country: 'JP', lat: 35.690, lng: 139.692, url: 'https://www.youtube.com/embed/live_stream?channel=UCSPEjw8F2nQDtmUKPFNF7_A&autoplay=1&mute=1', embed_allowed: true, category: 'mainstream', language: 'en' },
   { id: 'cna',      name: 'CNA 24/7',  city: 'Singapore', country: 'SG', lat:  1.290, lng: 103.852, url: 'https://www.youtube.com/embed/live_stream?channel=UC83jt4dlz1Gjl58fzQrrKZg&autoplay=1&mute=1', embed_allowed: true, category: 'mainstream', language: 'en' },
   { id: 'wion',     name: 'WION',      city: 'New Delhi', country: 'IN', lat: 28.614, lng:  77.209, url: 'https://www.youtube.com/embed/live_stream?channel=UC_gUM8rL-Lrg6O3adPW9K1g&autoplay=1&mute=1', embed_allowed: true, category: 'mainstream', language: 'en' },

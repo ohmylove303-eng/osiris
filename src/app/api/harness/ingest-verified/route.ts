@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
       title,
       content,
       source_org,
-      source_url = 'https://osiris.tactical/user-verified',
+      source_url = 'https://lightning-eye.tactical/user-verified',
       category = 'user_verified_intel',
       date = new Date().toISOString().split('T')[0],
       mgrs = '52SCA0000000000',

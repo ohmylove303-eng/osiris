@@ -137,7 +137,7 @@ export default function BananaVisionStudio() {
           </div>
           <div>
             <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-              OSIRIS 로컬 AI 자율 영상 제작 스튜디오
+              번개의 눈동자 로컬 AI 자율 영상 제작 스튜디오
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-mono">
                 3-STAGE PIPELINE
               </span>

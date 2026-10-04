@@ -24,9 +24,29 @@ const COUNTRY_CENTROIDS: Record<string, [number, number]> = {
   VE:[-66,8],VN:[106,16],YE:[48,15.5],ZM:[28,-14],ZW:[30,-20],
 };
 
+interface RadarCacheEntry {
+  outages: any[];
+  timestamp: number;
+}
+let memoryRadarCache: RadarCacheEntry | null = null;
+const RADAR_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
 export async function GET() {
+  const nowMs = Date.now();
+  if (memoryRadarCache && (nowMs - memoryRadarCache.timestamp < RADAR_TTL_MS)) {
+    return NextResponse.json({
+      outages: memoryRadarCache.outages,
+      total: memoryRadarCache.outages.length,
+      cached: true,
+      timestamp: new Date().toISOString(),
+      source: 'IODA — Georgia Tech (SWR In-Memory Cache)',
+    }, {
+      headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' },
+    });
+  }
+
   try {
-    const now = Math.floor(Date.now() / 1000);
+    const now = Math.floor(nowMs / 1000);
     const from = now - 86400; // Last 24 hours
     const url = `https://api.ioda.inetintel.cc.gatech.edu/v2/outages/events?from=${from}&until=${now}&entityType=country&limit=200`;
 
@@ -39,7 +59,15 @@ export async function GET() {
     console.log('[OSIRIS] IODA response status:', res.status);
 
     if (!res.ok) {
-      // Fallback: return empty but valid response
+      if (memoryRadarCache) {
+        return NextResponse.json({
+          outages: memoryRadarCache.outages,
+          total: memoryRadarCache.outages.length,
+          stale: true,
+          timestamp: new Date().toISOString(),
+          source: 'IODA (Emergency Stale Cache)',
+        });
+      }
       return NextResponse.json({ outages: [], total: 0, timestamp: new Date().toISOString(), source: 'IODA (offline)' });
     }
 
@@ -72,6 +100,13 @@ export async function GET() {
         };
       });
 
+    if (outages.length > 0) {
+      memoryRadarCache = {
+        outages,
+        timestamp: nowMs,
+      };
+    }
+
     return NextResponse.json({
       outages,
       total: outages.length,
@@ -82,6 +117,15 @@ export async function GET() {
     });
   } catch (error) {
     console.error('[OSIRIS] IODA fetch error:', error);
+    if (memoryRadarCache) {
+      return NextResponse.json({
+        outages: memoryRadarCache.outages,
+        total: memoryRadarCache.outages.length,
+        stale: true,
+        timestamp: new Date().toISOString(),
+        source: 'IODA (Emergency Stale Cache)',
+      });
+    }
     return NextResponse.json({ outages: [], total: 0, error: 'IODA unavailable' }, { status: 500 });
   }
 }

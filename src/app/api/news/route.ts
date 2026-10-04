@@ -99,7 +99,28 @@ function parseRSSItems(xml: string, sourceName: string): any[] {
   return items;
 }
 
+interface NewsCacheEntry {
+  news: any[];
+  timestamp: number;
+}
+let memoryNewsCache: NewsCacheEntry | null = null;
+const NEWS_TTL_MS = 60 * 1000; // 60 seconds
+
 export async function GET() {
+  const now = Date.now();
+  if (memoryNewsCache && (now - memoryNewsCache.timestamp < NEWS_TTL_MS)) {
+    return NextResponse.json({
+      news: memoryNewsCache.news,
+      total: memoryNewsCache.news.length,
+      cached: true,
+      timestamp: new Date().toISOString(),
+    }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+      },
+    });
+  }
+
   try {
     const feedPromises = TELEGRAM_CHANNELS.map(async (channel) => {
       try {
@@ -157,6 +178,13 @@ export async function GET() {
 
     newsItems.sort((a, b) => new Date(b.published).getTime() - new Date(a.published).getTime());
 
+    if (newsItems.length > 0) {
+      memoryNewsCache = {
+        news: newsItems,
+        timestamp: now,
+      };
+    }
+
     return NextResponse.json({
       news: newsItems,
       total: newsItems.length,
@@ -167,6 +195,14 @@ export async function GET() {
       },
     });
   } catch (error) {
+    if (memoryNewsCache) {
+      return NextResponse.json({
+        news: memoryNewsCache.news,
+        total: memoryNewsCache.news.length,
+        stale: true,
+        timestamp: new Date().toISOString(),
+      });
+    }
     return NextResponse.json({ news: [], error: 'Failed to fetch intel' }, { status: 500 });
   }
 }

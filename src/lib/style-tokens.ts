@@ -110,7 +110,7 @@ export type Preset = { label: string; patch: Partial<StyleSettings> };
 
 /** Presets carry a full surface ramp so they don't inherit the old one. */
 export const PRESETS: Preset[] = [
-  { label: 'HORUS', patch: { accent: '#d4af37', accent2: '#00e5ff', bg: '#04040a', bgPrimary: '#06060c', bgSecondary: '#0c0e1a', bgTertiary: '#121628', textPrimary: '#e8e6e0', textSecondary: '#9b978e', textMuted: '#5c5a54', textHeading: '#f5f0e0', glow: 0.3, scanlines: 0 } },
+  { label: 'LIGHTNING', patch: { accent: '#ffd700', accent2: '#00e5ff', bg: '#04040a', bgPrimary: '#06060c', bgSecondary: '#0c0e1a', bgTertiary: '#121628', textPrimary: '#e8e6e0', textSecondary: '#9b978e', textMuted: '#5c5a54', textHeading: '#f5f0e0', glow: 0.3, scanlines: 0 } },
   { label: 'PHANTOM', patch: { accent: '#b388ff', accent2: '#7c4dff', bg: '#05000f', bgPrimary: '#08001a', bgSecondary: '#0d0025', bgTertiary: '#140033', textPrimary: '#e1bee7', textSecondary: '#9575cd', textMuted: '#6a4c93', textHeading: '#b388ff', glow: 0.35, scanlines: 0 } },
   { label: 'TERMINAL', patch: { accent: '#00ff9c', accent2: '#00b36b', bg: '#000a06', bgPrimary: '#001410', bgSecondary: '#00201a', bgTertiary: '#002d24', textPrimary: '#c8ffe4', textSecondary: '#5fbf95', textMuted: '#2e6b52', textHeading: '#7dffc4', glow: 0.4, scanlines: 0.05 } },
   { label: 'CRIMSON', patch: { accent: '#ff4d5a', accent2: '#ff9500', bg: '#0c0204', bgPrimary: '#140407', bgSecondary: '#1e070b', bgTertiary: '#2a0a10', textPrimary: '#ffd9dd', textSecondary: '#c98089', textMuted: '#6e3a42', textHeading: '#ff8f97', glow: 0.35, scanlines: 0 } },

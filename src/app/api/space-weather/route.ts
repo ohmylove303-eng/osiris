@@ -8,7 +8,25 @@ import { NextResponse } from 'next/server';
  * Data: Kp index (geomagnetic), solar flares, CME alerts
  */
 
+interface SpaceWeatherCache {
+  data: any;
+  timestamp: number;
+}
+let memorySpaceWeatherCache: SpaceWeatherCache | null = null;
+const SPACE_WEATHER_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 export async function GET() {
+  const now = Date.now();
+  if (memorySpaceWeatherCache && (now - memorySpaceWeatherCache.timestamp < SPACE_WEATHER_TTL_MS)) {
+    return NextResponse.json({
+      ...memorySpaceWeatherCache.data,
+      cached: true,
+      timestamp: new Date().toISOString(),
+    }, {
+      headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' }
+    });
+  }
+
   try {
     const [kpRes, alertsRes, flareRes] = await Promise.allSettled([
       fetch('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json', {
@@ -67,7 +85,7 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({
+    const payload = {
       kp_index: kpIndex,
       storm_level: stormLevel,
       storm_color: stormColor,
@@ -75,9 +93,25 @@ export async function GET() {
       alerts,
       solar_flares: flares,
       timestamp: new Date().toISOString(),
+    };
+
+    memorySpaceWeatherCache = {
+      data: payload,
+      timestamp: now,
+    };
+
+    return NextResponse.json(payload, {
+      headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' }
     });
   } catch (error) {
     console.error('Space Weather API error:', error);
+    if (memorySpaceWeatherCache) {
+      return NextResponse.json({
+        ...memorySpaceWeatherCache.data,
+        stale: true,
+        timestamp: new Date().toISOString(),
+      });
+    }
     return NextResponse.json({
       kp_index: 0, storm_level: 'Unknown', storm_color: '#555',
       alerts: [], solar_flares: [], error: 'Failed to fetch space weather data',

@@ -2,13 +2,13 @@ import type { Metadata, Viewport } from "next";
 import ErrorBoundary from '@/components/ErrorBoundary';
 import "./globals.css";
 
-const SITE_URL = "https://osirisai.live";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://grew-gym-arrow-workflow.trycloudflare.com";
 const SITE_NAME = "번개의 눈동자";
 const SITE_TITLE = "번개의 눈동자 (LIGHTNING EYE) — 전 세계 실시간 관제 · OSINT";
 const SITE_DESCRIPTION = "항공기·위성·함정·CCTV·OSINT 피드를 한 지도에서 관측하는 실시간 관제 HUD.";
 
 export const viewport: Viewport = {
-  themeColor: "#D4AF37",
+  themeColor: "#FFD700",
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
     "defense stocks", "commodities tracker",
     
     // Brand
-    "osiris", "osirisai", "osirisai.live",
+    "번개의 눈동자", "lightning eye", "lightningeye",
   ],
   authors: [{ name: "번개의 눈동자", url: SITE_URL }],
   creator: "번개의 눈동자",
@@ -70,19 +70,20 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/favicon-32x32.png", type: "image/png", sizes: "32x32" },
-      { url: "/favicon-16x16.png", type: "image/png", sizes: "16x16" },
-      { url: "/android-chrome-192x192.png", type: "image/png", sizes: "192x192" },
-      { url: "/android-chrome-512x512.png", type: "image/png", sizes: "512x512" },
+      { url: "/favicon.svg?v=lightning_v5", type: "image/svg+xml" },
+      { url: "/favicon-32x32.png?v=lightning_v5", type: "image/png", sizes: "32x32" },
+      { url: "/favicon-16x16.png?v=lightning_v5", type: "image/png", sizes: "16x16" },
+      { url: "/android-chrome-192x192.png?v=lightning_v5", type: "image/png", sizes: "192x192" },
+      { url: "/android-chrome-512x512.png?v=lightning_v5", type: "image/png", sizes: "512x512" },
     ],
     apple: [
-      { url: "/apple-touch-icon.png", sizes: "180x180" },
+      { url: "/apple-touch-icon.png?v=lightning_v5", sizes: "180x180" },
     ],
-    shortcut: "/favicon.ico",
+    shortcut: "/favicon.ico?v=lightning_v5",
     other: [
       {
         rel: "apple-touch-icon-precomposed",
-        url: "/apple-touch-icon.png",
+        url: "/apple-touch-icon.png?v=lightning_v5",
       },
     ],
   },
@@ -91,18 +92,18 @@ export const metadata: Metadata = {
     canonical: SITE_URL,
   },
   openGraph: {
-    title: "번개의 눈동자 (LIGHTNING EYE) — 항공·CCTV·위성·OSINT 관제",
-    description: "Live flights, satellites, CCTV and OSINT tools on a shared tactical map HUD. Observational feeds — verify before acting.",
+    title: "번개의 눈동자 (LIGHTNING EYE) — 실시간 관제 · OSINT",
+    description: "Live flights, satellites & CCTV with browser OSINT tools. Observational intel HUD.",
     type: "website",
     siteName: SITE_NAME,
-    locale: "en_US",
+    locale: "ko_KR",
     url: SITE_URL,
     images: [
       {
-        url: `${SITE_URL}/og-image.png`,
-        width: 1200,
-        height: 630,
-        alt: "번개의 눈동자 — 실시간 관제·OSINT 플랫폼",
+        url: `${SITE_URL}/og-image.png?v=lightning_v5`,
+        width: 1024,
+        height: 1024,
+        alt: "번개의 눈동자 (LIGHTNING EYE) — 실시간 관제·OSINT 플랫폼",
         type: "image/png",
       },
     ],
@@ -111,9 +112,9 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "번개의 눈동자 (LIGHTNING EYE) — 실시간 관제 · OSINT",
     description: "Live flights, satellites & CCTV with browser OSINT tools. Observational intel HUD.",
-    creator: "@simplifaisoul",
-    site: "@simplifaisoul",
-    images: [`${SITE_URL}/og-image.png`],
+    creator: "@lightningeye",
+    site: "@lightningeye",
+    images: [`${SITE_URL}/og-image.png?v=lightning_v5`],
   },
   category: "technology",
   classification: "Intelligence & Security",
@@ -184,10 +185,11 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=lightning_v3" />
+        <link rel="icon" href="/favicon.ico?v=lightning_v3" sizes="any" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=lightning_v3" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=lightning_v3" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=lightning_v3" />
         <link rel="canonical" href={SITE_URL} />
         
         {/* JSON-LD Structured Data */}

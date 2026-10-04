@@ -8,7 +8,7 @@ export async function GET() {
 
   return NextResponse.json({
     status: 'success',
-    system_name: 'OSIRIS 한·중·북 육상·공중·해상 군사분계선 및 방공식별구역 GIS DB',
+    system_name: '번개의 눈동자 한·중·북 육상·공중·해상 군사분계선 및 방공식별구역 GIS DB',
     boundaries,
     total: boundaries.length,
     timestamp: new Date().toISOString(),

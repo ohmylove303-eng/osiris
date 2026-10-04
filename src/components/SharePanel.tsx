@@ -8,9 +8,19 @@ interface SharePanelProps {
   mapView: { zoom: number; latitude: number; longitude?: number };
   activeLayers: Record<string, boolean>;
   mouseCoords?: { lat: number; lng: number } | null;
+  sensorMode?: string;
+  cockpitTarget?: string | null;
+  hudVisible?: boolean;
 }
 
-export default function SharePanel({ mapView, activeLayers, mouseCoords }: SharePanelProps) {
+export default function SharePanel({
+  mapView,
+  activeLayers,
+  mouseCoords,
+  sensorMode,
+  cockpitTarget,
+  hudVisible,
+}: SharePanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -29,9 +39,13 @@ export default function SharePanel({ mapView, activeLayers, mouseCoords }: Share
       .join(',');
     if (layerKeys) params.set('layers', layerKeys);
 
+    if (sensorMode && sensorMode !== 'NORMAL') params.set('sensor', sensorMode);
+    if (hudVisible) params.set('hud', '1');
+    if (cockpitTarget) params.set('cockpit', cockpitTarget);
+
     const base = typeof window !== 'undefined' ? window.location.origin : 'https://osiris.vercel.app';
     return `${base}/?${params.toString()}`;
-  }, [mapView, activeLayers, mouseCoords]);
+  }, [mapView, activeLayers, mouseCoords, sensorMode, cockpitTarget, hudVisible]);
 
   const copyToClipboard = useCallback(async () => {
     const url = generateShareUrl();
@@ -131,7 +145,7 @@ export default function SharePanel({ mapView, activeLayers, mouseCoords }: Share
             {/* Quick Share */}
             <div className="flex gap-2">
               <a
-                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent('🏛️ OSIRIS — Global Intelligence Dashboard')}&url=${encodeURIComponent(generateShareUrl())}`}
+                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent('🏛️ 번개의 눈동자 — Global Intelligence Dashboard')}&url=${encodeURIComponent(generateShareUrl())}`}
                 target="_blank"
                 className="flex-1 text-center py-1.5 rounded text-[9px] font-mono tracking-wider text-[var(--text-muted)] border border-[var(--border-primary)] hover:border-[#1DA1F2] hover:text-[#1DA1F2] transition-colors"
               >
@@ -145,7 +159,7 @@ export default function SharePanel({ mapView, activeLayers, mouseCoords }: Share
                 IN SHARE
               </a>
               <a
-                href={`https://reddit.com/submit?url=${encodeURIComponent(generateShareUrl())}&title=${encodeURIComponent('OSIRIS — Open Source Global Intelligence Platform')}`}
+                href={`https://reddit.com/submit?url=${encodeURIComponent(generateShareUrl())}&title=${encodeURIComponent('번개의 눈동자 — Open Source Global Intelligence Platform')}`}
                 target="_blank"
                 className="flex-1 text-center py-1.5 rounded text-[9px] font-mono tracking-wider text-[var(--text-muted)] border border-[var(--border-primary)] hover:border-[#FF4500] hover:text-[#FF4500] transition-colors"
               >

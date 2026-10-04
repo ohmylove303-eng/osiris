@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import FeynmanTooltip from './FeynmanTooltip';
 
 interface CryptoPrice { symbol: string; price: number; change24h?: number; }
 interface Earthquake { id: string; magnitude: number; place: string; time: number; depth: number; }
@@ -181,45 +182,51 @@ export default function GlobalStatusBar() {
             </span>
           </>
         ) : (
-          <>
-            <span className="text-[#00E676] text-[10px] animate-pulse">🟢</span>
-            <span className="text-[#00E676] font-bold tracking-wider">
-              [최신화 감독] 전술 피드 {watchdogState.totalFeeds}개 정시 갱신 중 (지연: 0건)
+          <FeynmanTooltip dictKey="status_ground_truth" position="top" className="pointer-events-auto cursor-help">
+            <span className="inline-flex items-center gap-1">
+              <span className="text-[#00E676] text-[10px] animate-pulse">🟢</span>
+              <span className="text-[#00E676] font-bold tracking-wider">
+                [최신화 감독] 전술 피드 {watchdogState.totalFeeds}개 정시 갱신 중 (지연: 0건)
+              </span>
+              <span className="text-[#00E676] text-[8px] bg-[#00E676]/15 px-1 py-0.2 rounded border border-[#00E676]/30">
+                물리 실재성 보장
+              </span>
             </span>
-            <span className="text-[#00E676] text-[8px] bg-[#00E676]/15 px-1 py-0.2 rounded border border-[#00E676]/30">
-              물리 실재성 보장
-            </span>
-          </>
+          </FeynmanTooltip>
         )}
       </span>
       <span className="text-[var(--border-primary)] mx-1 text-white/20">│</span>
-      <button
-        type="button"
-        onClick={() => typeof window !== 'undefined' && window.dispatchEvent(new CustomEvent('osiris:open-bridge'))}
-        className="inline-flex items-center gap-1 mx-2 hover:opacity-80 transition cursor-pointer"
-        title="OSIRIS 인텔리전스 브릿지 열기"
-      >
-        <span className="text-[#FF1744] text-[10px]">📡</span>
-        <span className="text-[#FF1744] font-bold tracking-wider underline decoration-dotted underline-offset-2">Bridge 1: 북한 군사활동 153건</span>
-        <span className="text-[#00E676] text-[8px] bg-[#00E676]/15 px-1 py-0.2 rounded border border-[#00E676]/30">수집 보고</span>
-      </button>
+      <FeynmanTooltip dictKey="status_bridge1" position="top" className="pointer-events-auto">
+        <button
+          type="button"
+          onClick={() => typeof window !== 'undefined' && window.dispatchEvent(new CustomEvent('osiris:open-bridge'))}
+          className="inline-flex items-center gap-1 mx-2 hover:opacity-80 transition cursor-pointer"
+        >
+          <span className="text-[#FF1744] text-[10px]">📡</span>
+          <span className="text-[#FF1744] font-bold tracking-wider underline decoration-dotted underline-offset-2">Bridge 1: 북한 군사활동 153건</span>
+          <span className="text-[#00E676] text-[8px] bg-[#00E676]/15 px-1 py-0.2 rounded border border-[#00E676]/30">수집 보고</span>
+        </button>
+      </FeynmanTooltip>
       <span className="text-[var(--border-primary)] mx-1 text-white/20">│</span>
-      <button
-        type="button"
-        onClick={() => typeof window !== 'undefined' && window.dispatchEvent(new CustomEvent('osiris:open-bridge'))}
-        className="inline-flex items-center gap-1 mx-2 hover:opacity-80 transition cursor-pointer"
-        title="OSIRIS 인텔리전스 브릿지 열기"
-      >
-        <span className="text-[#D500F9] text-[10px]">🟣</span>
-        <span className="text-[#D500F9] font-bold tracking-wider underline decoration-dotted underline-offset-2">Bridge 2: 지진/핵실험 감시 365건</span>
-        <span className="text-[#00BCD4] text-[8px] bg-[#00BCD4]/20 px-1 py-0.2 rounded border border-[#00BCD4]/40">풍계리 반경 100km 감시</span>
-      </button>
+      <FeynmanTooltip dictKey="status_bridge2" position="top" className="pointer-events-auto">
+        <button
+          type="button"
+          onClick={() => typeof window !== 'undefined' && window.dispatchEvent(new CustomEvent('osiris:open-bridge'))}
+          className="inline-flex items-center gap-1 mx-2 hover:opacity-80 transition cursor-pointer"
+        >
+          <span className="text-[#D500F9] text-[10px]">🟣</span>
+          <span className="text-[#D500F9] font-bold tracking-wider underline decoration-dotted underline-offset-2">Bridge 2: 지진/핵실험 감시 365건</span>
+          <span className="text-[#00BCD4] text-[8px] bg-[#00BCD4]/20 px-1 py-0.2 rounded border border-[#00BCD4]/40">풍계리 반경 100km 감시</span>
+        </button>
+      </FeynmanTooltip>
       <span className="text-[var(--border-primary)] mx-1 text-white/20">│</span>
-      <span className="inline-flex items-center gap-1 mx-2">
-        <span className="text-[#00E5FF] text-[10px]">🛰️</span>
-        <span className="text-[#00E5FF] font-bold tracking-wider">스타링크: 북한 상공 27.5대 가시</span>
-        <span className="text-[#FFD740] text-[8px] bg-[#FFD740]/20 px-1 py-0.2 rounded border border-[#FFD740]/40">매일 06:00 KST 스케줄</span>
-      </span>
+      <FeynmanTooltip dictKey="status_starlink" position="top" className="pointer-events-auto cursor-help">
+        <span className="inline-flex items-center gap-1 mx-2">
+          <span className="text-[#00E5FF] text-[10px]">🛰️</span>
+          <span className="text-[#00E5FF] font-bold tracking-wider">스타링크: 북한 상공 27.5대 가시</span>
+          <span className="text-[#FFD740] text-[8px] bg-[#FFD740]/20 px-1 py-0.2 rounded border border-[#FFD740]/40">매일 06:00 KST 스케줄</span>
+        </span>
+      </FeynmanTooltip>
     </>
   );
 
@@ -234,17 +241,21 @@ export default function GlobalStatusBar() {
         
         {/* ── LEFT: 실시간 (LIVE) 뱃지 & Docs Link ── */}
         <div className="flex-shrink-0 h-full flex items-center pointer-events-auto">
-          <div className="h-full px-3 flex items-center gap-1.5 bg-[var(--cyan-primary)]/8 border-r border-white/[0.08] text-[var(--cyan-primary)] font-bold">
-            <div className="w-1.5 h-1.5 rounded-full bg-[var(--cyan-primary)] opacity-80" />
-            <span>실시간 (LIVE)</span>
-          </div>
+          <FeynmanTooltip dictKey="status_live" position="top" className="h-full">
+            <div className="h-full px-3 flex items-center gap-1.5 bg-[var(--cyan-primary)]/8 border-r border-white/[0.08] text-[var(--cyan-primary)] font-bold cursor-help">
+              <div className="w-1.5 h-1.5 rounded-full bg-[var(--cyan-primary)] opacity-80" />
+              <span>실시간 (LIVE)</span>
+            </div>
+          </FeynmanTooltip>
           {/* Documentation & API reference */}
-          <Link href="/docs" prefetch title="전술 문서 & API 레퍼런스" aria-label="전술 문서"
-            className="h-full px-3 flex items-center gap-1.5 bg-[var(--gold-primary)]/10 text-[var(--gold-primary)] hover:bg-[var(--gold-primary)]/20 border-r border-white/[0.08] transition-all duration-200"
-          >
-            <DocsIcon />
-            <span className="text-[9px] font-bold tracking-[0.15em] uppercase">전술 문서</span>
-          </Link>
+          <FeynmanTooltip dictKey="status_docs" position="top" className="h-full">
+            <Link href="/docs" prefetch aria-label="전술 문서"
+              className="h-full px-3 flex items-center gap-1.5 bg-[var(--gold-primary)]/10 text-[var(--gold-primary)] hover:bg-[var(--gold-primary)]/20 border-r border-white/[0.08] transition-all duration-200"
+            >
+              <DocsIcon />
+              <span className="text-[9px] font-bold tracking-[0.15em] uppercase">전술 문서</span>
+            </Link>
+          </FeynmanTooltip>
         </div>
 
         {/* ── CENTER: Scrolling ticker ── */}
@@ -256,28 +267,41 @@ export default function GlobalStatusBar() {
                 <span className="text-white/20 mx-2">│</span>
                 {/* Crypto prices */}
                 {crypto.map(c => (
-                  <span key={`${c.symbol}-${repeatIdx}`} className="inline-flex items-center gap-1 mx-3">
-                    {c.symbol === 'BTC' && <BtcIcon />}
-                    {c.symbol === 'ETH' && <EthIcon />}
-                    {c.symbol === 'SOL' && <SolanaIcon />}
-                    <span className="text-white/80 font-bold">{formatPrice(c.price)}</span>
-                    {formatChange(c.change24h)}
-                  </span>
+                  <FeynmanTooltip
+                    key={`${c.symbol}-${repeatIdx}`}
+                    dictKey={c.symbol === 'BTC' ? 'status_btc' : c.symbol === 'ETH' ? 'status_eth' : 'status_sol'}
+                    position="top"
+                    className="pointer-events-auto cursor-help"
+                  >
+                    <span className="inline-flex items-center gap-1 mx-3">
+                      {c.symbol === 'BTC' && <BtcIcon />}
+                      {c.symbol === 'ETH' && <EthIcon />}
+                      {c.symbol === 'SOL' && <SolanaIcon />}
+                      <span className="text-white/80 font-bold">{formatPrice(c.price)}</span>
+                      {formatChange(c.change24h)}
+                    </span>
+                  </FeynmanTooltip>
                 ))}
                 {/* Separator */}
                 <span className="text-white/20 mx-2">│</span>
                 {/* Earthquakes */}
                 {quakes.map(quake => (
-                  <span 
+                  <FeynmanTooltip
                     key={`${quake.id}-${repeatIdx}`}
-                    className="inline-flex items-center gap-1 mx-2 cursor-help pointer-events-auto"
-                    onMouseEnter={() => setHoveredQuake(quake)}
-                    onMouseLeave={() => setHoveredQuake(null)}
+                    dictKey="status_quake"
+                    position="top"
+                    className="pointer-events-auto cursor-help"
                   >
-                    <span className="text-[#FF5722] text-[9px]">🔴</span>
-                    <span className="text-[#FF5722] font-bold">M{quake.magnitude.toFixed(1)}</span>
-                    <span className="text-white/50 truncate max-w-[140px]">{quake.place}</span>
-                  </span>
+                    <span 
+                      className="inline-flex items-center gap-1 mx-2"
+                      onMouseEnter={() => setHoveredQuake(quake)}
+                      onMouseLeave={() => setHoveredQuake(null)}
+                    >
+                      <span className="text-[#FF5722] text-[9px]">🔴</span>
+                      <span className="text-[#FF5722] font-bold">M{quake.magnitude.toFixed(1)}</span>
+                      <span className="text-white/50 truncate max-w-[140px]">{quake.place}</span>
+                    </span>
+                  </FeynmanTooltip>
                 ))}
               </span>
             ))}
@@ -287,10 +311,12 @@ export default function GlobalStatusBar() {
         {/* ── RIGHT: Status / SOL Price + Links ── */}
         <div className="flex-shrink-0 h-full flex items-center pointer-events-auto border-l border-white/[0.04]">
           {/* Status indicator */}
-          <div className="h-full px-3 flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-[#00E676] animate-pulse" />
-            <span className="text-[#00E676]/70 text-[9px] tracking-[0.2em]">ONLINE</span>
-          </div>
+          <FeynmanTooltip dictKey="status_online" position="top" className="h-full">
+            <div className="h-full px-3 flex items-center gap-1.5 cursor-help">
+              <div className="w-1.5 h-1.5 rounded-full bg-[#00E676] animate-pulse" />
+              <span className="text-[#00E676]/70 text-[9px] tracking-[0.2em]">ONLINE</span>
+            </div>
+          </FeynmanTooltip>
         </div>
       </div>
 

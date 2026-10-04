@@ -5,9 +5,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plane, Satellite, Sun, AlertTriangle, Camera,
   CloudLightning, Ship, Network, Database, Ghost,
-  Flame, Tv, Radio, Mountain, Anchor, Megaphone, SlidersHorizontal
+  Flame, Tv, Radio, Mountain, Anchor, Megaphone, SlidersHorizontal, Crosshair, Sparkles
 } from 'lucide-react';
 import StyleStudio from './StyleStudio';
+import FeynmanTooltip from './FeynmanTooltip';
+import { getFeynmanExplanation } from '@/lib/feynman-dictionary';
 import { TERRAIN_MIN_ZOOM, type TerrainStatus } from '@/lib/map-terrain';
 
 interface LayerPanelProps {
@@ -24,6 +26,16 @@ interface LayerPanelProps {
   onTerrainRetry?: () => void;
   onTerrainFocus?: () => void;
   on3DModeSelected?: () => void;
+  sensorMode?: string;
+  onSetSensorMode?: (mode: any) => void;
+  cockpitMode?: boolean;
+  onToggleCockpitMode?: () => void;
+  detectionOverlay?: boolean;
+  onToggleDetectionOverlay?: () => void;
+  militaryHud?: boolean;
+  onToggleMilitaryHud?: () => void;
+  contactsVisible?: boolean;
+  onToggleContacts?: () => void;
 }
 
 interface LayerDef {
@@ -99,6 +111,8 @@ const LAYER_GROUPS: LayerGroupDef[] = [
       { key: 'cctv', label: 'CCTV 실시간 감시 카메라', dataKey: 'cameras' },
       { key: 'cctv_previews', label: '지도 상 실시간 비디오 프리뷰', description: '줌 13+ 최근접 카메라 팝업 영상', dataKey: '', parent: 'cctv' },
       { key: 'live_news', label: '실시간 뉴스 피드', dataKey: 'live_feeds' },
+      { key: 'radio', label: '전략 라디오 방송국 실시간 스트림 (Radio)', dataKey: 'radio_stations' },
+      { key: 'alpr', label: 'ALPR 차량 번호판 감시국 & 보안 검문소 (ALPR)', dataKey: 'alpr_checkpoints' },
     ],
   },
   {
@@ -155,6 +169,17 @@ const LAYER_GROUPS: LayerGroupDef[] = [
       { key: 'terrain_elevation', label: '3D 입체 지형 (Terrain DEM)', description: '산악·고도 입체 표고 · zoom 10+', dataKey: '' },
     ],
   },
+  {
+    label: "GOD'S EYE",
+    fullLabel: "신의 눈 전술 시스템 (GOD'S EYE VIEW)",
+    icon: Crosshair,
+    layers: [
+      { key: 'cockpit_view', label: '3인칭 콕핏 추적 모드 ([C])', dataKey: '' },
+      { key: 'detection_overlay', label: '전술 표적 탐지 오버레이 ([D])', dataKey: '' },
+      { key: 'military_hud', label: 'MGRS 군사 텔레메트리 HUD ([H])', dataKey: '' },
+      { key: 'contacts_roster', label: '250km 컨택츠 로스터 ([T])', dataKey: '' },
+    ],
+  },
 ];
 
 /* ── Minimal Toggle Switch ── */
@@ -173,9 +198,9 @@ function ToggleSwitch({ active }: { active: boolean }) {
       <div
         className="absolute inset-0 rounded-full transition-all duration-300"
         style={{
-          background: active ? 'rgba(255,255,255,0.2)' : 'transparent',
-          border: active ? '1px solid rgba(255,255,255,0.35)' : '1px solid rgba(255,255,255,0.12)',
-          boxShadow: active ? '0 0 8px rgba(255,255,255,0.1)' : 'none',
+          background: active ? 'rgba(0, 229, 255, 0.35)' : 'rgba(255,255,255,0.05)',
+          border: active ? '1px solid rgba(0, 229, 255, 0.8)' : '1px solid rgba(255,255,255,0.15)',
+          boxShadow: active ? '0 0 10px rgba(0, 229, 255, 0.4)' : 'none',
         }}
       />
       <motion.div
@@ -183,8 +208,8 @@ function ToggleSwitch({ active }: { active: boolean }) {
         style={{
           width: 10,
           height: 10,
-          background: active ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.2)',
-          boxShadow: active ? '0 0 6px rgba(255,255,255,0.4)' : 'none',
+          background: active ? '#FFFFFF' : 'rgba(255,255,255,0.3)',
+          boxShadow: active ? '0 0 8px #00E5FF' : 'none',
         }}
         animate={{ left: active ? 16 : 2 }}
         transition={{ type: 'spring', stiffness: 500, damping: 30 }}
@@ -206,7 +231,29 @@ function SubLayerStem() {
   );
 }
 
-function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'core', setTheme, capabilities = {}, terrainStatus = 'idle', onTerrainRetry, onTerrainFocus, on3DModeSelected }: LayerPanelProps) {
+function LayerPanel({
+  data,
+  activeLayers,
+  setActiveLayers,
+  isMobile,
+  theme = 'core',
+  setTheme,
+  capabilities = {},
+  terrainStatus = 'idle',
+  onTerrainRetry,
+  onTerrainFocus,
+  on3DModeSelected,
+  sensorMode,
+  onSetSensorMode,
+  cockpitMode,
+  onToggleCockpitMode,
+  detectionOverlay,
+  onToggleDetectionOverlay,
+  militaryHud,
+  onToggleMilitaryHud,
+  contactsVisible,
+  onToggleContacts,
+}: LayerPanelProps) {
   const [hoveredGroup, setHoveredGroup] = useState<string | null>(null);
   /**
    * A pinned group stays open when the pointer leaves. Hover-only flyouts are
@@ -223,7 +270,19 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
     return () => window.removeEventListener('keydown', onKey);
   }, [pinnedGroup]);
 
+  const checkLayerActive = (key: string): boolean => {
+    if (key === 'cockpit_view') return !!cockpitMode;
+    if (key === 'detection_overlay') return !!detectionOverlay;
+    if (key === 'military_hud') return !!militaryHud;
+    if (key === 'contacts_roster') return !!contactsVisible;
+    return Boolean(activeLayers[key]);
+  };
+
   const toggle = (key: string) => {
+    if (key === 'cockpit_view') { onToggleCockpitMode?.(); return; }
+    if (key === 'detection_overlay') { onToggleDetectionOverlay?.(); return; }
+    if (key === 'military_hud') { onToggleMilitaryHud?.(); return; }
+    if (key === 'contacts_roster') { onToggleContacts?.(); return; }
     if ((key === 'terrain_elevation' || key === 'terrain_3d') && !activeLayers[key]) on3DModeSelected?.();
     setActiveLayers((prev: any) => ({ ...prev, [key]: !prev[key] }));
   };
@@ -239,11 +298,23 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
 
   /** Switch a whole group at once — off if any are on, otherwise all on. */
   const toggleGroup = (layers: LayerDef[]) => {
-    const anyOn = layers.some(l => activeLayers[l.key]);
+    const anyOn = layers.some(l => checkLayerActive(l.key));
     if (!anyOn && layers.some(l => l.key === 'terrain_elevation' || l.key === 'terrain_3d')) on3DModeSelected?.();
+
+    for (const l of layers) {
+      if (l.key === 'cockpit_view' && ((anyOn && cockpitMode) || (!anyOn && !cockpitMode))) onToggleCockpitMode?.();
+      if (l.key === 'detection_overlay' && ((anyOn && detectionOverlay) || (!anyOn && !detectionOverlay))) onToggleDetectionOverlay?.();
+      if (l.key === 'military_hud' && ((anyOn && militaryHud) || (!anyOn && !militaryHud))) onToggleMilitaryHud?.();
+      if (l.key === 'contacts_roster' && ((anyOn && contactsVisible) || (!anyOn && !contactsVisible))) onToggleContacts?.();
+    }
+
     setActiveLayers((prev: any) => {
       const next = { ...prev };
-      for (const l of layers) next[l.key] = !anyOn;
+      for (const l of layers) {
+        if (!['cockpit_view', 'detection_overlay', 'military_hud', 'contacts_roster'].includes(l.key)) {
+          next[l.key] = !anyOn;
+        }
+      }
       return next;
     });
   };
@@ -282,9 +353,9 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
             </div>
             <div className="flex flex-col gap-1">
               {group.layers.map((layer) => {
-                const isLayerActive = activeLayers[layer.key];
+                const isLayerActive = checkLayerActive(layer.key);
                 const count = getCount(layer.dataKey, layer.catKey);
-                const dormant = !!layer.parent && !activeLayers[layer.parent];
+                const dormant = !!layer.parent && !checkLayerActive(layer.parent);
                 return (
                   <button
                     key={layer.key}
@@ -308,6 +379,30 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
                 );
               })}
               {group.label === 'DISPLAY' && terrainDetails}
+              {group.label === "GOD'S EYE" && onSetSensorMode && (
+                <div className="mt-2.5 pt-2 border-t border-white/[0.08]">
+                  <div className="text-[9px] font-mono text-[var(--gold-primary)] font-bold mb-1.5 tracking-wider flex items-center justify-between">
+                    <span>광학 센서 필터 (1-7)</span>
+                    <span className="text-[8px] text-white/40">{sensorMode || 'NORMAL'}</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-1">
+                    {(['NORMAL', 'CRT', 'NVG', 'FLIR_WHITE', 'FLIR_IRONBOW', 'NOIR', 'SNOW'] as const).map(m => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => onSetSensorMode(m)}
+                        className={`px-1 py-1 text-[8px] font-mono font-bold rounded border transition-all cursor-pointer ${
+                          sensorMode === m
+                            ? 'bg-[var(--gold-primary)]/20 border-[var(--gold-primary)] text-[var(--gold-primary)] shadow-sm'
+                            : 'border-white/10 text-white/50 hover:border-white/30 hover:text-white/80'
+                        }`}
+                      >
+                        {m.replace('FLIR_', '')}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -369,11 +464,11 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
           /* Sub-layers modify a parent rather than draw anything of their own,
              so they do not count towards the rail's reading. */
           const counted = group.layers.filter(l => !l.parent);
-          const groupActive = counted.some(l => activeLayers[l.key]);
+          const groupActive = counted.some(l => checkLayerActive(l.key));
           const isHovered = hoveredGroup === group.label;
           const Icon = group.icon;
 
-          const activeCount = counted.filter(l => activeLayers[l.key]).length;
+          const activeCount = counted.filter(l => checkLayerActive(l.key)).length;
           const isPinned = pinnedGroup === group.label;
           const isOpen = isHovered || isPinned;
 
@@ -446,8 +541,8 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
                       boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
                     }}
                   >
-                    <div className="flex items-center gap-2 mb-2.5 pb-1.5 border-b border-white/[0.04]">
-                      <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-white/35 flex-1">
+                    <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-white/[0.04]">
+                      <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-white/40 flex-1">
                         {group.fullLabel}
                       </span>
                       {/* Switching eight satellite layers one at a time is the
@@ -468,11 +563,28 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
                         </button>
                       )}
                     </div>
+
+                    {/* ⚡ 파인만 기법 직관 해설 배너 */}
+                    {(() => {
+                      const feynman = getFeynmanExplanation(`group_${group.label}`, group.fullLabel);
+                      return (
+                        <div className="mb-2.5 px-2.5 py-2 rounded-lg bg-[var(--cyan-primary)]/8 border border-[var(--cyan-primary)]/20 shadow-sm">
+                          <div className="text-[9.5px] font-bold text-[var(--gold-primary)] font-mono flex items-center gap-1 mb-1">
+                            <Sparkles className="w-2.5 h-2.5 text-[var(--gold-primary)] shrink-0" />
+                            <span>{feynman.category}</span>
+                          </div>
+                          <p className="text-[10px] leading-relaxed text-neutral-200">
+                            {feynman.explanation}
+                          </p>
+                        </div>
+                      );
+                    })()}
+
                     <div className="flex flex-col gap-0.5">
                       {group.layers.map((layer) => {
-                        const isLayerActive = activeLayers[layer.key];
+                        const isLayerActive = checkLayerActive(layer.key);
                         const count = getCount(layer.dataKey, layer.catKey);
-                        const dormant = !!layer.parent && !activeLayers[layer.parent];
+                        const dormant = !!layer.parent && !checkLayerActive(layer.parent);
 
                         return (
                           <button
@@ -498,6 +610,30 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
                         );
                       })}
                       {group.label === 'DISPLAY' && terrainDetails}
+                      {group.label === "GOD'S EYE" && onSetSensorMode && (
+                        <div className="mt-2.5 pt-2 border-t border-white/[0.08]">
+                          <div className="text-[9px] font-mono text-[var(--gold-primary)] font-bold mb-1.5 tracking-wider flex items-center justify-between">
+                            <span>광학 센서 필터 (1-7)</span>
+                            <span className="text-[8px] text-white/40">{sensorMode || 'NORMAL'}</span>
+                          </div>
+                          <div className="grid grid-cols-4 gap-1">
+                            {(['NORMAL', 'CRT', 'NVG', 'FLIR_WHITE', 'FLIR_IRONBOW', 'NOIR', 'SNOW'] as const).map(m => (
+                              <button
+                                key={m}
+                                type="button"
+                                onClick={() => onSetSensorMode(m)}
+                                className={`px-1 py-1 text-[8px] font-mono font-bold rounded border transition-all cursor-pointer ${
+                                  sensorMode === m
+                                    ? 'bg-[var(--gold-primary)]/20 border-[var(--gold-primary)] text-[var(--gold-primary)] shadow-sm'
+                                    : 'border-white/10 text-white/50 hover:border-white/30 hover:text-white/80'
+                                }`}
+                              >
+                                {m.replace('FLIR_', '')}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </motion.div>
                 )}
@@ -511,47 +647,51 @@ function LayerPanel({ data, activeLayers, setActiveLayers, isMobile, theme = 'co
       <div className="w-5 h-px bg-white/[0.06] my-2" />
 
       {/* Style Studio */}
-      <button
-        onClick={() => setStudioOpen(o => !o)}
-        aria-pressed={studioOpen}
-        className="w-10 h-10 flex items-center justify-center rounded-lg transition-all duration-500 cursor-pointer"
-        style={{ background: studioOpen ? 'var(--hover-accent)' : 'transparent' }}
-        title="Style Studio"
-      >
-        <SlidersHorizontal
-          className="transition-all duration-500"
-          style={{
-            width: 15,
-            height: 15,
-            color: studioOpen ? 'var(--gold-primary)' : 'rgba(255,255,255,0.15)',
-            filter: studioOpen ? 'drop-shadow(0 0 3px var(--gold-glow))' : 'none',
-          }}
-        />
-      </button>
+      <FeynmanTooltip dictKey="tool_style_studio" position="right">
+        <button
+          onClick={() => setStudioOpen(o => !o)}
+          aria-pressed={studioOpen}
+          className="w-10 h-10 flex items-center justify-center rounded-lg transition-all duration-500 cursor-pointer"
+          style={{ background: studioOpen ? 'var(--hover-accent)' : 'transparent' }}
+          aria-label="Style Studio"
+        >
+          <SlidersHorizontal
+            className="transition-all duration-500"
+            style={{
+              width: 15,
+              height: 15,
+              color: studioOpen ? 'var(--gold-primary)' : 'rgba(255,255,255,0.15)',
+              filter: studioOpen ? 'drop-shadow(0 0 3px var(--gold-glow))' : 'none',
+            }}
+          />
+        </button>
+      </FeynmanTooltip>
       <AnimatePresence>
         {studioOpen && <StyleStudio onClose={() => setStudioOpen(false)} />}
       </AnimatePresence>
 
       {/* Ghost Protocol Toggle */}
       {setTheme && (
-        <button
-          onClick={() => setTheme(theme === 'core' ? 'ghost' : 'core')}
-          className="w-10 h-10 flex items-center justify-center rounded-lg transition-all duration-500 cursor-pointer"
-          style={{
-            background: theme === 'ghost' ? 'rgba(179, 136, 255, 0.1)' : 'transparent',
-          }}
-          title="Ghost Protocol"
-        >
-          <Ghost
-            className="transition-all duration-500"
+        <FeynmanTooltip dictKey="tool_ghost" position="right">
+          <button
+            onClick={() => setTheme(theme === 'core' ? 'ghost' : 'core')}
+            className="w-10 h-10 flex items-center justify-center rounded-lg transition-all duration-500 cursor-pointer"
             style={{
-              width: 15,
-              height: 15,
-              color: theme === 'ghost' ? '#B388FF' : 'rgba(255,255,255,0.15)',
-              filter: theme === 'ghost' ? 'drop-shadow(0 0 3px rgba(179, 136, 255, 0.3))' : 'none',
+              background: theme === 'ghost' ? 'rgba(179, 136, 255, 0.1)' : 'transparent',
             }}
-          />
-        </button>
+            aria-label="Ghost Protocol"
+          >
+            <Ghost
+              className="transition-all duration-500"
+              style={{
+                width: 15,
+                height: 15,
+                color: theme === 'ghost' ? '#B388FF' : 'rgba(255,255,255,0.15)',
+                filter: theme === 'ghost' ? 'drop-shadow(0 0 3px rgba(179, 136, 255, 0.3))' : 'none',
+              }}
+            />
+          </button>
+        </FeynmanTooltip>
       )}
     </motion.div>
   );

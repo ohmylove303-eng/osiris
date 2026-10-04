@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState, useRef, useCallback, useMemo, use } from 'react';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Layers, BarChart3, Newspaper, Search, X, Globe, MapPinned, Route, Radar, Satellite, Moon, ExternalLink, AlertTriangle, Activity, Database, Wifi, Play, Network, Crosshair, Bluetooth, Pentagon, Radio, PenLine, Zap, Navigation, ChevronDown, Film } from 'lucide-react';
+import { Layers, BarChart3, Newspaper, Search, X, Globe, MapPinned, Route, Radar, Satellite, Moon, ExternalLink, AlertTriangle, Activity, Database, Wifi, Play, Network, Crosshair, Bluetooth, Pentagon, Radio, PenLine, Zap, Navigation, ChevronDown } from 'lucide-react';
 import { type TerrainStatus } from '@/lib/map-terrain';
 import { loadCameraCatalog, mergeCameraCatalog } from '@/lib/camera-catalog';
 import IntelFeed from '@/components/IntelFeed';
@@ -24,9 +24,22 @@ import SharePanel from '@/components/SharePanel';
 import ViewPresets from '@/components/ViewPresets';
 import KeyboardShortcuts from '@/components/KeyboardShortcuts';
 import GlobalStatusBar from '@/components/GlobalStatusBar';
+import FeynmanTooltip from '@/components/FeynmanTooltip';
 import LiveAlerts from '@/components/LiveAlerts';
 import WorldRemote from '@/components/WorldRemote';
 import ArcGISPanel from '@/components/ArcGISPanel';
+import { type SensorMode, keyToSensorMode, nextSensorMode } from '@/lib/visual-styles';
+import { SensorOverlay, useSensorFilter } from '@/components/SensorOverlay';
+import { buildContacts, type Contact } from '@/lib/contacts-engine';
+import { createCockpitState, updateCockpitState, interpolatePosition, computeCockpitCamera, type CockpitState, type TrackedAircraft } from '@/lib/cockpit-camera';
+import { type DetectionTarget } from '@/lib/detection-overlay';
+import { type VoiceActionResult } from '@/lib/voice-tools';
+const MilitaryHud = dynamic(() => import('@/components/MilitaryHud'), { ssr: false });
+const CockpitHud = dynamic(() => import('@/components/CockpitHud'), { ssr: false });
+const ContactsRoster = dynamic(() => import('@/components/ContactsRoster'), { ssr: false });
+const DetectionOverlay = dynamic(() => import('@/components/DetectionOverlay'), { ssr: false });
+const VoiceMicButton = dynamic(() => import('@/components/VoiceMicButton'), { ssr: false });
+const AiHudSummary = dynamic(() => import('@/components/AiHudSummary'), { ssr: false });
 const OsirisMap = dynamic(() => import('@/components/OsirisMap'), { ssr: false });
 const LayerPanel = dynamic(() => import('@/components/LayerPanel'));
 const SpaceCam = dynamic(() => import('@/components/SpaceCam'), { ssr: false });
@@ -110,7 +123,7 @@ function getYouTubeWatchUrl(url: string): string {
 function ViewSegment({ active, onClick, title, icon: Icon, label, layoutId }: {
   active: boolean;
   onClick: () => void;
-  title: string;
+  title?: string;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   layoutId: string;
@@ -120,7 +133,7 @@ function ViewSegment({ active, onClick, title, icon: Icon, label, layoutId }: {
       type="button"
       onClick={onClick}
       title={title}
-      aria-label={title}
+      aria-label={title || label}
       aria-pressed={active}
       className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-mono font-medium tracking-[0.18em] transition-colors duration-200 ${
         active ? 'text-[var(--gold-light)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -155,7 +168,7 @@ export default function Dashboard(props?: {
   const data = dataRef.current;
 
   const [backendStatus, setBackendStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
-  const [mapView, setMapView] = useState({ zoom: 2.5, latitude: 20 });
+  const [mapView, setMapView] = useState<{ zoom: number; latitude: number; longitude?: number; bearing?: number; pitch?: number }>({ zoom: 2.5, latitude: 20, longitude: 0, bearing: 0, pitch: 0 });
   const [flyToLocation, setFlyToLocation] = useState<{ lat: number; lng: number; zoom?: number; ts: number } | null>(null);
   const [globalStats, setGlobalStats] = useState<any>(null);
   const mouseCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
@@ -328,6 +341,377 @@ export default function Dashboard(props?: {
   const [demoMode, setDemoMode] = useState(false);
   const [osirisTheme, setOsirisTheme] = useState<'core'|'ghost'>('core');
 
+  // ── God's Eye View: Sensor modes, cockpit, HUD, contacts ──
+  const [sensorMode, setSensorMode] = useState<SensorMode>('NORMAL');
+  const [showMilitaryHud, setShowMilitaryHud] = useState(false);
+  const [showDetectionOverlay, setShowDetectionOverlay] = useState(false);
+  const [cockpitMode, setCockpitMode] = useState(false);
+  const [cockpitState, setCockpitState] = useState<CockpitState | null>(null);
+  const [showContacts, setShowContacts] = useState(false);
+  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
+  const cockpitSavedCamera = useRef<{ center: [number, number]; zoom: number; pitch: number; bearing: number } | null>(null);
+
+  // Apply sensor filter to map canvas
+  useSensorFilter(sensorMode);
+
+  // God's Eye View keyboard shortcuts (1-7 sensor, C cockpit, D detection, H hud, T contacts, R reset)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (['INPUT', 'TEXTAREA'].includes((e.target as Element)?.tagName)) return;
+      // Sensor mode: keys 1–7
+      const sMode = keyToSensorMode(e.key);
+      if (sMode) { setSensorMode(sMode); return; }
+      // Cockpit toggle
+      if (e.key === 'c' || e.key === 'C') {
+        if (e.ctrlKey || e.metaKey) return; // don't intercept Ctrl+C
+        setCockpitMode(prev => !prev);
+        return;
+      }
+      // Detection overlay toggle
+      if (e.key === 'd' || e.key === 'D') {
+        if (e.ctrlKey || e.metaKey) return;
+        setShowDetectionOverlay(prev => !prev);
+        return;
+      }
+      // Military HUD toggle
+      if (e.key === 'h' || e.key === 'H') {
+        if (e.ctrlKey || e.metaKey) return;
+        setShowMilitaryHud(prev => !prev);
+        return;
+      }
+      // Contacts roster toggle
+      if (e.key === 't' || e.key === 'T') {
+        if (e.ctrlKey || e.metaKey) return;
+        setShowContacts(prev => !prev);
+        return;
+      }
+      // Reset globe
+      if (e.key === 'r' || e.key === 'R') {
+        if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+          setFlyToLocation({ lat: 20, lng: 0, zoom: 2.2, ts: Date.now() });
+          return;
+        }
+      }
+      // Escape key cancels cockpit & contacts
+      if (e.key === 'Escape') {
+        setCockpitMode(false);
+        setShowContacts(false);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  // Build contacts roster from live data
+  const contactsList = useMemo<Contact[]>(() => {
+    if (!showContacts) return [];
+    let center = mouseCoordsRef.current;
+    if (!center) {
+      const map = typeof window !== 'undefined' ? (window as any).__map || (window as any).map : null;
+      if (map && map.getCenter) {
+        const c = map.getCenter();
+        center = { lat: c.lat, lng: c.lng };
+      } else {
+        center = { lat: mapView.latitude || 37.5665, lng: mapView.longitude || 126.9780 };
+      }
+    }
+    const flights = [
+      ...(data?.commercial_flights || []),
+      ...(data?.military_flights || []),
+      ...(data?.private_flights || []),
+      ...(data?.private_jets || []),
+    ].filter((f: any) => f?.lat && f?.lng).map((f: any) => ({
+      icao24: f.icao24 || '',
+      callsign: f.callsign,
+      lat: f.lat,
+      lng: f.lng,
+      alt: f.alt,
+      heading: f.heading,
+      speed: f.speed_knots,
+      type: f.type,
+    }));
+    const ships = (data?.ships || []).filter((s: any) => s?.lat && s?.lng).map((s: any) => ({
+      mmsi: s.mmsi || '',
+      name: s.name,
+      lat: s.lat,
+      lng: s.lng,
+      heading: s.heading,
+      speed: s.speed,
+    }));
+    const satellites = (data?.satellites || []).filter((s: any) => s?.lat && s?.lng).map((s: any) => ({
+      noradId: s.noradId || s.id || '',
+      name: s.name || 'SAT',
+      lat: s.lat,
+      lng: s.lng,
+      alt: s.alt || 500,
+      category: s.category || s.mission,
+    }));
+    return buildContacts([center.lng, center.lat], flights, ships, satellites);
+  }, [showContacts, data, dataVersion, mapView]);
+
+  // Entity counts for HUD
+  const entityCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    if (data?.commercial_flights) counts.air = (data.commercial_flights?.length || 0) + (data.military_flights?.length || 0) + (data.private_flights?.length || 0);
+    if (data?.ships) counts.sea = data.ships?.length || 0;
+    if (data?.satellites) counts.sat = data.satellites?.length || 0;
+    return counts;
+  }, [data, dataVersion]);
+
+  // God's Eye View: targets for detection overlay
+  const detectionTargets = useMemo<DetectionTarget[]>(() => {
+    if (!showDetectionOverlay) return [];
+    const targets: DetectionTarget[] = [];
+
+    // Military flights
+    (data?.military_flights || []).forEach((f: any) => {
+      if (f?.lat && f?.lng) {
+        targets.push({
+          id: f.icao24 || `mil-${f.callsign || Math.random()}`,
+          label: f.callsign || f.icao24 || 'MIL-TGT',
+          type: 'flight',
+          lat: f.lat,
+          lng: f.lng,
+          alt: f.alt,
+          speed: f.speed_knots,
+          heading: f.heading,
+          military: true,
+          subType: f.type || 'MIL',
+        });
+      }
+    });
+
+    // Commercial & private flights
+    [...(data?.commercial_flights || []), ...(data?.private_flights || [])].slice(0, 80).forEach((f: any) => {
+      if (f?.lat && f?.lng) {
+        targets.push({
+          id: f.icao24 || `flt-${Math.random()}`,
+          label: f.callsign || f.icao24 || 'AIR-TGT',
+          type: 'flight',
+          lat: f.lat,
+          lng: f.lng,
+          alt: f.alt,
+          speed: f.speed_knots,
+          heading: f.heading,
+          military: false,
+          subType: f.type,
+        });
+      }
+    });
+
+    // Maritime
+    (data?.ships || []).slice(0, 50).forEach((s: any) => {
+      if (s?.lat && s?.lng) {
+        targets.push({
+          id: s.mmsi || `ship-${Math.random()}`,
+          label: s.name || s.mmsi || 'VESSEL',
+          type: 'ship',
+          lat: s.lat,
+          lng: s.lng,
+          speed: s.speed,
+          heading: s.heading,
+          military: !!s.military,
+        });
+      }
+    });
+
+    return targets;
+  }, [showDetectionOverlay, data, dataVersion]);
+
+  // God's Eye View: Active tracked aircraft for Cockpit Mode & HUD
+  const cockpitAircraft = useMemo<TrackedAircraft | null>(() => {
+    if (selectedContactId) {
+      const match = contactsList.find(c => c.id === selectedContactId);
+      if (match) {
+        return {
+          icao24: match.id,
+          callsign: match.label,
+          lat: match.position[1],
+          lng: match.position[0],
+          alt: match.alt ?? 3000,
+          heading: typeof match.meta.heading === 'number' ? match.meta.heading : 0,
+          speed: typeof match.meta.speed === 'number' ? match.meta.speed : 350,
+          type: typeof match.meta.type === 'string' ? match.meta.type : undefined,
+        };
+      }
+    }
+    const candidate =
+      (data?.military_flights && data.military_flights[0]) ||
+      (data?.commercial_flights && data.commercial_flights[0]);
+    if (candidate && candidate.lat && candidate.lng) {
+      return {
+        icao24: candidate.icao24 || 'TGT01',
+        callsign: candidate.callsign || candidate.icao24,
+        lat: candidate.lat,
+        lng: candidate.lng,
+        alt: candidate.alt ?? 4500,
+        heading: candidate.heading ?? 45,
+        speed: candidate.speed_knots ?? candidate.speed ?? 420,
+        verticalRate: candidate.vert_rate,
+        type: candidate.type,
+      };
+    }
+    // Fallback reconnaissance aircraft for immediate cockpit mode engagement
+    return {
+      icao24: 'TGT-RECON01',
+      callsign: '번개-01 (RECON)',
+      lat: mapView.latitude || 37.5665,
+      lng: mapView.longitude || 126.9780,
+      alt: 4200,
+      heading: 55,
+      speed: 480,
+      verticalRate: 0,
+      type: 'TACTICAL_RECON',
+    };
+  }, [selectedContactId, contactsList, data, dataVersion, mapView.latitude, mapView.longitude]);
+
+  // God's Eye View: Real-Time 60fps Continuous Cockpit Camera Chase Engine
+  const cockpitAnimFrameRef = useRef<number | null>(null);
+  const cockpitAircraftRef = useRef<TrackedAircraft | null>(cockpitAircraft);
+  cockpitAircraftRef.current = cockpitAircraft;
+
+  useEffect(() => {
+    const map = typeof window !== 'undefined' ? (window as any).__map || (window as any).map : null;
+
+    if (!cockpitMode) {
+      if (cockpitAnimFrameRef.current != null) {
+        cancelAnimationFrame(cockpitAnimFrameRef.current);
+        cockpitAnimFrameRef.current = null;
+      }
+      if (cockpitSavedCamera.current && map) {
+        map.easeTo({
+          center: cockpitSavedCamera.current.center,
+          zoom: cockpitSavedCamera.current.zoom,
+          pitch: cockpitSavedCamera.current.pitch,
+          bearing: cockpitSavedCamera.current.bearing,
+          duration: 1000,
+        });
+        cockpitSavedCamera.current = null;
+      }
+      return;
+    }
+
+    if (!cockpitAircraftRef.current || !map) return;
+
+    // Save camera position before entering cockpit
+    if (!cockpitSavedCamera.current) {
+      const center = map.getCenter();
+      cockpitSavedCamera.current = {
+        center: [center.lng, center.lat],
+        zoom: map.getZoom(),
+        pitch: map.getPitch(),
+        bearing: map.getBearing(),
+      };
+    }
+
+    // Initial smooth transition to cockpit chase position
+    const initCam = computeCockpitCamera(cockpitAircraftRef.current);
+    map.easeTo({
+      center: [initCam.lng, initCam.lat],
+      zoom: initCam.zoom,
+      pitch: Math.max(55, initCam.pitch),
+      bearing: initCam.bearing,
+      duration: 600,
+    });
+
+    let lastTime = performance.now();
+    let currentLat = cockpitAircraftRef.current.lat;
+    let currentLng = cockpitAircraftRef.current.lng;
+
+    const chaseLoop = (now: number) => {
+      const dt = (now - lastTime) / 1000;
+      lastTime = now;
+
+      const ac = cockpitAircraftRef.current;
+      if (ac && map) {
+        // Forward dead-reckon based on aircraft speed (knots) and heading
+        const speedKnots = ac.speed || 420;
+        const speedMps = speedKnots * 0.514444;
+        const distM = speedMps * Math.min(dt, 0.1);
+
+        const rad = (ac.heading * Math.PI) / 180;
+        const dLat = (distM * Math.cos(rad)) / 111139;
+        const dLng = (distM * Math.sin(rad)) / (111139 * Math.cos((currentLat * Math.PI) / 180));
+
+        currentLat = currentLat * 0.92 + (ac.lat + dLat) * 0.08;
+        currentLng = currentLng * 0.92 + (ac.lng + dLng) * 0.08;
+
+        const cam = computeCockpitCamera({
+          ...ac,
+          lat: currentLat,
+          lng: currentLng,
+        });
+
+        // 60fps instant follow behind aircraft
+        map.jumpTo({
+          center: [cam.lng, cam.lat],
+          zoom: cam.zoom,
+          pitch: Math.max(55, cam.pitch),
+          bearing: cam.bearing,
+        });
+      }
+
+      cockpitAnimFrameRef.current = requestAnimationFrame(chaseLoop);
+    };
+
+    const timer = setTimeout(() => {
+      cockpitAnimFrameRef.current = requestAnimationFrame(chaseLoop);
+    }, 600);
+
+    return () => {
+      clearTimeout(timer);
+      if (cockpitAnimFrameRef.current != null) {
+        cancelAnimationFrame(cockpitAnimFrameRef.current);
+        cockpitAnimFrameRef.current = null;
+      }
+    };
+  }, [cockpitMode]);
+
+  // Voice AI Action Handler
+  const handleVoiceAction = useCallback((action: VoiceActionResult) => {
+    switch (action.tool) {
+      case 'fly_to':
+        if (action.params.lat != null && action.params.lng != null) {
+          setFlyToLocation({
+            lat: action.params.lat,
+            lng: action.params.lng,
+            zoom: action.params.zoom || 11,
+            ts: Date.now(),
+          });
+        }
+        break;
+      case 'set_sensor_mode':
+        if (action.params.mode) setSensorMode(action.params.mode as SensorMode);
+        break;
+      case 'toggle_layer':
+        if (action.params.layer) {
+          const lKey = action.params.layer;
+          setActiveLayers(prev => ({
+            ...prev,
+            [lKey]: action.params.enabled !== undefined ? action.params.enabled : !prev[lKey as keyof typeof prev],
+          }));
+        }
+        break;
+      case 'enter_cockpit':
+        setCockpitMode(action.params.enabled ?? true);
+        break;
+      case 'toggle_detection':
+        setShowDetectionOverlay(action.params.enabled ?? true);
+        break;
+      case 'toggle_military_hud':
+        setShowMilitaryHud(action.params.enabled ?? true);
+        break;
+      case 'toggle_contacts':
+        setShowContacts(action.params.enabled ?? true);
+        break;
+      case 'reset_globe':
+        setFlyToLocation({ lat: 20, lng: 0, zoom: 2.2, ts: Date.now() });
+        break;
+      default:
+        break;
+    }
+  }, []);
+
   useEffect(() => {
     document.body.className = osirisTheme === 'core' ? '' : `theme-${osirisTheme}`;
   }, [osirisTheme]);
@@ -390,7 +774,31 @@ export default function Dashboard(props?: {
     gdelt_events: false,
     cf_outages: false,
     cf_attacks: false,
+    radio: false,
+    alpr: false,
+    cockpit_view: false,
+    detection_overlay: false,
+    military_hud: false,
+    contacts_roster: false,
   });
+
+  // Synchronize God's Eye state with activeLayers
+  useEffect(() => {
+    setActiveLayers(prev => (prev as any).cockpit_view === cockpitMode ? prev : { ...prev, cockpit_view: cockpitMode });
+  }, [cockpitMode]);
+
+  useEffect(() => {
+    setActiveLayers(prev => (prev as any).detection_overlay === showDetectionOverlay ? prev : { ...prev, detection_overlay: showDetectionOverlay });
+  }, [showDetectionOverlay]);
+
+  useEffect(() => {
+    setActiveLayers(prev => (prev as any).military_hud === showMilitaryHud ? prev : { ...prev, military_hud: showMilitaryHud });
+  }, [showMilitaryHud]);
+
+  useEffect(() => {
+    setActiveLayers(prev => (prev as any).contacts_roster === showContacts ? prev : { ...prev, contacts_roster: showContacts });
+  }, [showContacts]);
+
   // Server-side capability flags — gate layers that need credentials.
   const selectFlatMap = () => {
     setActiveLayers(prev => ({ ...prev, terrain_elevation: false, terrain_3d: false }));
@@ -445,6 +853,23 @@ export default function Dashboard(props?: {
         next.china_encroachment = true;
         return next;
       });
+    }
+
+    // Restore God's Eye tactical parameters from URL if present
+    const sensorParam = p.get('sensor');
+    if (sensorParam && ['NORMAL', 'CRT', 'NVG', 'FLIR_WHITE', 'FLIR_IRONBOW', 'NOIR', 'SNOW'].includes(sensorParam)) {
+      setSensorMode(sensorParam as SensorMode);
+    }
+    if (p.get('hud') === '1') {
+      setShowMilitaryHud(true);
+    }
+    if (p.get('detect') === '1') {
+      setShowDetectionOverlay(true);
+    }
+    const cockpitParam = p.get('cockpit');
+    if (cockpitParam) {
+      setSelectedContactId(cockpitParam);
+      setCockpitMode(true);
     }
 
     // Probe which credential-gated feeds this deployment has configured, so the
@@ -870,6 +1295,22 @@ export default function Dashboard(props?: {
       loadLayerOnce('gdelt_events', '/api/gdelt-events?limit=600', d => ({ gdelt_events: d.events }));
     }
 
+    // Strategic Radio broadcast stations
+    if ((activeLayers as any).radio) {
+      loadLayerOnce('radio', '/api/radio', d => ({
+        radio_geojson: d,
+        radio_stations: d.features || []
+      }));
+    }
+
+    // ALPR Checkpoints & surveillance
+    if ((activeLayers as any).alpr) {
+      loadLayerOnce('alpr', '/api/alpr', d => ({
+        alpr_geojson: d,
+        alpr_checkpoints: d.features || []
+      }));
+    }
+
     // Cloudflare Radar — one request backs both layers
     if ((activeLayers as any).cf_outages || (activeLayers as any).cf_attacks) {
       loadLayerOnce('cloudflare_radar', '/api/cloudflare-radar', d => ({
@@ -1189,7 +1630,7 @@ export default function Dashboard(props?: {
                 className="overflow-hidden whitespace-nowrap"
               >
                 <p className="text-[11px] md:text-[10px] font-mono tracking-[0.5em] text-[var(--gold-primary)]" style={{ opacity: 0.8 }}>
-                  GLOBAL INTELLIGENCE PLATFORM
+                  LIGHTNING EYE • TACTICAL OSINT
                 </p>
               </motion.div>
             </div>
@@ -1396,11 +1837,19 @@ export default function Dashboard(props?: {
       >
         {/* Unified Control Strip */}
         <div className="flex items-center gap-[3px] p-[3px] pointer-events-auto rounded-xl border border-[var(--border-primary)] bg-[var(--bg-panel)] backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.55)]">
-          <ViewSegment layoutId="view-projection" active={mapProjection === 'globe'} onClick={() => { setMapProjection('globe'); setActiveLayers(prev => ({ ...prev, terrain_elevation: true })); }} title="3D 입체 지구 & 지형 (3D Globe & Terrain)" icon={Globe} label="3D" />
-          <ViewSegment layoutId="view-projection" active={mapProjection === 'mercator'} onClick={selectFlatMap} title="2D Map" icon={MapPinned} label="2D" />
+          <FeynmanTooltip dictKey="view_3d" position="top">
+            <ViewSegment layoutId="view-projection" active={mapProjection === 'globe'} onClick={() => { setMapProjection('globe'); setActiveLayers(prev => ({ ...prev, terrain_elevation: true })); }} icon={Globe} label="3D" />
+          </FeynmanTooltip>
+          <FeynmanTooltip dictKey="view_2d" position="top">
+            <ViewSegment layoutId="view-projection" active={mapProjection === 'mercator'} onClick={selectFlatMap} icon={MapPinned} label="2D" />
+          </FeynmanTooltip>
           <div className="w-px h-5 mx-1 bg-[var(--border-secondary)]" />
-          <ViewSegment layoutId="view-style" active={mapStyle === 'dark'} onClick={() => setMapStyle('dark')} title="Night Mode" icon={Moon} label="MAP" />
-          <ViewSegment layoutId="view-style" active={mapStyle === 'satellite'} onClick={() => setMapStyle('satellite')} title="Satellite View" icon={Satellite} label="SAT" />
+          <FeynmanTooltip dictKey="view_map" position="top">
+            <ViewSegment layoutId="view-style" active={mapStyle === 'dark'} onClick={() => setMapStyle('dark')} icon={Moon} label="MAP" />
+          </FeynmanTooltip>
+          <FeynmanTooltip dictKey="view_sat" position="top">
+            <ViewSegment layoutId="view-style" active={mapStyle === 'satellite'} onClick={() => setMapStyle('satellite')} icon={Satellite} label="SAT" />
+          </FeynmanTooltip>
         </div>
 
 
@@ -1454,67 +1903,64 @@ export default function Dashboard(props?: {
           className="absolute top-4 left-[310px] md:left-[340px] xl:left-[370px] z-[200] pointer-events-auto flex items-center gap-2"
         >
           {/* 1. 핵심 내비게이션 바로가기 */}
-          <button
-            type="button"
-            onClick={() => {
-              setShowDirections(prev => {
-                const next = !prev;
-                if (!next) setActiveRoute(null);
-                return next;
-              });
-            }}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-mono font-bold transition-all shrink-0 cursor-pointer ${
-              showDirections || navSession
-                ? 'bg-[var(--gold-primary)] text-black shadow-[0_0_12px_var(--gold-glow)]'
-                : 'bg-[var(--gold-primary)]/10 border border-[var(--border-primary)] hover:border-[var(--border-active)] text-[var(--gold-primary)] hover:bg-[var(--gold-primary)]/20 shadow-[0_0_8px_var(--gold-glow)]'
-            }`}
-            title="실시간 턴바이턴 내비게이션 & 길찾기 (Turn-by-Turn GPS Navigation)"
-          >
-            <Navigation className="w-3.5 h-3.5" />
-            <span>🧭 내비게이션</span>
-          </button>
-
-          {/* 1.5 합동훈련 (시네마 & 장구류 검증 콘솔) */}
-          <Link
-            href="/joint-training"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-mono font-bold transition-all shrink-0 cursor-pointer bg-red-950/60 border border-red-500/50 hover:border-red-400 text-red-200 hover:bg-red-900/60 shadow-[0_0_10px_rgba(239,68,68,0.3)] animate-pulse"
-            title="합동훈련 — 전시 시네마 물리 영상 및 장구류/포병 검증 콘솔"
-          >
-            <Film className="w-3.5 h-3.5 text-red-400" />
-            <span>🎬 합동훈련 (시네마)</span>
-          </Link>
-
-          {/* 1.8 전술 무전 & RF 스펙트럼 (LiveATC / VHF Ch.16 / Squawk 7700) */}
-          <button
-            type="button"
-            onClick={() => setShowAudioComms(prev => !prev)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-mono font-bold transition-all shrink-0 cursor-pointer ${
-              showAudioComms
-                ? 'bg-cyan-900 border border-cyan-400 text-white shadow-[0_0_12px_rgba(6,182,212,0.5)]'
-                : 'bg-cyan-950/60 border border-cyan-500/50 hover:border-cyan-300 text-cyan-200 hover:bg-cyan-900/60 shadow-[0_0_8px_rgba(6,182,212,0.25)]'
-            }`}
-            title="실시간 전술 통신 및 주파수 스펙트럼 (LiveATC / Marine VHF / Squawk 7700)"
-          >
-            <Radio className="w-3.5 h-3.5 text-cyan-400" />
-            <span>📻 전술 무전 (SIGINT)</span>
-          </button>
-
-          {/* 2. OSIRIS 최신 인텔리전스 브릿지 */}
-          <div className="relative">
+          <FeynmanTooltip dictKey="top_nav" position="bottom">
             <button
               type="button"
-              onClick={() => setShowIntelBridge(!showIntelBridge)}
+              onClick={() => {
+                setShowDirections(prev => {
+                  const next = !prev;
+                  if (!next) setActiveRoute(null);
+                  return next;
+                });
+              }}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-mono font-bold transition-all shrink-0 cursor-pointer ${
-                showIntelBridge
-                  ? 'bg-purple-900 border border-purple-400 text-white shadow-[0_0_12px_rgba(168,85,247,0.5)]'
-                  : 'bg-purple-950/60 border border-purple-500/50 hover:border-purple-300 text-purple-200 hover:bg-purple-900/60 shadow-[0_0_8px_rgba(168,85,247,0.25)]'
+                showDirections || navSession
+                  ? 'bg-[var(--gold-primary)] text-black shadow-[0_0_12px_var(--gold-glow)]'
+                  : 'bg-[var(--gold-primary)]/10 border border-[var(--border-primary)] hover:border-[var(--border-active)] text-[var(--gold-primary)] hover:bg-[var(--gold-primary)]/20 shadow-[0_0_8px_var(--gold-glow)]'
               }`}
-              title="OSIRIS 최신 인텔리전스 브릿지 (6대 정보기관 · 서해 중국 침탈 시설 · 북한 전략기지 · 전술망)"
+              aria-label="내비게이션"
             >
-              <span className="text-sm">🌐</span>
-              <span>인텔리전스 브릿지</span>
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showIntelBridge ? 'rotate-180' : ''}`} />
+              <Navigation className="w-3.5 h-3.5" />
+              <span>🧭 내비게이션</span>
             </button>
+          </FeynmanTooltip>
+
+
+          {/* 1.8 전술 무전 & RF 스펙트럼 (LiveATC / VHF Ch.16 / Squawk 7700) */}
+          <FeynmanTooltip dictKey="top_radio" position="bottom">
+            <button
+              type="button"
+              onClick={() => setShowAudioComms(prev => !prev)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-mono font-bold transition-all shrink-0 cursor-pointer ${
+                showAudioComms
+                  ? 'bg-cyan-900 border border-cyan-400 text-white shadow-[0_0_12px_rgba(6,182,212,0.5)]'
+                  : 'bg-cyan-950/60 border border-cyan-500/50 hover:border-cyan-300 text-cyan-200 hover:bg-cyan-900/60 shadow-[0_0_8px_rgba(6,182,212,0.25)]'
+              }`}
+              aria-label="전술 무전"
+            >
+              <Radio className="w-3.5 h-3.5 text-cyan-400" />
+              <span>📻 전술 무전 (SIGINT)</span>
+            </button>
+          </FeynmanTooltip>
+
+          {/* 2. 번개의 눈동자 최신 인텔리전스 브릿지 */}
+          <div className="relative">
+            <FeynmanTooltip dictKey="top_bridge" position="bottom">
+              <button
+                type="button"
+                onClick={() => setShowIntelBridge(!showIntelBridge)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-mono font-bold transition-all shrink-0 cursor-pointer ${
+                  showIntelBridge
+                    ? 'bg-purple-900 border border-purple-400 text-white shadow-[0_0_12px_rgba(168,85,247,0.5)]'
+                    : 'bg-purple-950/60 border border-purple-500/50 hover:border-purple-300 text-purple-200 hover:bg-purple-900/60 shadow-[0_0_8px_rgba(168,85,247,0.25)]'
+                }`}
+                aria-label="인텔리전스 브릿지"
+              >
+                <span className="text-sm">🌐</span>
+                <span>인텔리전스 브릿지</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showIntelBridge ? 'rotate-180' : ''}`} />
+              </button>
+            </FeynmanTooltip>
 
             {/* 브릿지 드롭다운 팝오버 패널 */}
             <AnimatePresence>
@@ -1523,11 +1969,105 @@ export default function Dashboard(props?: {
                   initial={{ opacity: 0, y: 8, scale: 0.96 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                  className="absolute left-0 mt-2 w-84 bg-[#070b14]/95 border border-purple-500/40 rounded-2xl shadow-[0_12px_32px_rgba(0,0,0,0.85),0_0_16px_rgba(168,85,247,0.25)] backdrop-blur-xl p-3 z-[500] flex flex-col gap-1.5"
+                  className="absolute left-0 mt-2 w-92 max-w-[95vw] max-h-[85vh] overflow-y-auto styled-scrollbar bg-[#070b14]/95 border border-purple-500/40 rounded-2xl shadow-[0_12px_32px_rgba(0,0,0,0.85),0_0_16px_rgba(168,85,247,0.25)] backdrop-blur-xl p-3 z-[500] flex flex-col gap-2"
                 >
-                  <div className="flex items-center justify-between pb-2 mb-1 border-b border-white/10 px-1">
-                    <span className="text-[11px] font-mono font-bold text-purple-300">⚡ OSIRIS 최신 인텔리전스 브릿지</span>
+                  <div className="flex items-center justify-between pb-2 border-b border-white/10 px-1">
+                    <span className="text-[11px] font-mono font-bold text-purple-300">⚡ 번개의 눈동자 최신 인텔리전스 브릿지</span>
                     <span className="text-[9px] font-mono text-purple-400/70">HARNESS BRIDGE v3</span>
+                  </div>
+
+                  {/* ── 🎯 신의 눈 전술 시스템 (GOD'S EYE VIEW) ── */}
+                  <div className="bg-cyan-950/40 border border-cyan-500/40 rounded-xl p-2.5 flex flex-col gap-2 shadow-[0_0_12px_rgba(0,229,255,0.15)]">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_6px_#00e5ff]" />
+                        <span className="text-[11px] font-mono font-bold text-cyan-200">🎯 신의 눈 전술 관제 (GOD&apos;S EYE)</span>
+                      </div>
+                      <span className="text-[9px] font-mono text-cyan-400/90 bg-cyan-900/50 px-1.5 py-0.5 rounded border border-cyan-500/40">
+                        단축키 C / D / H / T
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setCockpitMode(c => !c)}
+                        className={`flex items-center justify-between gap-1 px-2.5 py-2 rounded-lg text-[10px] font-mono font-bold transition-all text-left border ${
+                          cockpitMode
+                            ? 'bg-cyan-900/90 border-cyan-400 text-white shadow-[0_0_10px_rgba(0,229,255,0.4)]'
+                            : 'bg-black/40 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        <span className="flex items-center gap-1">✈️ 3인칭 콕핏</span>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-bold ${cockpitMode ? 'bg-cyan-400 text-black' : 'bg-white/10 text-white/40'}`}>
+                          {cockpitMode ? 'ON' : 'OFF'}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowDetectionOverlay(d => !d)}
+                        className={`flex items-center justify-between gap-1 px-2.5 py-2 rounded-lg text-[10px] font-mono font-bold transition-all text-left border ${
+                          showDetectionOverlay
+                            ? 'bg-emerald-900/90 border-emerald-400 text-white shadow-[0_0_10px_rgba(16,185,129,0.4)]'
+                            : 'bg-black/40 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        <span className="flex items-center gap-1">📡 표적 탐지</span>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-bold ${showDetectionOverlay ? 'bg-emerald-400 text-black' : 'bg-white/10 text-white/40'}`}>
+                          {showDetectionOverlay ? 'ON' : 'OFF'}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowMilitaryHud(h => !h)}
+                        className={`flex items-center justify-between gap-1 px-2.5 py-2 rounded-lg text-[10px] font-mono font-bold transition-all text-left border ${
+                          showMilitaryHud
+                            ? 'bg-amber-900/90 border-amber-400 text-white shadow-[0_0_10px_rgba(245,158,11,0.4)]'
+                            : 'bg-black/40 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        <span className="flex items-center gap-1">🛰️ MGRS HUD</span>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-bold ${showMilitaryHud ? 'bg-amber-400 text-black' : 'bg-white/10 text-white/40'}`}>
+                          {showMilitaryHud ? 'ON' : 'OFF'}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowContacts(t => !t)}
+                        className={`flex items-center justify-between gap-1 px-2.5 py-2 rounded-lg text-[10px] font-mono font-bold transition-all text-left border ${
+                          showContacts
+                            ? 'bg-purple-900/90 border-purple-400 text-white shadow-[0_0_10px_rgba(168,85,247,0.4)]'
+                            : 'bg-black/40 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        <span className="flex items-center gap-1">📋 250km 로스터</span>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-bold ${showContacts ? 'bg-purple-400 text-black' : 'bg-white/10 text-white/40'}`}>
+                          {showContacts ? 'ON' : 'OFF'}
+                        </span>
+                      </button>
+                    </div>
+
+                    {/* 센서 필터 빠른 전환 */}
+                    <div className="flex items-center gap-1 pt-1 border-t border-cyan-500/20 overflow-x-auto no-scrollbar">
+                      <span className="text-[9px] font-mono text-cyan-300/80 shrink-0 font-bold">센서:</span>
+                      {(['NORMAL', 'FLIR_HOT', 'FLIR_COLD', 'NVG', 'CRT', 'AMBER', 'SNOW'] as SensorMode[]).map(m => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setSensorMode(m)}
+                          className={`px-1.5 py-0.5 rounded text-[8px] font-mono transition-colors shrink-0 ${
+                            sensorMode === m
+                              ? 'bg-cyan-400 text-black font-bold shadow-[0_0_6px_#00e5ff]'
+                              : 'bg-black/40 text-white/50 hover:bg-white/10 hover:text-white'
+                          }`}
+                        >
+                          {m.replace('_', ' ')}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <button
@@ -1644,12 +2184,15 @@ export default function Dashboard(props?: {
             </AnimatePresence>
           </div>
 
-          {/* 통합 검색바 */}
-          <div className="w-52 lg:w-64">
+          {/* 통합 검색바 & 음성 AI 버튼 */}
+          <div className="w-52 lg:w-72 flex items-center gap-1.5">
             <SearchBar
               onLocate={(lat, lng, zoom) => { setFlyToLocation({ lat, lng, zoom, ts: Date.now() }); }}
               onRouteTo={handleRouteTo}
             />
+            <FeynmanTooltip dictKey="top_voice" position="bottom">
+              <VoiceMicButton onAction={handleVoiceAction} className="pointer-events-auto shrink-0" />
+            </FeynmanTooltip>
           </div>
         </motion.div>
       )}
@@ -1658,23 +2201,35 @@ export default function Dashboard(props?: {
       {/* ── TOP-RIGHT STATUS (desktop) ── */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 3 }} className="status-bar-desktop absolute top-4 right-6 z-[200] pointer-events-none flex items-center gap-3 text-[10px] font-mono tracking-widest text-[var(--text-muted)]">
 
-        <span className="hidden lg:inline-flex items-center gap-1.5">
-          <ZuluClock />
-        </span>
+        <FeynmanTooltip dictKey="top_zulu" position="bottom" className="pointer-events-auto cursor-help">
+          <span className="hidden lg:inline-flex items-center gap-1.5">
+            <ZuluClock />
+          </span>
+        </FeynmanTooltip>
 
-        <span className="flex items-center gap-1" title="백엔드 연결 상태">상태: <span className={backendStatus === 'connected' ? 'text-[var(--alert-green)]' : 'text-[var(--alert-red)]'}>{backendStatus === 'connected' ? '정상 가동' : backendStatus.toUpperCase()}</span></span>
+        <FeynmanTooltip dictKey="top_status" position="bottom" className="pointer-events-auto cursor-help">
+          <span className="flex items-center gap-1">상태: <span className={backendStatus === 'connected' ? 'text-[var(--alert-green)]' : 'text-[var(--alert-red)]'}>{backendStatus === 'connected' ? '정상 가동' : backendStatus.toUpperCase()}</span></span>
+        </FeynmanTooltip>
 
-        <span className="hidden lg:inline-flex items-center gap-1" title="활성화된 데이터 레이어">
-          <span className="text-[var(--cyan-primary)] font-bold">{Object.values(activeLayers).filter(Boolean).length}</span>
-          <span className="opacity-60">레이어</span>
-        </span>
+        <FeynmanTooltip dictKey="top_layers_count" position="bottom" className="pointer-events-auto cursor-help">
+          <span className="hidden lg:inline-flex items-center gap-1">
+            <span className="text-[var(--cyan-primary)] font-bold">{Object.values(activeLayers).filter(Boolean).length}</span>
+            <span className="opacity-60">레이어</span>
+          </span>
+        </FeynmanTooltip>
 
-        <span className="hidden lg:inline-flex items-center gap-1" title="지도 상 추적 중인 표적">
-          <ActiveEntityCount data={data} />
-          <span className="opacity-60">실체</span>
-        </span>
+        <FeynmanTooltip dictKey="top_entities_count" position="bottom" className="pointer-events-auto cursor-help">
+          <span className="hidden lg:inline-flex items-center gap-1">
+            <ActiveEntityCount data={data} />
+            <span className="opacity-60">실체</span>
+          </span>
+        </FeynmanTooltip>
 
-        {spaceWeather && <span className="hidden lg:inline" title={`지자기 폭풍 지수 — Kp${spaceWeather.kp_index}`}>태양풍: <span style={{ color: spaceWeather.storm_color, fontWeight: 700 }}>Kp{spaceWeather.kp_index}</span></span>}
+        {spaceWeather && (
+          <FeynmanTooltip dictKey="top_solar_wind" position="bottom" className="pointer-events-auto cursor-help">
+            <span className="hidden lg:inline">태양풍: <span style={{ color: spaceWeather.storm_color, fontWeight: 700 }}>Kp{spaceWeather.kp_index}</span></span>
+          </FeynmanTooltip>
+        )}
 
         <span className="text-[11px] font-bold tracking-[0.2em] text-[var(--text-muted)] opacity-50">V.4.2</span>
       </motion.div>
@@ -1691,23 +2246,44 @@ export default function Dashboard(props?: {
 
 
       {/* ── NEW SIDEBAR (Root Level) ── */}
-      {showLayers && !isMobile && <LayerPanel {...terrainPanelProps} data={data} activeLayers={activeLayers} setActiveLayers={setActiveLayers} theme={osirisTheme} setTheme={setOsirisTheme} capabilities={capabilities} />}
+      {showLayers && !isMobile && (
+        <LayerPanel
+          {...terrainPanelProps}
+          data={data}
+          activeLayers={activeLayers}
+          setActiveLayers={setActiveLayers}
+          theme={osirisTheme}
+          setTheme={setOsirisTheme}
+          capabilities={capabilities}
+          sensorMode={sensorMode}
+          onSetSensorMode={setSensorMode}
+          cockpitMode={cockpitMode}
+          onToggleCockpitMode={() => setCockpitMode(c => !c)}
+          detectionOverlay={showDetectionOverlay}
+          onToggleDetectionOverlay={() => setShowDetectionOverlay(d => !d)}
+          militaryHud={showMilitaryHud}
+          onToggleMilitaryHud={() => setShowMilitaryHud(h => !h)}
+          contactsVisible={showContacts}
+          onToggleContacts={() => setShowContacts(t => !t)}
+        />
+      )}
 
 
 
       {/* ── RIGHT TOOL STRIP (desktop only — mobile uses bottom nav) ── */}
       {!isMobile && <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-[250] pointer-events-auto bg-black/40 backdrop-blur-sm p-1 rounded-full border border-white/5">
         <div className="relative group">
-          <button onClick={() => { setShowIntel(!showIntel); setShowMarkets(false); setShowAlerts(false); }} className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showIntel ? 'bg-[var(--cyan-primary)]/20' : 'hover:bg-white/10'}`} title="OSINT Recon — IP lookup, network sweep, geolocation" aria-label="OSINT Recon" aria-expanded={showIntel}>
-            <Radar className={`w-4 h-4 ${showIntel ? 'text-[var(--cyan-primary)]' : 'text-white/60'}`} />
-            {showIntel && (
-              <span
-                aria-hidden="true"
-                className="absolute -right-1 top-1/2 -translate-y-1/2 h-4 w-[2px] rounded-full bg-current text-[var(--cyan-primary)]"
-              />
-            )}
-          </button>
-          <span className="absolute right-11 top-1/2 -translate-y-1/2 px-2 py-1 text-[9px] font-mono tracking-wider text-white/80 bg-black/80 backdrop-blur-sm rounded whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity pointer-events-none">RECON</span>
+          <FeynmanTooltip dictKey="tool_recon" position="left">
+            <button onClick={() => { setShowIntel(!showIntel); setShowMarkets(false); setShowAlerts(false); }} className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showIntel ? 'bg-[var(--cyan-primary)]/20' : 'hover:bg-white/10'}`} aria-label="OSINT Recon" aria-expanded={showIntel}>
+              <Radar className={`w-4 h-4 ${showIntel ? 'text-[var(--cyan-primary)]' : 'text-white/60'}`} />
+              {showIntel && (
+                <span
+                  aria-hidden="true"
+                  className="absolute -right-1 top-1/2 -translate-y-1/2 h-4 w-[2px] rounded-full bg-current text-[var(--cyan-primary)]"
+                />
+              )}
+            </button>
+          </FeynmanTooltip>
           <AnimatePresence>
             {showIntel && (
               <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="absolute right-12 top-1/2 -translate-y-1/2 w-80">
@@ -1724,16 +2300,17 @@ export default function Dashboard(props?: {
         </div>
 
         <div className="relative group">
-          <button onClick={() => { setShowIntel(false); setShowAlerts(false); setShowMarkets(false); setShowSpaceCam(v => !v); }} className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showSpaceCam ? 'bg-[#00E5FF]/20' : 'hover:bg-white/10'}`} title="Live from Space — 24/7 video downlink from the ISS" aria-label="Live from Space" aria-expanded={showSpaceCam}>
-            <Radio className={`w-4 h-4 ${showSpaceCam ? 'text-[#00E5FF]' : 'text-white/60'}`} />
-            {showSpaceCam && (
-              <span
-                aria-hidden="true"
-                className="absolute -right-1 top-1/2 -translate-y-1/2 h-4 w-[2px] rounded-full bg-current text-[#00E5FF]"
-              />
-            )}
-          </button>
-          <span className="absolute right-11 top-1/2 -translate-y-1/2 px-2 py-1 text-[9px] font-mono tracking-wider text-white/80 bg-black/80 backdrop-blur-sm rounded whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity pointer-events-none">SPACE</span>
+          <FeynmanTooltip dictKey="tool_spacecam" position="left">
+            <button onClick={() => { setShowIntel(false); setShowAlerts(false); setShowMarkets(false); setShowSpaceCam(v => !v); }} className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showSpaceCam ? 'bg-[#00E5FF]/20' : 'hover:bg-white/10'}`} aria-label="Live from Space" aria-expanded={showSpaceCam}>
+              <Radio className={`w-4 h-4 ${showSpaceCam ? 'text-[#00E5FF]' : 'text-white/60'}`} />
+              {showSpaceCam && (
+                <span
+                  aria-hidden="true"
+                  className="absolute -right-1 top-1/2 -translate-y-1/2 h-4 w-[2px] rounded-full bg-current text-[#00E5FF]"
+                />
+              )}
+            </button>
+          </FeynmanTooltip>
           <AnimatePresence>
             {showSpaceCam && (
               <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="absolute right-12 top-1/2 -translate-y-1/2 w-80">
@@ -1744,16 +2321,17 @@ export default function Dashboard(props?: {
         </div>
 
         <div className="relative group">
-          <button onClick={() => { setShowMarkets(!showMarkets); setShowIntel(false); setShowAlerts(false); setShowSpaceCam(false); }} className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showMarkets ? 'bg-[var(--gold-primary)]/20' : 'hover:bg-white/10'}`} title="Markets — crypto prices, space weather, global indices" aria-label="Markets" aria-expanded={showMarkets}>
-            <BarChart3 className={`w-4 h-4 ${showMarkets ? 'text-[var(--gold-primary)]' : 'text-white/60'}`} />
-            {showMarkets && (
-              <span
-                aria-hidden="true"
-                className="absolute -right-1 top-1/2 -translate-y-1/2 h-4 w-[2px] rounded-full bg-current text-[var(--gold-primary)]"
-              />
-            )}
-          </button>
-          <span className="absolute right-11 top-1/2 -translate-y-1/2 px-2 py-1 text-[9px] font-mono tracking-wider text-white/80 bg-black/80 backdrop-blur-sm rounded whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity pointer-events-none">MARKETS</span>
+          <FeynmanTooltip dictKey="tool_markets" position="left">
+            <button onClick={() => { setShowMarkets(!showMarkets); setShowIntel(false); setShowAlerts(false); setShowSpaceCam(false); }} className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showMarkets ? 'bg-[var(--gold-primary)]/20' : 'hover:bg-white/10'}`} aria-label="Markets" aria-expanded={showMarkets}>
+              <BarChart3 className={`w-4 h-4 ${showMarkets ? 'text-[var(--gold-primary)]' : 'text-white/60'}`} />
+              {showMarkets && (
+                <span
+                  aria-hidden="true"
+                  className="absolute -right-1 top-1/2 -translate-y-1/2 h-4 w-[2px] rounded-full bg-current text-[var(--gold-primary)]"
+                />
+              )}
+            </button>
+          </FeynmanTooltip>
           <AnimatePresence>
             {showMarkets && (
               <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="absolute right-12 top-1/2 -translate-y-1/2 w-80">
@@ -1764,16 +2342,17 @@ export default function Dashboard(props?: {
         </div>
 
         <div className="relative group">
-          <button onClick={() => { setShowAlerts(!showAlerts); setShowIntel(false); setShowMarkets(false); setShowDrawing(false); }} className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showAlerts ? 'bg-[#FF3D3D]/20' : 'hover:bg-white/10'}`} title="Live Alerts — earthquakes, conflicts, breaking news" aria-label="Live Alerts" aria-expanded={showAlerts}>
-            <AlertTriangle className={`w-4 h-4 ${showAlerts ? 'text-[#FF3D3D]' : 'text-white/60'}`} />
-            {showAlerts && (
-              <span
-                aria-hidden="true"
-                className="absolute -right-1 top-1/2 -translate-y-1/2 h-4 w-[2px] rounded-full bg-current text-[#FF3D3D]"
-              />
-            )}
-          </button>
-          <span className="absolute right-11 top-1/2 -translate-y-1/2 px-2 py-1 text-[9px] font-mono tracking-wider text-white/80 bg-black/80 backdrop-blur-sm rounded whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity pointer-events-none">ALERTS</span>
+          <FeynmanTooltip dictKey="tool_alerts" position="left">
+            <button onClick={() => { setShowAlerts(!showAlerts); setShowIntel(false); setShowMarkets(false); setShowDrawing(false); }} className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showAlerts ? 'bg-[#FF3D3D]/20' : 'hover:bg-white/10'}`} aria-label="Live Alerts" aria-expanded={showAlerts}>
+              <AlertTriangle className={`w-4 h-4 ${showAlerts ? 'text-[#FF3D3D]' : 'text-white/60'}`} />
+              {showAlerts && (
+                <span
+                  aria-hidden="true"
+                  className="absolute -right-1 top-1/2 -translate-y-1/2 h-4 w-[2px] rounded-full bg-current text-[#FF3D3D]"
+                />
+              )}
+            </button>
+          </FeynmanTooltip>
           <AnimatePresence>
             {showAlerts && (
               <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="absolute right-12 top-1/2 -translate-y-1/2 w-80">
@@ -1784,78 +2363,80 @@ export default function Dashboard(props?: {
         </div>
 
         <div className="relative group">
-          <button onClick={() => { setShowDrawing(!showDrawing); setShowIntel(false); setShowMarkets(false); setShowAlerts(false); setShowSpaceCam(false); }} className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showDrawing ? 'bg-[#00E5FF]/20' : 'hover:bg-white/10'}`} title="전술 작전 드로잉 & 표적 구역(AOI) 정밀 계측" aria-label="전술 작전 드로잉" aria-expanded={showDrawing}>
-            <PenLine className={`w-4 h-4 ${showDrawing ? 'text-[#00E5FF]' : 'text-white/60'}`} />
-            {showDrawing && (
-              <span
-                aria-hidden="true"
-                className="absolute -right-1 top-1/2 -translate-y-1/2 h-4 w-[2px] rounded-full bg-current text-[#00E5FF]"
-              />
-            )}
-          </button>
-          <span className="absolute right-11 top-1/2 -translate-y-1/2 px-2 py-1 text-[9px] font-mono tracking-wider text-white/80 bg-black/80 backdrop-blur-sm rounded whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity pointer-events-none">DRAW</span>
+          <FeynmanTooltip dictKey="tool_draw" position="left">
+            <button onClick={() => { setShowDrawing(!showDrawing); setShowIntel(false); setShowMarkets(false); setShowAlerts(false); setShowSpaceCam(false); }} className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showDrawing ? 'bg-[#00E5FF]/20' : 'hover:bg-white/10'}`} aria-label="전술 작전 드로잉" aria-expanded={showDrawing}>
+              <PenLine className={`w-4 h-4 ${showDrawing ? 'text-[#00E5FF]' : 'text-white/60'}`} />
+              {showDrawing && (
+                <span
+                  aria-hidden="true"
+                  className="absolute -right-1 top-1/2 -translate-y-1/2 h-4 w-[2px] rounded-full bg-current text-[#00E5FF]"
+                />
+              )}
+            </button>
+          </FeynmanTooltip>
         </div>
 
         {/* ── 인텔리전스 브릿지 (최신 정보 통합 허브) ── */}
         <div className="relative group">
-          <button
-            onClick={() => setShowIntelBridge(v => !v)}
-            className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showIntelBridge ? 'bg-purple-900/60 text-purple-300 shadow-[0_0_10px_rgba(168,85,247,0.4)]' : 'hover:bg-white/10 text-purple-400/80'}`}
-            title="OSIRIS 최신 인텔리전스 브릿지 (6대 정보기관 · 서해 중국 침탈 시설 · 북한 22개 전략기지)"
-            aria-label="인텔리전스 브릿지"
-            aria-expanded={showIntelBridge}
-          >
-            <Globe className="w-4 h-4" />
-            {showIntelBridge && (
-              <span
-                aria-hidden="true"
-                className="absolute -right-1 top-1/2 -translate-y-1/2 h-4 w-[2px] rounded-full bg-purple-400"
-              />
-            )}
-          </button>
-          <span className="absolute right-11 top-1/2 -translate-y-1/2 px-2 py-1 text-[9px] font-mono tracking-wider text-white/80 bg-black/80 backdrop-blur-sm rounded whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity pointer-events-none">BRIDGE</span>
+          <FeynmanTooltip dictKey="tool_bridge" position="left">
+            <button
+              onClick={() => setShowIntelBridge(v => !v)}
+              className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showIntelBridge ? 'bg-purple-900/60 text-purple-300 shadow-[0_0_10px_rgba(168,85,247,0.4)]' : 'hover:bg-white/10 text-purple-400/80'}`}
+              aria-label="인텔리전스 브릿지"
+              aria-expanded={showIntelBridge}
+            >
+              <Globe className="w-4 h-4" />
+              {showIntelBridge && (
+                <span
+                  aria-hidden="true"
+                  className="absolute -right-1 top-1/2 -translate-y-1/2 h-4 w-[2px] rounded-full bg-purple-400"
+                />
+              )}
+            </button>
+          </FeynmanTooltip>
         </div>
 
         {/* ── 실시간 내비게이션 & 길찾기 ── */}
         <div className="relative group">
-          <button
-            onClick={() => {
-              setShowDirections(!showDirections);
-              if (showDirections) { setActiveRoute(null); setRouteSeed(null); }
-              setShowDesktopSearch(false);
-              setShowIntel(false);
-              setShowMarkets(false);
-              setShowAlerts(false);
-              setShowSpaceCam(false);
-              setShowDrawing(false);
-            }}
-            className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showDirections ? 'bg-[var(--gold-primary)]/20 text-[var(--gold-primary)] shadow-[0_0_10px_var(--gold-glow)]' : 'hover:bg-white/10 text-white/60'}`}
-            title="실시간 내비게이션 & 길찾기 (Turn-by-turn Directions)"
-            aria-label="내비게이션"
-            aria-expanded={showDirections}
-          >
-            <Route className={`w-4 h-4 ${showDirections ? 'text-[var(--gold-primary)]' : 'text-white/60'}`} />
-            {showDirections && (
-              <span
-                aria-hidden="true"
-                className="absolute -right-1 top-1/2 -translate-y-1/2 h-4 w-[2px] rounded-full bg-current text-[var(--gold-primary)]"
-              />
-            )}
-          </button>
-          <span className="absolute right-11 top-1/2 -translate-y-1/2 px-2 py-1 text-[9px] font-mono tracking-wider text-white/80 bg-black/80 backdrop-blur-sm rounded whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity pointer-events-none">내비게이션</span>
+          <FeynmanTooltip dictKey="tool_directions" position="left">
+            <button
+              onClick={() => {
+                setShowDirections(!showDirections);
+                if (showDirections) { setActiveRoute(null); setRouteSeed(null); }
+                setShowDesktopSearch(false);
+                setShowIntel(false);
+                setShowMarkets(false);
+                setShowAlerts(false);
+                setShowSpaceCam(false);
+                setShowDrawing(false);
+              }}
+              className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showDirections ? 'bg-[var(--gold-primary)]/20 text-[var(--gold-primary)] shadow-[0_0_10px_var(--gold-glow)]' : 'hover:bg-white/10 text-white/60'}`}
+              aria-label="내비게이션"
+              aria-expanded={showDirections}
+            >
+              <Route className={`w-4 h-4 ${showDirections ? 'text-[var(--gold-primary)]' : 'text-white/60'}`} />
+              {showDirections && (
+                <span
+                  aria-hidden="true"
+                  className="absolute -right-1 top-1/2 -translate-y-1/2 h-4 w-[2px] rounded-full bg-current text-[var(--gold-primary)]"
+                />
+              )}
+            </button>
+          </FeynmanTooltip>
         </div>
 
         <div className="relative group">
-          <button onClick={() => { setShowDesktopSearch(!showDesktopSearch); setShowIntel(false); setShowMarkets(false); setShowAlerts(false); setShowSpaceCam(false); setShowDrawing(false); }} className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showDesktopSearch ? 'bg-[var(--gold-primary)]/20' : 'hover:bg-white/10'}`} title="Search — find locations, cities, coordinates" aria-label="Search" aria-expanded={showDesktopSearch}>
-            <Search className={`w-4 h-4 ${showDesktopSearch ? 'text-[var(--gold-primary)]' : 'text-white/60'}`} />
-            {showDesktopSearch && (
-              <span
-                aria-hidden="true"
-                className="absolute -right-1 top-1/2 -translate-y-1/2 h-4 w-[2px] rounded-full bg-current text-[var(--gold-primary)]"
-              />
-            )}
-          </button>
-          <span className="absolute right-11 top-1/2 -translate-y-1/2 px-2 py-1 text-[9px] font-mono tracking-wider text-white/80 bg-black/80 backdrop-blur-sm rounded whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity pointer-events-none">SEARCH</span>
+          <FeynmanTooltip dictKey="tool_search" position="left">
+            <button onClick={() => { setShowDesktopSearch(!showDesktopSearch); setShowIntel(false); setShowMarkets(false); setShowAlerts(false); setShowSpaceCam(false); setShowDrawing(false); }} className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showDesktopSearch ? 'bg-[var(--gold-primary)]/20' : 'hover:bg-white/10'}`} aria-label="Search" aria-expanded={showDesktopSearch}>
+              <Search className={`w-4 h-4 ${showDesktopSearch ? 'text-[var(--gold-primary)]' : 'text-white/60'}`} />
+              {showDesktopSearch && (
+                <span
+                  aria-hidden="true"
+                  className="absolute -right-1 top-1/2 -translate-y-1/2 h-4 w-[2px] rounded-full bg-current text-[var(--gold-primary)]"
+                />
+              )}
+            </button>
+          </FeynmanTooltip>
           <AnimatePresence>
             {showDesktopSearch && (
               <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="absolute right-12 top-1/2 -translate-y-1/2 w-80">
@@ -1873,22 +2454,37 @@ export default function Dashboard(props?: {
           </AnimatePresence>
         </div>
 
+        {/* ── SHARE PANEL (desktop) ── */}
+        <div className="relative group">
+          <FeynmanTooltip dictKey="tool_share" position="left">
+            <SharePanel
+              mapView={mapView}
+              activeLayers={activeLayers}
+              mouseCoords={mouseCoordsRef.current}
+              sensorMode={sensorMode}
+              cockpitTarget={cockpitAircraft?.icao24 || null}
+              hudVisible={showMilitaryHud}
+            />
+          </FeynmanTooltip>
+        </div>
+
         {/* Separator */}
         <div className="w-4 h-px bg-white/10 mx-auto" />
 
         {/* ── ARCGIS INTEL ── */}
         <div className="relative group">
-          <button onClick={() => { setShowArcGIS(!showArcGIS); setShowRemote(false); }} className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showArcGIS ? 'bg-[var(--gold-primary)]/20' : 'hover:bg-white/10'}`} title="ArcGIS — search & import geospatial intel layers" aria-label="ArcGIS" aria-expanded={showArcGIS}>
-            <Database className={`w-4 h-4 ${showArcGIS ? 'text-[var(--gold-primary)]' : 'text-white/60'}`} />
-            {showArcGIS && (
-              <span
-                aria-hidden="true"
-                className="absolute -right-1 top-1/2 -translate-y-1/2 h-4 w-[2px] rounded-full bg-current text-[var(--gold-primary)]"
-              />
-            )}
-            {arcgisLayers.length > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] flex items-center justify-center rounded-full bg-[var(--gold-primary)] text-black text-[9px] font-mono font-bold leading-none px-0.5">{arcgisLayers.length}</span>}
-          </button>
-          <span className="absolute right-11 top-1/2 -translate-y-1/2 px-2 py-1 text-[9px] font-mono tracking-wider text-white/80 bg-black/80 backdrop-blur-sm rounded whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity pointer-events-none">ARCGIS</span>
+          <FeynmanTooltip dictKey="tool_arcgis" position="left">
+            <button onClick={() => { setShowArcGIS(!showArcGIS); setShowRemote(false); }} className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showArcGIS ? 'bg-[var(--gold-primary)]/20' : 'hover:bg-white/10'}`} aria-label="ArcGIS" aria-expanded={showArcGIS}>
+              <Database className={`w-4 h-4 ${showArcGIS ? 'text-[var(--gold-primary)]' : 'text-white/60'}`} />
+              {showArcGIS && (
+                <span
+                  aria-hidden="true"
+                  className="absolute -right-1 top-1/2 -translate-y-1/2 h-4 w-[2px] rounded-full bg-current text-[var(--gold-primary)]"
+                />
+              )}
+              {arcgisLayers.length > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] flex items-center justify-center rounded-full bg-[var(--gold-primary)] text-black text-[9px] font-mono font-bold leading-none px-0.5">{arcgisLayers.length}</span>}
+            </button>
+          </FeynmanTooltip>
           <AnimatePresence>
             {showArcGIS && (
               <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="absolute right-12 top-1/2 -translate-y-1/2 w-[340px]">
@@ -1912,16 +2508,17 @@ export default function Dashboard(props?: {
 
         {/* ── WORLD REMOTE ── */}
         <div className="relative group">
-          <button onClick={() => { setShowRemote(!showRemote); setShowArcGIS(false); setShowIntel(false); setShowMarkets(false); setShowAlerts(false); setShowSpaceCam(false); setShowDrawing(false); setShowDesktopSearch(false); }} className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showRemote ? 'bg-[var(--cyan-primary)]/20' : 'hover:bg-white/10'}`} title="World Remote — control nearby Bluetooth devices (TVs, speakers, AC)" aria-label="World Remote" aria-expanded={showRemote}>
-            <Bluetooth className={`w-4 h-4 ${showRemote ? 'text-[var(--cyan-primary)]' : 'text-white/60'}`} />
-            {showRemote && (
-              <span
-                aria-hidden="true"
-                className="absolute -right-1 top-1/2 -translate-y-1/2 h-4 w-[2px] rounded-full bg-current text-[var(--cyan-primary)]"
-              />
-            )}
-          </button>
-          <span className="absolute right-11 top-1/2 -translate-y-1/2 px-2 py-1 text-[9px] font-mono tracking-wider text-white/80 bg-black/80 backdrop-blur-sm rounded whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity pointer-events-none">REMOTE</span>
+          <FeynmanTooltip dictKey="tool_remote" position="left">
+            <button onClick={() => { setShowRemote(!showRemote); setShowArcGIS(false); setShowIntel(false); setShowMarkets(false); setShowAlerts(false); setShowSpaceCam(false); setShowDrawing(false); setShowDesktopSearch(false); }} className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showRemote ? 'bg-[var(--cyan-primary)]/20' : 'hover:bg-white/10'}`} aria-label="World Remote" aria-expanded={showRemote}>
+              <Bluetooth className={`w-4 h-4 ${showRemote ? 'text-[var(--cyan-primary)]' : 'text-white/60'}`} />
+              {showRemote && (
+                <span
+                  aria-hidden="true"
+                  className="absolute -right-1 top-1/2 -translate-y-1/2 h-4 w-[2px] rounded-full bg-current text-[var(--cyan-primary)]"
+                />
+              )}
+            </button>
+          </FeynmanTooltip>
           <AnimatePresence>
             {showRemote && (
               <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="absolute right-12 top-1/2 -translate-y-1/2 w-80">
@@ -2113,7 +2710,26 @@ export default function Dashboard(props?: {
                           <div><div className="hud-label" style={{fontSize:'9px'}}>NUC</div><div className="hud-value text-[10px]" style={{color:'var(--accent-nuclear)'}}>{(data.infrastructure?.length||0)}</div></div>
                         </div>
                       </div>
-                      <LayerPanel {...terrainPanelProps} data={data} activeLayers={activeLayers} setActiveLayers={setActiveLayers} isMobile={true} theme={osirisTheme} setTheme={setOsirisTheme} capabilities={capabilities} />
+                      <LayerPanel
+                        {...terrainPanelProps}
+                        data={data}
+                        activeLayers={activeLayers}
+                        setActiveLayers={setActiveLayers}
+                        isMobile={true}
+                        theme={osirisTheme}
+                        setTheme={setOsirisTheme}
+                        capabilities={capabilities}
+                        sensorMode={sensorMode}
+                        onSetSensorMode={setSensorMode}
+                        cockpitMode={cockpitMode}
+                        onToggleCockpitMode={() => setCockpitMode(c => !c)}
+                        detectionOverlay={showDetectionOverlay}
+                        onToggleDetectionOverlay={() => setShowDetectionOverlay(d => !d)}
+                        militaryHud={showMilitaryHud}
+                        onToggleMilitaryHud={() => setShowMilitaryHud(h => !h)}
+                        contactsVisible={showContacts}
+                        onToggleContacts={() => setShowContacts(t => !t)}
+                      />
                       <div className="mt-8">
                         <ViewPresets onNavigate={(lat, lng, zoom) => { setFlyToLocation({ lat, lng, zoom, ts: Date.now() }); setMobilePanel(null); }} />
                       </div>
@@ -2124,7 +2740,14 @@ export default function Dashboard(props?: {
                   {mobilePanel === 'search' && (
                     <div className="space-y-2">
                       <SearchBar onLocate={(lat, lng, zoom) => { setFlyToLocation({ lat, lng, zoom, ts: Date.now() }); setMobilePanel(null); }} />
-                      <SharePanel mapView={mapView} activeLayers={activeLayers} mouseCoords={null} />
+                      <SharePanel
+                        mapView={mapView}
+                        activeLayers={activeLayers}
+                        mouseCoords={null}
+                        sensorMode={sensorMode}
+                        cockpitTarget={cockpitAircraft?.icao24 || null}
+                        hudVisible={showMilitaryHud}
+                      />
                     </div>
                   )}
                   {mobilePanel === 'recon' && (
@@ -2294,15 +2917,121 @@ export default function Dashboard(props?: {
         </div>
       ))}
 
+      {/* ── God's Eye View: AI Tactical Summary ── */}
+      <AiHudSummary
+        zoom={mapView.zoom}
+        centerLat={mapView.latitude}
+        centerLng={mouseCoordsRef.current?.lng ?? mapView.longitude ?? 127}
+        airCount={entityCounts.air || 0}
+        seaCount={entityCounts.sea || 0}
+        sensorMode={sensorMode}
+        visible={!cockpitMode}
+      />
+
+      {/* ── God's Eye View: Sensor Overlay ── */}
+      <SensorOverlay mode={sensorMode} />
+
+      {/* ── God's Eye View: Detection Overlay ── */}
+      <DetectionOverlay
+        targets={detectionTargets}
+        sensorMode={sensorMode}
+        visible={showDetectionOverlay}
+        selectedId={selectedContactId}
+        onSelectTarget={(t) => {
+          setSelectedContactId(t.id);
+          setFlyToLocation({ lat: t.lat, lng: t.lng, zoom: 12, ts: Date.now() });
+        }}
+        onTrackCockpit={(t) => {
+          setSelectedContactId(t.id);
+          setCockpitMode(true);
+        }}
+      />
+
+      {/* ── God's Eye View: Military HUD ── */}
+      <MilitaryHud
+        cursorLat={mouseCoordsRef.current?.lat ?? mapView.latitude}
+        cursorLng={mouseCoordsRef.current?.lng ?? mapView.longitude ?? 127}
+        zoom={mapView.zoom}
+        bearing={mapView.bearing || 0}
+        pitch={mapView.pitch || 0}
+        tracked={cockpitAircraft ? {
+          id: cockpitAircraft.icao24,
+          label: cockpitAircraft.callsign || cockpitAircraft.icao24,
+          type: cockpitAircraft.type || 'FLIGHT',
+          lat: cockpitAircraft.lat,
+          lng: cockpitAircraft.lng,
+          alt: cockpitAircraft.alt,
+          speed: cockpitAircraft.speed,
+          heading: cockpitAircraft.heading,
+        } : null}
+        sensorMode={sensorMode}
+        entityCounts={entityCounts}
+        visible={showMilitaryHud}
+      />
+
+      {/* ── God's Eye View: Cockpit HUD ── */}
+      {cockpitMode && cockpitAircraft && (
+        <CockpitHud
+          aircraft={cockpitAircraft}
+          sensorMode={sensorMode}
+          visible={cockpitMode}
+          onExit={() => setCockpitMode(false)}
+        />
+      )}
+
+      {/* ── God's Eye View: Contacts Roster ── */}
+      <ContactsRoster
+        contacts={contactsList}
+        selectedId={selectedContactId}
+        onSelect={(c) => {
+          setSelectedContactId(c.id);
+          setFlyToLocation({ lat: c.position[1], lng: c.position[0], zoom: 12, ts: Date.now() });
+        }}
+        onTrackCockpit={(c) => {
+          if (c?.id) {
+            setSelectedContactId(c.id);
+          }
+          setCockpitMode(true);
+        }}
+        visible={showContacts}
+        onClose={() => setShowContacts(false)}
+      />
+
       {/* Keyboard Shortcuts Overlay */}
       <KeyboardShortcuts />
 
       {/* ── GLOBAL STATUS TICKER (bottom) ── */}
       <GlobalStatusBar />
 
-      {/* Shortcut hint — more visible */}
-      <div className="desktop-only absolute bottom-[26px] right-5 z-[200] pointer-events-none text-[9px] font-mono text-[var(--text-muted)] opacity-50 tracking-widest" title="Press ? to see all keyboard shortcuts">
-        Press <span className="text-[var(--gold-primary)] opacity-80">?</span> for shortcuts · <span className="text-[var(--gold-primary)] opacity-80">F</span> fullscreen · <span className="text-[var(--gold-primary)] opacity-80">R</span> reset view
+      {/* Shortcut hint — with interactive Feynman tooltips */}
+      <div className="desktop-only absolute bottom-[26px] right-5 z-[200] flex items-center gap-1.5 text-[9px] font-mono text-[var(--text-muted)] opacity-60 tracking-wider">
+        <FeynmanTooltip dictKey="hint_shortcuts" position="top" className="pointer-events-auto cursor-help">
+          <span className="hover:text-white hover:underline transition-colors">Press <span className="text-[var(--gold-primary)] font-bold">?</span> shortcuts</span>
+        </FeynmanTooltip>
+        <span>·</span>
+        <FeynmanTooltip dictKey="hint_sensor" position="top" className="pointer-events-auto cursor-help">
+          <span className="hover:text-white hover:underline transition-colors"><span className="text-[var(--gold-primary)] font-bold">1-7</span> sensor</span>
+        </FeynmanTooltip>
+        <span>·</span>
+        <FeynmanTooltip dictKey="hint_voice" position="top" className="pointer-events-auto cursor-help">
+          <span className="hover:text-white hover:underline transition-colors"><span className="text-[var(--gold-primary)] font-bold">V</span> voice</span>
+        </FeynmanTooltip>
+        <span>·</span>
+        <FeynmanTooltip dictKey="hint_detect" position="top" className="pointer-events-auto cursor-help">
+          <span className="hover:text-white hover:underline transition-colors"><span className="text-[var(--gold-primary)] font-bold">D</span> detect</span>
+        </FeynmanTooltip>
+        <span>·</span>
+        <FeynmanTooltip dictKey="hint_hud" position="top" className="pointer-events-auto cursor-help">
+          <span className="hover:text-white hover:underline transition-colors"><span className="text-[var(--gold-primary)] font-bold">H</span> HUD</span>
+        </FeynmanTooltip>
+        <span>·</span>
+        <FeynmanTooltip dictKey="hint_cockpit" position="top" className="pointer-events-auto cursor-help">
+          <span className="hover:text-white hover:underline transition-colors"><span className="text-[var(--gold-primary)] font-bold">C</span> cockpit</span>
+        </FeynmanTooltip>
+        <span>·</span>
+        <FeynmanTooltip dictKey="hint_contacts" position="top" className="pointer-events-auto cursor-help">
+          <span className="hover:text-white hover:underline transition-colors"><span className="text-[var(--gold-primary)] font-bold">T</span> contacts</span>
+        </FeynmanTooltip>
       </div>
 
 

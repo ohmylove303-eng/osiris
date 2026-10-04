@@ -44,6 +44,17 @@ import {
   fetchAfricaLiveCameras,
   fetchEuropeLiveCameras,
 } from './world-live';
+import { fetchKoreaCameras } from './korea';
+import { fetchSwedenCameras } from './sweden';
+import { fetchLithuaniaCameras } from './lithuania';
+import { fetchEdmontonCameras } from './edmonton';
+import { fetchTexasCameras } from './texas';
+import {
+  fetchNlPublicWebcams,
+  fetchEuropePublicWebcams,
+  fetchAmericasPublicWebcams,
+  fetchRestPublicWebcams,
+} from './public-webcams';
 
 /**
  * OSIRIS — Worldwide CCTV Camera API v2
@@ -415,6 +426,13 @@ async function fetchAsiaCameras(): Promise<any[]> {
     }
   }
 
+  try {
+    const krCams = await fetchKoreaCameras();
+    cams.push(...krCams);
+  } catch (err) {
+    console.warn('[CCTV] Korea feed error in Asia bundle:', err);
+  }
+
   return cams;
 }
 
@@ -477,6 +495,8 @@ const RAW_REGION_FETCHERS: Record<string, RegionFetcher> = {
   'europe': fetchEuropeCameras,
   'netherlands': fetchNetherlandsCameras,
   'asia': fetchAsiaCameras,
+  'korea': fetchKoreaCameras,
+  'kr': fetchKoreaCameras,
   'bulgaria': fetchBulgariaCameras,
   'greece': fetchGreeceCameras,
   'serbia': fetchSerbiaCameras,
@@ -516,6 +536,14 @@ const RAW_REGION_FETCHERS: Record<string, RegionFetcher> = {
   'latam-live': fetchLatamLiveCameras,
   'africa-live': fetchAfricaLiveCameras,
   'europe-live': fetchEuropeLiveCameras,
+  'sweden': fetchSwedenCameras,
+  'lithuania': fetchLithuaniaCameras,
+  'edmonton': fetchEdmontonCameras,
+  'texas': fetchTexasCameras,
+  'public-webcams-nl': fetchNlPublicWebcams,
+  'public-webcams-europe': fetchEuropePublicWebcams,
+  'public-webcams-americas': fetchAmericasPublicWebcams,
+  'public-webcams-rest': fetchRestPublicWebcams,
 };
 
 /**

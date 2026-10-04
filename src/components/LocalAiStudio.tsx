@@ -120,7 +120,7 @@ export default function LocalAiStudio() {
     {
       id: 'welcome',
       role: 'assistant',
-      content: '⚡ **OSIRIS 로컬 군사 안보 인텔리전스 AI 가동 중**\n\n로컬 Ollama (11434 포트)의 `qwen3:14b` 및 `nomic-embed-text` 768차원 RAG 벡터 DB, 그리고 **옵시디언 시냅스 지식 그래프**가 물리적으로 연동되었습니다.\n\n서해 중국 침탈 8대 시설 및 외부 LLM(ChatGPT, Perplexity)에서 수집한 연구 노트를 소크라테스 4단계 하네스로 검증하며, 답변마다 TTS 음성 브리핑을 지원합니다.',
+      content: '⚡ **번개의 눈동자 로컬 군사 안보 인텔리전스 AI 가동 중**\n\n로컬 Ollama (11434 포트)의 `qwen3:14b` 및 `nomic-embed-text` 768차원 RAG 벡터 DB, 그리고 **옵시디언 시냅스 지식 그래프**가 물리적으로 연동되었습니다.\n\n서해 중국 침탈 8대 시설 및 외부 LLM(ChatGPT, Perplexity)에서 수집한 연구 노트를 소크라테스 4단계 하네스로 검증하며, 답변마다 TTS 음성 브리핑을 지원합니다.',
       timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
     }
   ]);
@@ -159,9 +159,9 @@ export default function LocalAiStudio() {
   const [ingestForm, setIngestForm] = useState({
     title: '',
     content: '',
-    source_org: 'OSIRIS 전술 검증단',
+    source_org: '번개의 눈동자 전술 검증단',
     category: 'china_encroachment_spec',
-    source_url: 'https://osiris.tactical/verified',
+    source_url: 'https://lightning-eye.tactical/verified',
   });
   const [ingestStatusMsg, setIngestStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -732,7 +732,7 @@ export default function LocalAiStudio() {
                     type="text"
                     value={ingestForm.source_url}
                     onChange={e => setIngestForm(prev => ({ ...prev, source_url: e.target.value }))}
-                    placeholder="https://osiris.tactical/verified"
+                    placeholder="https://lightning-eye.tactical/verified"
                     className="w-full bg-[var(--bg-void)] border border-[var(--border-primary)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-active)]"
                   />
                 </div>
