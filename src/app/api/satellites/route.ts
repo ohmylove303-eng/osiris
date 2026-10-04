@@ -104,9 +104,7 @@ const CELESTRAK_GROUPS = [
   `${CT}visual${FMT}`,
   // Supplemental
   `${CT}supplemental${FMT}`,
-  // Debris fields (thousands of tracked objects)
-  `${CT}fengyun-1c-debris${FMT}`, `${CT}cosmos-2251-debris${FMT}`,
-  `${CT}iridium-33-debris${FMT}`, `${CT}cosmos-1408-debris${FMT}`,
+  // Debris fields removed — user requested low-latitude operational satellites only
   // Other NOAA
   `${CT}nnss${FMT}`, `${CT}musson${FMT}`,
 ];
@@ -284,23 +282,31 @@ export async function GET() {
       source = 'emergency-fallback';
     }
 
-    // No artificial cap — propagate all satellites, MapLibre handles it fine
+    // Low-latitude filter: exclude polar orbits (incl > 85°) and high-latitude positions (|lat| > 60°)
+    const MAX_DISPLAY_LAT = 60;
+    const MAX_INCLINATION = 85;
     const satellites = [];
     for (const sat of allSats) {
       const pos = propagateSGP4Simple(sat.line1, sat.line2);
       if (!pos) continue;
 
+      // Skip high-latitude positions
+      if (Math.abs(pos.lat) > MAX_DISPLAY_LAT) continue;
+
+      // Skip polar-orbit satellites by TLE inclination (Line2 col 9-16)
+      const inclination = parseFloat(sat.line2.substring(8, 16).trim());
+      if (!isNaN(inclination) && inclination > MAX_INCLINATION) continue;
+
       const classification = classifySatellite(sat.name);
+      const upperName = sat.name.toUpperCase();
       
+      // Skip debris entirely
+      if (upperName.includes(' DEB') || upperName.includes('DEBRIS') || upperName.includes(' R/B')) continue;
+
       // High-level category for sub-layer filtering
       let category = 'other';
       const m = classification.mission;
-      const upperName = sat.name.toUpperCase();
-      
-      // Debris detection
-      if (upperName.includes(' DEB') || upperName.includes('DEBRIS') || upperName.includes(' R/B')) {
-        category = 'other'; // debris goes to "other" category
-      } else if (m === 'Commercial Comms' || m === 'Commercial Imaging') category = 'comms';
+      if (m === 'Commercial Comms' || m === 'Commercial Imaging') category = 'comms';
       else if (m === 'Navigation') category = 'navigation';
       else if (m === 'Weather' || m === 'Earth Observation' || m === 'Earth Science') category = 'earth_obs';
       else if (m === 'Military Recon' || m === 'NRO Classified' || m === 'SIGINT' || m === 'Early Warning' || m === 'Russian Military' || m === 'Chinese Recon' || m === 'SAR Imaging') category = 'military';
@@ -315,6 +321,7 @@ export async function GET() {
         color: classification.color,
         category,
         noradId: sat.line1.substring(2, 7).trim(),
+        inclination: Math.round(inclination * 10) / 10,
       });
     }
 

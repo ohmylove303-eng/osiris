@@ -59,26 +59,34 @@ interface LayerGroupDef {
   layers: LayerDef[];
 }
 
+export interface PresetMode {
+  id: string;
+  label: string;
+  icon: string;
+  desc: string;
+  layers: string[] | null;
+}
+
+export const PRESET_MODES: PresetMode[] = [
+  { id: 'standard', label: '기본 관제', icon: '🌍', desc: '항공·해상·CCTV·자연재해 기본 상황판', layers: ['flights', 'maritime', 'cctv', 'fires', 'earthquakes', 'day_night'] },
+  { id: 'tactical', label: '군사 전술', icon: '⚔️', desc: '피아식별·GPS교란·북한위협·NLL분계선', layers: ['military', 'dprk_sites', 'gps_jamming', 'military_demarcation', 'dark_fleet', 'notam_hazards'] },
+  { id: 'cyber', label: '사이버·인프라', icon: '🌐', desc: '사이버공격·해저광케이블·원전·통신망', layers: ['cyber_attacks', 'submarine_cables', 'malware', 'infrastructure'] },
+  { id: 'space', label: '우주·저위도위성', icon: '📡', desc: '정찰위성·GPS항법·지구관측 저위도 궤도', layers: ['sat_military', 'sat_navigation', 'sat_earth'] },
+  { id: 'all', label: '전체 레이어', icon: '🔎', desc: '모든 레이어 세부 제어', layers: null },
+];
+
 const LAYER_GROUPS: LayerGroupDef[] = [
-  {
-    label: 'SDK',
-    fullLabel: '번개의 눈동자 SDK',
-    icon: Network,
-    layers: [
-      { key: 'sdk_sea', label: 'Maritime Lines', dataKey: 'sdk_entities' },
-    ],
-  },
   {
     label: 'AVIATION',
     fullLabel: '공중 전술 항공 관제 (AVIATION)',
     icon: Plane,
     layers: [
-      { key: 'flights', label: '민간 정기 항공편 (Commercial)', dataKey: 'commercial_flights' },
-      { key: 'private', label: '일반 민간 비행기 (Private)', dataKey: 'private_flights' },
-      { key: 'jets', label: 'VIP 비즈니스 제트 (Private Jets)', dataKey: 'private_jets' },
-      { key: 'military', label: '전술 군용기 피아식별 (Military / ROKAF / DPRK / USAF)', dataKey: 'military_flights' },
-      { key: 'notam_hazards', label: '🔴 NOTAM 미사일/발사체 위험 공역 (Missile Hazard Airspace)', dataKey: 'notam_hazards' },
-      { key: 'military_demarcation', label: '군사분계선 및 방공식별구역 (NLL · KADIZ · CADIZ · DMZ)', dataKey: '' },
+      { key: 'flights', label: '민간 정기 항공편 (Commercial)', description: '전 세계 실시간 여객기 항로 및 고도 실측', dataKey: 'commercial_flights' },
+      { key: 'private', label: '일반 민간 비행기 (Private)', description: '소형 레저용 비행기 및 일반 경비행기', dataKey: 'private_flights' },
+      { key: 'jets', label: 'VIP 비즈니스 제트 (Private Jets)', description: '국제 비즈니스/요인 전용 제트기 항적', dataKey: 'private_jets' },
+      { key: 'military', label: '전술 군용기 피아식별 (Military / ROKAF / DPRK / USAF)', description: '한·미·북·러 전술기 피아식별 및 정찰기', dataKey: 'military_flights' },
+      { key: 'notam_hazards', label: '🔴 NOTAM 미사일/발사체 위험 공역 (Missile Hazard Airspace)', description: '미사일 발사 및 군사훈련 고시 위험 공역', dataKey: 'notam_hazards' },
+      { key: 'military_demarcation', label: '군사분계선 및 방공식별구역 (NLL · KADIZ · CADIZ · DMZ)', description: '휴전선(DMZ), 서해 NLL, 한국 방공식별구역', dataKey: '' },
     ],
   },
   {
@@ -86,85 +94,76 @@ const LAYER_GROUPS: LayerGroupDef[] = [
     fullLabel: '해상 전술 함정 관제 (MARITIME)',
     icon: Ship,
     layers: [
-      { key: 'maritime', label: '해군 군함 및 상선 (Naval Warships / AIS)', dataKey: 'maritime_ships,maritime_ports,maritime_chokepoints' },
-      { key: 'dark_fleet', label: '🟠 AIS 암흑 선박 키네틱 버블 (Dark Fleet Kinetic Bubble)', dataKey: 'dark_fleet' },
+      { key: 'maritime', label: '해군 군함 및 상선 (Naval Warships / AIS)', description: '한국 영해 및 국제 주요 항로 군함/상선 위치', dataKey: 'maritime_ships,maritime_ports,maritime_chokepoints' },
+      { key: 'dark_fleet', label: '🟠 AIS 암흑 선박 키네틱 버블 (Dark Fleet Kinetic Bubble)', description: '위치 신호(AIS) 끄고 잠적한 의심 선박 탐지', dataKey: 'dark_fleet' },
     ],
   },
   {
     label: 'SPACE',
-    fullLabel: '위성 및 우주 자산 (SPACE)',
+    fullLabel: '저위도 실시간 위성 (SPACE)',
     icon: Satellite,
     layers: [
-      { key: 'satellites', label: '전체 위성 궤도 (All Satellites)', dataKey: 'satellites' },
-      { key: 'sat_comms', label: '스타링크 통신 (Starlink / Comms)', dataKey: 'satellites', catKey: 'comms' },
-      { key: 'sat_military', label: '정찰 / 군사위성 (Military / Intel)', dataKey: 'satellites', catKey: 'military' },
-      { key: 'sat_navigation', label: 'GPS 항법위성 (GPS / Navigation)', dataKey: 'satellites', catKey: 'navigation' },
-      { key: 'sat_earth', label: '지구관측위성 (Earth Observation)', dataKey: 'satellites', catKey: 'earth_obs' },
-      { key: 'sat_science', label: '우주정거장 ISS (Stations / Telescopes)', dataKey: 'satellites', catKey: 'science' },
-    ],
-  },
-  {
-    label: 'SURVEIL',
-    fullLabel: '실시간 감시 및 뉴스 (SURVEILLANCE)',
-    icon: Camera,
-    layers: [
-      { key: 'cctv', label: 'CCTV 실시간 감시 카메라', dataKey: 'cameras' },
-      { key: 'cctv_previews', label: '지도 상 실시간 비디오 프리뷰', description: '줌 13+ 최근접 카메라 팝업 영상', dataKey: '', parent: 'cctv' },
-      { key: 'live_news', label: '실시간 뉴스 피드', dataKey: 'live_feeds' },
-      { key: 'radio', label: '전략 라디오 방송국 실시간 스트림 (Radio)', dataKey: 'radio_stations' },
-      { key: 'alpr', label: 'ALPR 차량 번호판 감시국 & 보안 검문소 (ALPR)', dataKey: 'alpr_checkpoints' },
-    ],
-  },
-  {
-    label: 'HAZARD',
-    fullLabel: '자연재해 및 위험 (HAZARDS)',
-    icon: Flame,
-    layers: [
-      { key: 'earthquakes', label: '실시간 지진 (Earthquakes)', dataKey: 'earthquakes' },
-      { key: 'fires', label: '열원 / 산불 (Active Fires)', dataKey: 'fires' },
-      { key: 'weather', label: '기상 특보 (Severe Weather)', dataKey: 'weather_events' },
+      { key: 'satellites', label: '전체 저위도 위성 (All Low-Lat Satellites)', description: '위도 60도 이하 저위도 상공 실시간 운용 위성', dataKey: 'satellites' },
+      { key: 'sat_comms', label: '스타링크 통신위성 (Starlink / Comms)', description: '스페이스X 초고속 저궤도 통신망', dataKey: 'satellites', catKey: 'comms' },
+      { key: 'sat_military', label: '정찰 / 군사위성 (Military / Intel)', description: '미·중·러 군사 첩보/정찰 및 조기경보 위성', dataKey: 'satellites', catKey: 'military' },
+      { key: 'sat_navigation', label: 'GPS / 항법위성 (GPS / Navigation)', description: 'GPS, GLONASS, Galileo 전 세계 항법위성', dataKey: 'satellites', catKey: 'navigation' },
+      { key: 'sat_earth', label: '지구관측위성 (Earth Observation)', description: '기상청·환경부 등 지표/대기 관측 위성', dataKey: 'satellites', catKey: 'earth_obs' },
+      { key: 'sat_science', label: '우주정거장 ISS (Stations / Telescopes)', description: '국제우주정거장 및 과학 탐사 위성', dataKey: 'satellites', catKey: 'science' },
     ],
   },
   {
     label: 'THREAT',
-    fullLabel: '위협 및 북한 군사 인텔리전스 (THREATS & DPRK INTEL)',
+    fullLabel: '위협 및 전파교란 인텔리전스 (THREATS & GPS)',
     icon: AlertTriangle,
     layers: [
-      { key: 'infrastructure', label: '원자력 및 주요 인프라 (Nuclear & Energy)', dataKey: 'infrastructure' },
-      { key: 'global_incidents', label: '글로벌 분쟁 / 사건 (GDELT Live Incidents)', dataKey: 'gdelt' },
-      { key: 'dprk_sites', label: '북한 전력 / 핵·미사일·무인기·포병 갱도 온톨로지 (DPRK Strategic & HARTS)', dataKey: 'dprk_sites' },
-      { key: 'dprk_activity', label: '🔴 글로벌 14개 국방 씽크탱크 수집 브릿지 (Global DPRK Bridge)', dataKey: 'dprk_activities' },
-      { key: 'china_encroachment', label: '🇨🇳 중국 서해·남중국해 인공구조물 / 인공섬 (선란1·2호 / 피어리크로스)', dataKey: '' },
-      { key: 'seismic_watch', label: '🟣 지진/충격파 핵실험 감시 (Seismic Nuclear Watch)', dataKey: 'seismic_events' },
-      { key: 'gps_jamming', label: 'GPS 전파 교란 (GPS Jamming Alert)', dataKey: 'gps_jamming' },
-      { key: 'gdelt_events', label: 'GDELT 상세 이벤트', dataKey: 'gdelt_events' },
+      { key: 'gps_jamming', label: '🚨 GPS 전파 교란 실시간 경보 (GPS Jamming / Spoofing)', description: '북한 옹진반도·개풍군 발원지 및 서해·수도권 피격권', dataKey: 'gps_jamming' },
+      { key: 'dprk_sites', label: '북한 전력 / 핵·미사일·무인기·포병 갱도 진지 (HARTS)', description: '북한 핵심 군사기지 및 갱도 포병 진지 8,000곳', dataKey: 'dprk_sites' },
+      { key: 'dprk_activity', label: '🔴 글로벌 14개 국방 씽크탱크 수집 브릿지 (DPRK Intel)', description: 'CSIS, 38North 등 국방 싱크탱크 위성 정밀 판독', dataKey: 'dprk_activities' },
+      { key: 'china_encroachment', label: '🇨🇳 중국 서해·남중국해 인공구조물 / 인공섬', description: '선란 1·2호 해상 플랫폼 및 인공 기지 감시', dataKey: '' },
+      { key: 'seismic_watch', label: '🟣 지진/충격파 핵실험 감시 (Seismic Nuclear Watch)', description: '풍계리 등 핵실험 및 인공 충격파 자동 판독', dataKey: 'seismic_events' },
+      { key: 'infrastructure', label: '원자력 발전소 및 주요 에너지 인프라', description: '국내외 원전, 변전소, 주요 국가 중요 시설', dataKey: 'infrastructure' },
+      { key: 'global_incidents', label: '글로벌 분쟁 / 사건 (GDELT Live Incidents)', description: '전 세계 100개국 실시간 물리적 충돌 및 시위', dataKey: 'gdelt' },
+      { key: 'gdelt_events', label: 'GDELT 상세 이벤트', description: '글로벌 뉴스 미디어 교차 검증 이벤트', dataKey: 'gdelt_events' },
     ],
   },
   {
     label: 'NETWORK',
-    fullLabel: 'NETWORK INTEL',
+    fullLabel: '사이버 공격 및 해저 인프라 (CYBER & CABLES)',
     icon: Network,
     layers: [
-      { key: 'submarine_cables', label: '🌐 해저 광케이블 & 닻 투하 사보타주 (Submarine Cables & Anchor Drag)', dataKey: 'cables_hazards' },
-      { key: 'malware', label: 'Live Malware', dataKey: 'malware_threats' },
-      { key: 'cyber_attacks', label: 'Live Attacks', dataKey: 'cyber_attacks' },
+      { key: 'cyber_attacks', label: '⚡ 실시간 사이버 침투 공격 (Live Cyber Attacks)', description: '글로벌 악성 C2 침투 공격선 및 피격 대상국 실시간 추적', dataKey: 'cyber_attacks' },
+      { key: 'submarine_cables', label: '🌐 해저 광케이블 & 상륙국 (Submarine Cables & CLS)', description: '부산/거제/제주 해저 광케이블 기간망 및 사보타주 감시', dataKey: 'cables_hazards' },
+      { key: 'malware', label: 'Live 악성 봇넷 노드 (Malware Nodes)', description: '전 세계 활성 C2 서버 및 봇넷 감염 IP', dataKey: 'malware_threats' },
     ],
   },
   {
-    label: 'NETINTEL',
-    fullLabel: 'NET & EVENT INTEL',
-    icon: Megaphone,
+    label: 'SURVEIL',
+    fullLabel: '실시간 감시 및 미디어 (SURVEILLANCE)',
+    icon: Camera,
     layers: [
-      { key: 'cf_outages', label: 'Internet Outages', dataKey: 'cf_outages', requires: 'cloudflare' },
-      { key: 'cf_attacks', label: 'Attack Origins', dataKey: 'cf_attack_origins', requires: 'cloudflare' },
+      { key: 'cctv', label: 'CCTV 실시간 감시 카메라', description: '전국 주요 고속도로·국도·항만 실시간 영상', dataKey: 'cameras' },
+      { key: 'cctv_previews', label: '지도 상 실시간 비디오 프리뷰', description: '줌 13+ 최근접 카메라 팝업 영상', dataKey: '', parent: 'cctv' },
+      { key: 'live_news', label: '실시간 뉴스 피드', description: '연합뉴스·BBC·로이터 주요 속보 피드', dataKey: 'live_feeds' },
+      { key: 'radio', label: '전략 라디오 방송국 스트림 (Radio)', description: '대북 방송 및 긴급 재난 라디오 주파수', dataKey: 'radio_stations' },
+      { key: 'alpr', label: 'ALPR 차량 번호판 감시국 & 보안 검문소', description: '주요 간선도로 및 접경지 차량 판독소', dataKey: 'alpr_checkpoints' },
+    ],
+  },
+  {
+    label: 'HAZARD',
+    fullLabel: '자연재해 및 기상 (HAZARDS)',
+    icon: Flame,
+    layers: [
+      { key: 'earthquakes', label: '실시간 지진 (Earthquakes)', description: 'USGS 실시간 전 세계 지진 진앙 및 규모', dataKey: 'earthquakes' },
+      { key: 'fires', label: '열원 / 산불 (Active Fires)', description: 'NASA 위성 탐지 실시간 산불 및 고열원', dataKey: 'fires' },
+      { key: 'weather', label: '기상 특보 (Severe Weather)', description: '태풍·폭설·한파 등 실시간 기상 재난', dataKey: 'weather_events' },
     ],
   },
   {
     label: 'DISPLAY',
-    fullLabel: 'DISPLAY',
+    fullLabel: '화면 디스플레이 설정 (DISPLAY)',
     icon: Sun,
     layers: [
-      { key: 'day_night', label: '주야간 명암선 (Day / Night)', dataKey: '' },
+      { key: 'day_night', label: '주야간 명암선 (Day / Night)', description: '실시간 태양 위치에 따른 지구 밤/낮 그림자', dataKey: '' },
       { key: 'terrain_3d', label: '3D 입체 건물 (Buildings)', description: '도심지 3D 입체 건물군 · zoom 14.5+', dataKey: '' },
       { key: 'terrain_elevation', label: '3D 입체 지형 (Terrain DEM)', description: '산악·고도 입체 표고 · zoom 10+', dataKey: '' },
     ],
@@ -174,10 +173,10 @@ const LAYER_GROUPS: LayerGroupDef[] = [
     fullLabel: "신의 눈 전술 시스템 (GOD'S EYE VIEW)",
     icon: Crosshair,
     layers: [
-      { key: 'cockpit_view', label: '3인칭 콕핏 추적 모드 ([C])', dataKey: '' },
-      { key: 'detection_overlay', label: '전술 표적 탐지 오버레이 ([D])', dataKey: '' },
-      { key: 'military_hud', label: 'MGRS 군사 텔레메트리 HUD ([H])', dataKey: '' },
-      { key: 'contacts_roster', label: '250km 컨택츠 로스터 ([T])', dataKey: '' },
+      { key: 'cockpit_view', label: '3인칭 콕핏 추적 모드 ([C])', description: '선택한 항공기/함정 시점 3D 추적 비행', dataKey: '' },
+      { key: 'detection_overlay', label: '전술 표적 탐지 오버레이 ([D])', description: '접경지 및 요충지 표적 식별 HUD', dataKey: '' },
+      { key: 'military_hud', label: 'MGRS 군사 텔레메트리 HUD ([H])', description: '군사 좌표계(MGRS) 실시간 조준선', dataKey: '' },
+      { key: 'contacts_roster', label: '250km 컨택츠 로스터 ([T])', description: '주변 반경 250km 이내 모든 객체 리스트', dataKey: '' },
     ],
   },
 ];
@@ -262,6 +261,27 @@ function LayerPanel({
    */
   const [pinnedGroup, setPinnedGroup] = useState<string | null>(null);
   const [studioOpen, setStudioOpen] = useState(false);
+  const [selectedPresetId, setSelectedPresetId] = useState<string>('standard');
+  const [presetFlyoutOpen, setPresetFlyoutOpen] = useState(false);
+
+  const applyPreset = (preset: PresetMode) => {
+    setSelectedPresetId(preset.id);
+    if (!preset.layers) {
+      setPresetFlyoutOpen(false);
+      return;
+    }
+    setActiveLayers((prev: any) => {
+      const next: Record<string, boolean> = {};
+      for (const k of Object.keys(prev)) {
+        next[k] = false;
+      }
+      for (const k of preset.layers!) {
+        next[k] = true;
+      }
+      return next;
+    });
+    setPresetFlyoutOpen(false);
+  };
 
   useEffect(() => {
     if (!pinnedGroup) return;
@@ -345,7 +365,33 @@ function LayerPanel({
   /* ── MOBILE ── */
   if (isMobile) {
     return (
-      <div className="flex flex-col gap-5 py-2">
+      <div className="flex flex-col gap-4 py-2">
+        {/* PRESET CHIPS BAR */}
+        <div className="flex flex-col gap-1.5 pb-3 border-b border-white/[0.08]">
+          <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-cyan-400 font-bold">
+            ⚡ 초보자 퀵 프리셋 모드
+          </span>
+          <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+            {PRESET_MODES.map((preset) => {
+              const isSelected = selectedPresetId === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  onClick={() => applyPreset(preset)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-mono whitespace-nowrap transition-all ${
+                    isSelected
+                      ? 'bg-cyan-500/25 border border-cyan-400 text-cyan-200 shadow-[0_0_10px_rgba(0,229,255,0.3)]'
+                      : 'bg-white/[0.04] border border-white/10 text-white/60 hover:bg-white/[0.08] hover:text-white'
+                  }`}
+                >
+                  <span>{preset.icon}</span>
+                  <span className="font-bold">{preset.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {visibleGroups.map((group) => (
           <div key={group.label} className="flex flex-col gap-2">
             <div className="text-[10px] font-mono tracking-[0.2em] uppercase text-white/30 border-b border-white/[0.06] pb-1.5">
@@ -460,6 +506,88 @@ function LayerPanel({
       }}
     >
       <div className="flex-1 flex flex-col items-center gap-1">
+        {/* ── PRESET QUICK MODE BUTTON ── */}
+        <div
+          className="relative flex items-center justify-center mb-1 pb-1 border-b border-white/[0.08]"
+          onMouseEnter={() => setPresetFlyoutOpen(true)}
+          onMouseLeave={() => setPresetFlyoutOpen(false)}
+        >
+          <button
+            onClick={() => setPresetFlyoutOpen(!presetFlyoutOpen)}
+            aria-expanded={presetFlyoutOpen}
+            aria-label="초보자 관제 프리셋 모드"
+            title="초보자 퀵 프리셋 (모드 전환)"
+            className="relative w-10 h-10 flex items-center justify-center cursor-pointer rounded-lg transition-all duration-300 focus:outline-none"
+            style={{
+              background: presetFlyoutOpen
+                ? 'rgba(0, 229, 255, 0.25)'
+                : 'rgba(0, 229, 255, 0.1)',
+              border: '1px solid rgba(0, 229, 255, 0.4)',
+              boxShadow: '0 0 10px rgba(0, 229, 255, 0.2)',
+            }}
+          >
+            <Sparkles className="w-4 h-4 text-cyan-400 animate-pulse" />
+          </button>
+
+          {/* Preset Flyout */}
+          <AnimatePresence>
+            {presetFlyoutOpen && (
+              <motion.div
+                initial={{ opacity: 0, x: -8, filter: 'blur(4px)' }}
+                animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+                exit={{ opacity: 0, x: -4, filter: 'blur(2px)' }}
+                transition={{ duration: 0.18, ease: 'easeOut' }}
+                className="absolute left-[52px] top-0 min-w-[260px] rounded-xl p-3 z-[110] pointer-events-auto shadow-2xl"
+                style={{
+                  background: 'rgba(6, 12, 20, 0.95)',
+                  backdropFilter: 'blur(40px) saturate(1.5)',
+                  WebkitBackdropFilter: 'blur(40px) saturate(1.5)',
+                  border: '1px solid rgba(0, 229, 255, 0.3)',
+                  boxShadow: '0 0 25px rgba(0, 229, 255, 0.15)',
+                }}
+              >
+                <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/[0.08]">
+                  <span className="text-[11px] font-mono tracking-wider font-bold text-cyan-400">
+                    ⚡ 원클릭 관제 프리셋
+                  </span>
+                  <span className="text-[8.5px] font-mono text-white/40">초보자 맞춤</span>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {PRESET_MODES.map((p) => {
+                    const isSel = selectedPresetId === p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => applyPreset(p)}
+                        className={`w-full text-left p-2 rounded-lg transition-all border ${
+                          isSel
+                            ? 'bg-cyan-500/20 border-cyan-400/80 shadow-[0_0_12px_rgba(0,229,255,0.25)]'
+                            : 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.08] hover:border-white/20'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">{p.icon}</span>
+                          <span className={`text-[11px] font-mono font-bold ${isSel ? 'text-cyan-300' : 'text-white/90'}`}>
+                            {p.label}
+                          </span>
+                          {isSel && (
+                            <span className="ml-auto text-[8px] bg-cyan-400/20 text-cyan-300 px-1.5 py-0.5 rounded border border-cyan-400/50">
+                              ACTIVE
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[9px] text-white/50 mt-1 pl-6">
+                          {p.desc}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
         {visibleGroups.map((group) => {
           /* Sub-layers modify a parent rather than draw anything of their own,
              so they do not count towards the rail's reading. */

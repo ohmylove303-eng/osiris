@@ -8,8 +8,12 @@ export interface GpsJammingAlert {
   id: string;
   zone_name: string;
   threat_level: 'CRITICAL' | 'HIGH' | 'MODERATE';
+  type: 'JAMMING' | 'SPOOFING';
   center_lat: number;
   center_lng: number;
+  source_lat: number;
+  source_lng: number;
+  source_label: string;
   mgrs_10digit: string;
   affected_radius_km: number;
   jammed_frequencies: string[];
@@ -25,12 +29,16 @@ export async function GET() {
       id: 'JAMMING-ALERT-WEST-SEA-01',
       zone_name: '서해 NLL / 연평도 해상 전파 교란 구역',
       threat_level: 'CRITICAL',
+      type: 'JAMMING',
       center_lat: 37.6200,
       center_lng: 125.8000,
+      source_lat: 38.0200,
+      source_lng: 125.6800,
+      source_label: '北 옹진반도 방사원',
       mgrs_10digit: latLngToMGRS(37.6200, 125.8000),
       affected_radius_km: 18.5,
       jammed_frequencies: ['GPS L1 (1575.42 MHz)', 'GLONASS L1 (1602 MHz)'],
-      estimated_bearing_deg: 345, // North-Northwest (DPRK direction)
+      estimated_bearing_deg: 345,
       source_origin: '북한 옹진반도 해안 방사원 감지',
       advisory_notice: '해당 공역 내 드론 비행 시 GPS 수신 불가로 인한 자동 추락 및 위치 이탈 위험이 매우 높으므로 즉시 휠백/수동 회항(RTH)을 수행해야 합니다.',
       timestamp: new Date().toISOString(),
@@ -39,8 +47,12 @@ export async function GET() {
       id: 'JAMMING-ALERT-GANGHWA-02',
       zone_name: '강화도 / 교동도 접경 전파 교란 구역',
       threat_level: 'HIGH',
+      type: 'SPOOFING',
       center_lat: 37.7400,
       center_lng: 126.5000,
+      source_lat: 37.9500,
+      source_lng: 126.3500,
+      source_label: '北 개풍군 방사원',
       mgrs_10digit: latLngToMGRS(37.7400, 126.5000),
       affected_radius_km: 12.0,
       jammed_frequencies: ['GPS L1 (1575.42 MHz)'],

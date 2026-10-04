@@ -729,12 +729,12 @@ export default function Dashboard(props?: {
   const geocodeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastGeocodedPos = useRef<{ lat: number; lng: number } | null>(null);
 
-  // ── DEFAULT: Tactical layers ON ──
+  // ── DEFAULT: Clean beginner-friendly view (Flights, Maritime, CCTV, Natural hazards, Day/Night) ──
   const [activeLayers, setActiveLayers] = useState({
     flights: true,
     private: false,
     jets: false,
-    military: true,
+    military: false,
     maritime: true,
     satellites: false,
     sat_comms: false,
@@ -744,29 +744,28 @@ export default function Dashboard(props?: {
     sat_science: false,
     balloons: false,
     cctv: true,
-    /* The live preview tiles over the camera dots — see CctvPreviews. */
-    cctv_previews: true,
-    live_news: true,
+    cctv_previews: false,
+    live_news: false,
     earthquakes: true,
-    fires: false,
+    fires: true,
     weather: false,
     radiation: false,
     infrastructure: false,
-    global_incidents: true,
-    military_demarcation: true,
-    dprk_sites: true,
-    dprk_activity: true,
-    seismic_watch: true,
-    china_encroachment: true,
+    global_incidents: false,
+    military_demarcation: false,
+    dprk_sites: false,
+    dprk_activity: false,
+    seismic_watch: false,
+    china_encroachment: false,
     war_alerts: false,
     day_night: true,
-    cables: true,
-    submarine_cables: true,
-    notam_hazards: true,
-    dark_fleet: true,
-    sdk_sea: true,
-    sdk_air: true,
-    sdk_naval: true,
+    cables: false,
+    submarine_cables: false,
+    notam_hazards: false,
+    dark_fleet: false,
+    sdk_sea: false,
+    sdk_air: false,
+    sdk_naval: false,
     terrain_3d: false,
     terrain_elevation: false,
     malware: false,
@@ -1255,6 +1254,7 @@ export default function Dashboard(props?: {
     if ((activeLayers.submarine_cables || activeLayers.cables) && !layerFetchedRef.current.has('cables')) {
       fetchEndpoint('/api/cables', d => ({
         cables_geojson: d.geojson,
+        cable_landings_geojson: d.landing_points_geojson,
         cables_hazards: d.hazards,
         submarine_cables: d.geojson?.features || []
       }));

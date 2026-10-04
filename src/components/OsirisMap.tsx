@@ -332,7 +332,7 @@ function OsirisMap({
       createDot(map, 'dot-cctv', cameraColor, 10);
 
       const sources = [
-        'flights','military','jets','private-fl','satellites','earthquakes','gdelt','gps-jamming','day-night','cctv','fires','weather','infrastructure','maritime','maritime-choke','maritime-ships','live-news','sigint-news','conflict-zones', 'war-alerts-targets', 'war-alerts-lines', 'balloons', 'radiation', 'ip-sweep-devices', 'ip-sweep-pulse', 'ip-sweep-connections', 'scan-targets', 'sdk-entities', 'sdk-links', 'malware-nodes', 'network-mesh', 'cyber-arcs', 'cyber-heads', 'cyber-impacts', 'dprk-sites-src', 'dprk-activity-src', 'seismic-nuclear-src', 'demarcation-lines', 'drones', 'cuas-gcs-emitters', 'cuas-vector-lines', 'china-encroachment', 'notam-hazards', 'submarine-cables', 'dark-fleet', 'radio-stations', 'alpr-checkpoints'
+        'flights','military','jets','private-fl','satellites','earthquakes','gdelt','gps-jamming','gps-jam-zones','gps-jam-arrows','gps-jam-sources','day-night','cctv','fires','weather','infrastructure','maritime','maritime-choke','maritime-ships','live-news','sigint-news','conflict-zones', 'war-alerts-targets', 'war-alerts-lines', 'balloons', 'radiation', 'ip-sweep-devices', 'ip-sweep-pulse', 'ip-sweep-connections', 'scan-targets', 'sdk-entities', 'sdk-links', 'malware-nodes', 'network-mesh', 'cyber-arcs', 'cyber-heads', 'cyber-impacts', 'dprk-sites-src', 'dprk-activity-src', 'seismic-nuclear-src', 'demarcation-lines', 'drones', 'cuas-gcs-emitters', 'cuas-vector-lines', 'china-encroachment', 'notam-hazards', 'submarine-cables', 'cable-landings', 'dark-fleet', 'radio-stations', 'alpr-checkpoints'
       ];
       sources.forEach(s => {
         if (!map.getSource(s)) {
@@ -453,47 +453,75 @@ function OsirisMap({
         'line-opacity': 0.4,
       }});
 
-      // ══ LIVE CYBER ATTACKS — dark wire network (source → target) ══
+      // ══ LIVE CYBER ATTACKS — severity-colored arcs (source → target) ══
       map.addLayer({ id: 'cyber-arcs-atmo', type: 'line', source: 'cyber-arcs', paint: {
-        'line-color': '#000000', 'line-width': ['interpolate',['linear'],['zoom'], 1,4, 5,7, 10,12],
-        'line-opacity': 0.12, 'line-blur': 6,
+        'line-color': ['coalesce', ['get','severity_color'], '#FF6D00'], 'line-width': ['interpolate',['linear'],['zoom'], 1,4, 5,7, 10,12],
+        'line-opacity': 0.08, 'line-blur': 6,
       }});
       map.addLayer({ id: 'cyber-arcs-glow', type: 'line', source: 'cyber-arcs', paint: {
-        'line-color': '#111111', 'line-width': ['interpolate',['linear'],['zoom'], 1,2, 5,3.5, 10,6],
-        'line-opacity': 0.3, 'line-blur': 2,
+        'line-color': ['coalesce', ['get','severity_color'], '#FF6D00'], 'line-width': ['interpolate',['linear'],['zoom'], 1,2, 5,3.5, 10,6],
+        'line-opacity': 0.25, 'line-blur': 2,
       }});
       map.addLayer({ id: 'cyber-arcs-core', type: 'line', source: 'cyber-arcs', paint: {
-        'line-color': '#000000', 'line-width': ['interpolate',['linear'],['zoom'], 1,0.8, 5,1.4, 10,2.2],
-        'line-opacity': 0.7,
+        'line-color': ['coalesce', ['get','severity_color'], '#FF6D00'],
+        'line-width': ['interpolate',['linear'],['zoom'], 1,0.8, 5,1.4, 10,2.2],
+        'line-opacity': 0.8,
       }});
-      // Animated dashed flow line — fast marching ants in black
+      // Animated dashed flow line
       map.addLayer({ id: 'cyber-arcs-flow', type: 'line', source: 'cyber-arcs', paint: {
-        'line-color': '#1a1a1a', 'line-width': ['interpolate',['linear'],['zoom'], 1,1.0, 5,1.8, 10,3],
-        'line-opacity': 0.55, 'line-dasharray': [2, 3],
+        'line-color': ['coalesce', ['get','severity_color'], '#FF6D00'], 'line-width': ['interpolate',['linear'],['zoom'], 1,1.0, 5,1.8, 10,3],
+        'line-opacity': 0.5, 'line-dasharray': [2, 3],
       }});
       map.addLayer({ id: 'cyber-impacts', type: 'circle', source: 'cyber-impacts', paint: {
         'circle-radius': ['interpolate',['linear'],['zoom'], 1,6, 5,12, 10,18],
-        'circle-color': '#000000', 'circle-opacity': 0.08, 'circle-blur': 0.6,
+        'circle-color': ['coalesce', ['get','severity_color'], '#FF6D00'], 'circle-opacity': 0.12, 'circle-blur': 0.6,
       }});
       map.addLayer({ id: 'cyber-heads', type: 'circle', source: 'cyber-heads', paint: {
-        'circle-radius': ['interpolate',['linear'],['zoom'], 1,2.5, 5,4, 10,6],
-        'circle-color': '#111111', 'circle-opacity': 0.95,
-        'circle-stroke-width': 1.5, 'circle-stroke-color': '#333', 'circle-stroke-opacity': 0.9,
+        'circle-radius': ['interpolate',['linear'],['get','severity'], 5,3, 7,4.5, 10,7],
+        'circle-color': ['coalesce', ['get','severity_color'], '#FF6D00'], 'circle-opacity': 0.95,
+        'circle-stroke-width': 2, 'circle-stroke-color': '#FFFFFF', 'circle-stroke-opacity': 0.6,
       }});
       map.addLayer({ id: 'cyber-labels', type: 'symbol', source: 'cyber-heads', minzoom: 3, layout: {
-        'text-field': ['get','malware'], 'text-size': 9, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
-        'text-offset': [0, 1.5], 'text-max-width': 10, 'text-allow-overlap': false,
-      }, paint: { 'text-color': '#333333', 'text-halo-color': '#000', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
+        'text-field': ['concat', ['get','malware'], ' → ', ['get','target_country_name']], 'text-size': 9, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
+        'text-offset': [0, 1.5], 'text-max-width': 14, 'text-allow-overlap': false,
+      }, paint: { 'text-color': '#FF8A80', 'text-halo-color': '#000', 'text-halo-width': 1.5, 'text-opacity': 0.9 }});
 
       map.addLayer({ id: 'gdelt-dots', type: 'circle', source: 'gdelt', paint: {
         'circle-radius': 4, 'circle-color': '#D32F2F', 'circle-opacity': 0.5, 'circle-stroke-width': 1, 'circle-stroke-color': '#D32F2F', 'circle-stroke-opacity': 0.25,
       }});
 
-      // GPS Jamming — crimson
-      map.addLayer({ id: 'jam-fill', type: 'circle', source: 'gps-jamming', paint: { 'circle-radius': 30, 'circle-color': '#D32F2F', 'circle-opacity': 0.12, 'circle-blur': 1 }});
+      // ══ GPS JAMMING — full source→impact visualization ══
+      // (A) Affected zone polygon — pulsing red/orange fill
+      map.addLayer({ id: 'jam-zone-fill', type: 'fill', source: 'gps-jam-zones', paint: {
+        'fill-color': ['match', ['get','type'], 'SPOOFING','#FF6D00', '#D32F2F'],
+        'fill-opacity': 0.10,
+      }});
+      map.addLayer({ id: 'jam-zone-border', type: 'line', source: 'gps-jam-zones', paint: {
+        'line-color': ['match', ['get','type'], 'SPOOFING','#FF6D00', '#FF1744'],
+        'line-width': 2, 'line-dasharray': [6, 4], 'line-opacity': 0.7,
+      }});
+      // (B) Source→Target directional arrow
+      map.addLayer({ id: 'jam-arrow-glow', type: 'line', source: 'gps-jam-arrows', paint: {
+        'line-color': '#FF1744', 'line-width': 6, 'line-opacity': 0.15, 'line-blur': 3,
+      }});
+      map.addLayer({ id: 'jam-arrow', type: 'line', source: 'gps-jam-arrows', paint: {
+        'line-color': '#FF1744', 'line-width': 2.5, 'line-opacity': 0.85, 'line-dasharray': [8, 4, 2, 4],
+      }});
+      // (C) Emitter source point (red warning triangle)
+      map.addLayer({ id: 'jam-source-dot', type: 'symbol', source: 'gps-jam-sources', layout: {
+        'icon-image': 'warn-red', 'icon-size': 1.2, 'icon-allow-overlap': true,
+        'text-field': ['get','source_label'], 'text-size': 10, 'text-font': ['Open Sans Bold'],
+        'text-offset': [0, 2], 'text-allow-overlap': true,
+      }, paint: { 'text-color': '#FF1744', 'text-halo-color': '#000', 'text-halo-width': 1.5 }});
+      // (D) Target center label with type + frequency
+      map.addLayer({ id: 'jam-fill', type: 'circle', source: 'gps-jamming', paint: {
+        'circle-radius': 8, 'circle-color': '#FF1744', 'circle-opacity': 0.7,
+        'circle-stroke-width': 3, 'circle-stroke-color': '#FFFFFF', 'circle-stroke-opacity': 0.5,
+      }});
       map.addLayer({ id: 'jam-label', type: 'symbol', source: 'gps-jamming', layout: {
-        'text-field': ['concat','GPS JAM ',['to-string',['get','severity']],'%'], 'text-size': 10, 'text-font': ['Open Sans Bold'], 'text-allow-overlap': true,
-      }, paint: { 'text-color': '#D32F2F', 'text-halo-color': '#000', 'text-halo-width': 1 }});
+        'text-field': ['concat', ['get','type'], ' | ', ['get','freq']], 'text-size': 10, 'text-font': ['Open Sans Bold'], 'text-allow-overlap': true,
+        'text-offset': [0, -1.5],
+      }, paint: { 'text-color': '#FFFFFF', 'text-halo-color': '#D32F2F', 'text-halo-width': 2 }});
 
       // Weather Events (NASA EONET) — deep violet
       map.addLayer({ id: 'weather-glow', type: 'circle', source: 'weather', paint: {
@@ -841,9 +869,9 @@ function OsirisMap({
         type: 'line',
         source: 'submarine-cables',
         paint: {
-          'line-color': '#00E5FF',
-          'line-width': 4,
-          'line-opacity': 0.2,
+          'line-color': ['match', ['get', 'category'], 'CRITICAL_DEFENSE', '#FF1744', '#00E5FF'],
+          'line-width': ['match', ['get', 'priority'], 'CRITICAL_DEFENSE', 7, 'HIGH', 5, 2.5],
+          'line-opacity': 0.25,
           'line-blur': 2,
         }
       });
@@ -853,8 +881,8 @@ function OsirisMap({
         source: 'submarine-cables',
         paint: {
           'line-color': ['match', ['get', 'category'], 'CRITICAL_DEFENSE', '#FF1744', 'ENERGY_INTERCONNECT', '#FFD700', '#00E5FF'],
-          'line-width': 1.6,
-          'line-opacity': 0.85,
+          'line-width': ['match', ['get', 'priority'], 'CRITICAL_DEFENSE', 4, 'HIGH', 3.2, 1.4],
+          'line-opacity': 0.9,
         }
       });
       map.addLayer({
@@ -876,6 +904,51 @@ function OsirisMap({
           'text-halo-color': '#000000',
           'text-halo-width': 2,
           'text-opacity': 0.9,
+        }
+      });
+
+      // ══ SUBMARINE CABLES — LANDING POINTS ══
+      map.addLayer({
+        id: 'cable-landing-glow',
+        type: 'circle',
+        source: 'cable-landings',
+        paint: {
+          'circle-radius': ['case', ['boolean', ['get', 'is_korea'], false], 10, 6],
+          'circle-color': ['case', ['boolean', ['get', 'is_korea'], false], '#00E5FF', '#80DEEA'],
+          'circle-opacity': 0.25,
+          'circle-blur': 1,
+        }
+      });
+      map.addLayer({
+        id: 'cable-landing-dots',
+        type: 'circle',
+        source: 'cable-landings',
+        paint: {
+          'circle-radius': ['case', ['boolean', ['get', 'is_korea'], false], 5, 3.5],
+          'circle-color': ['case', ['boolean', ['get', 'is_korea'], false], '#00E5FF', '#26A69A'],
+          'circle-opacity': 0.95,
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#FFFFFF',
+          'circle-stroke-opacity': 0.8,
+        }
+      });
+      map.addLayer({
+        id: 'cable-landing-label',
+        type: 'symbol',
+        source: 'cable-landings',
+        minzoom: 5,
+        layout: {
+          'text-field': ['get', 'name'],
+          'text-size': 10,
+          'text-font': ['Open Sans Bold'],
+          'text-offset': [0, 1.6],
+          'text-allow-overlap': false,
+        },
+        paint: {
+          'text-color': ['case', ['boolean', ['get', 'is_korea'], false], '#00E5FF', '#80DEEA'],
+          'text-halo-color': '#000000',
+          'text-halo-width': 2,
+          'text-opacity': 0.95,
         }
       });
 
@@ -2291,30 +2364,83 @@ function OsirisMap({
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
       const sevColor = (p.severity || 5) >= 8 ? '#FF1744' : (p.severity || 5) >= 6 ? '#FF6D00' : '#FFD600';
-      const sevLabel = (p.severity || 5) >= 8 ? 'CRITICAL' : (p.severity || 5) >= 6 ? 'HIGH' : 'MEDIUM';
-      popup(coords, `<div style="${pStyle}border:1px solid ${sevColor}40;box-shadow:inset 0 0 20px ${sevColor}10, 0 0 15px ${sevColor}15;">
-        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid ${sevColor}30;padding-bottom:6px;margin-bottom:8px;">
+      const sevLabel = (p.severity || 5) >= 8 ? 'CRITICAL 치명적 공격' : (p.severity || 5) >= 6 ? 'HIGH 고위험' : 'MEDIUM 주의';
+      const countryDisplay = p.target_country_name ? `${p.target_country_name} (${p.target_country})` : (p.target_country || '—');
+      const timeStr = p.timestamp ? (p.timestamp.includes('T') ? p.timestamp.replace('T', ' ').slice(0, 19) + ' UTC' : p.timestamp) : '실시간 실측 중';
+      popup(coords, `<div style="${pStyle}border:1.5px solid ${sevColor};box-shadow:inset 0 0 20px ${sevColor}20, 0 0 15px ${sevColor}30;min-width:320px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid ${sevColor}40;padding-bottom:6px;margin-bottom:8px;">
           <div style="color:${sevColor};font-size:12px;font-weight:700;letter-spacing:0.12em;text-shadow:0 0 6px ${sevColor}60;">⚡ ${htmlEsc((p.action || 'ATTACK').toUpperCase())}</div>
-          <div style="font-size:8px;padding:2px 6px;border-radius:3px;font-weight:700;letter-spacing:0.1em;background:${sevColor}20;color:${sevColor};border:1px solid ${sevColor}50;">${sevLabel}</div>
+          <div style="font-size:9px;padding:2px 8px;border-radius:4px;font-weight:700;letter-spacing:0.05em;background:${sevColor}25;color:${sevColor};border:1px solid ${sevColor}60;">${sevLabel}</div>
         </div>
-        <div style="color:#E8E6E0;font-size:11px;font-weight:bold;margin-bottom:10px;">${htmlEsc(p.malware || 'Unknown Payload')}</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:8px;background:rgba(0,0,0,0.35);padding:8px;border-radius:4px;border:1px solid rgba(255,255,255,0.04);">
-          <div><span style="color:#5C5A54;font-size:7px;letter-spacing:0.1em;">SOURCE ORIGIN</span><br/><span style="color:#FF5252;font-family:monospace;">${p.src_lat || '?'}°, ${p.src_lng || '?'}°</span></div>
-          <div><span style="color:#5C5A54;font-size:7px;letter-spacing:0.1em;">TARGET</span><br/><span style="color:#00E5FF;font-family:monospace;">${htmlEsc(p.target_ip || '—')}</span></div>
-          <div><span style="color:#5C5A54;font-size:7px;letter-spacing:0.1em;">TARGET COUNTRY</span><br/><span style="color:#E8E6E0;">${htmlEsc(p.target_country || '—')}</span></div>
-          <div><span style="color:#5C5A54;font-size:7px;letter-spacing:0.1em;">PORT</span><br/><span style="color:#FFD600;font-family:monospace;">${p.port || '—'}</span></div>
+        <div style="color:#FFF;font-size:13px;font-weight:bold;margin-bottom:6px;letter-spacing:0.05em;">${htmlEsc(p.malware || 'Unknown Payload')}</div>
+        <div style="background:rgba(255,23,68,0.08);border-left:3px solid ${sevColor};padding:6px 8px;border-radius:0 4px 4px 0;margin-bottom:8px;font-size:9.5px;color:#FFCDD2;line-height:1.4;">
+          <strong>공격 효과:</strong> ${htmlEsc(p.effect || '시스템 침투 및 내부 기밀 유출 시도')}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:8px;background:rgba(0,0,0,0.4);padding:8px;border-radius:4px;border:1px solid rgba(255,255,255,0.06);">
+          <div><span style="color:#888;font-size:7.5px;letter-spacing:0.1em;">공격 발원지</span><br/><span style="color:#FF5252;font-family:monospace;font-weight:bold;">${p.src_lat || '?'}°, ${p.src_lng || '?'}°</span></div>
+          <div><span style="color:#888;font-size:7.5px;letter-spacing:0.1em;">타겟 IP / 포트</span><br/><span style="color:#00E5FF;font-family:monospace;">${htmlEsc(p.target_ip || '—')}:${p.port || '443'}</span></div>
+          <div><span style="color:#888;font-size:7.5px;letter-spacing:0.1em;">피격 대상국</span><br/><span style="color:#FFF;font-weight:bold;">${htmlEsc(countryDisplay)}</span></div>
+          <div><span style="color:#888;font-size:7.5px;letter-spacing:0.1em;">탐지 시간</span><br/><span style="color:#FFD54F;font-family:monospace;font-size:8px;">${htmlEsc(timeStr)}</span></div>
         </div>
         <div style="display:flex;gap:6px;align-items:center;">
-          <div style="flex:1;height:3px;border-radius:2px;background:linear-gradient(90deg, ${sevColor}00, ${sevColor});opacity:0.5;"></div>
-          <span style="font-size:7px;color:#5C5A54;letter-spacing:0.15em;">SEVERITY ${p.severity || '?'}/10</span>
-          <div style="flex:1;height:3px;border-radius:2px;background:linear-gradient(90deg, ${sevColor}, ${sevColor}00);opacity:0.5;"></div>
+          <div style="flex:1;height:4px;border-radius:2px;background:linear-gradient(90deg, ${sevColor}00, ${sevColor});"></div>
+          <span style="font-size:8px;color:#AAA;letter-spacing:0.15em;font-weight:bold;">심각도 ${p.severity || '?'}/10</span>
+          <div style="flex:1;height:4px;border-radius:2px;background:linear-gradient(90deg, ${sevColor}, ${sevColor}00);"></div>
         </div>
-        <div style="margin-top:8px;font-size:7px;color:#5C5A54;text-align:center;letter-spacing:0.1em;">SOURCE: ABUSE.CH FEODO TRACKER</div>
+        <div style="margin-top:8px;font-size:7.5px;color:#666;text-align:center;letter-spacing:0.05em;">출처: abuse.ch Feodo Tracker 글로벌 C2 교차 검증</div>
+      </div>`);
+    });
+
+    // 📡 GPS Jamming Click Popup (Center, Zone, and Source Emitter)
+    const handleGpsClick = (e: any) => {
+      if (!e.features?.length) return;
+      const p = e.features[0].properties as any;
+      const coords = e.lngLat ? [e.lngLat.lng, e.lngLat.lat] : (e.features[0].geometry?.coordinates || [125.8, 37.6]);
+      const isSpoof = (p.type || '').toUpperCase() === 'SPOOFING';
+      const themeColor = isSpoof ? '#FF6D00' : '#FF1744';
+      popup(coords, `<div style="${pStyle}border:1.5px solid ${themeColor};background:rgba(18,6,6,0.96);max-width:340px;box-shadow:0 0 20px ${themeColor}30;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;border-bottom:1px solid ${themeColor}40;padding-bottom:5px;">
+          <span style="color:${themeColor};font-size:12px;font-weight:bold;letter-spacing:0.08em;">🚨 GPS 전파 교란 [${htmlEsc(p.type || 'JAMMING')}]</span>
+          <span style="color:#FFF;font-size:8.5px;background:${themeColor}30;border:1px solid ${themeColor}70;padding:1px 6px;border-radius:3px;font-weight:bold;">실시간 경보</span>
+        </div>
+        <div style="font-size:11px;color:#FFF;font-weight:bold;margin-bottom:6px;">${htmlEsc(p.zone_name || p.source_label || '접경 전파 교란 구역')}</div>
+        <div style="font-size:9.5px;color:#CCC;line-height:1.5;margin-bottom:8px;">
+          <div>방사원(발원지): <span style="color:#FF5252;font-weight:bold;">${htmlEsc(p.source_label || '북한 옹진반도/개풍군 해안')}</span></div>
+          <div>교란 유형: <span style="color:${themeColor};font-weight:bold;">${isSpoof ? '위치 기만 (SPOOFING - 가짜 신호로 유인)' : '광대역 잡음 방사 (JAMMING - 수신 마비)'}</span></div>
+          <div>피격 주파수: <span style="color:#FFD740;font-family:monospace;">${htmlEsc(p.freq || 'GPS L1 (1575.42 MHz)')}</span></div>
+          <div>영향 반경: <span style="color:#FFF;font-weight:bold;">${p.radius_km || 18.5} km</span></div>
+        </div>
+        <div style="background:rgba(255,23,68,0.12);padding:6px;border-radius:4px;border:1px solid ${themeColor}40;font-size:8.5px;color:#FFCDD2;line-height:1.4;">
+          ⚠️ <strong>작전 대응 지침:</strong> 반경 내 비인가 드론 비행 금지. 수신 불량 시 즉시 RTH(자동복귀) 및 수동 조종 전환 요망.
+        </div>
+      </div>`);
+    };
+    map.on('click', 'jam-fill', handleGpsClick);
+    map.on('click', 'jam-source-dot', handleGpsClick);
+    map.on('click', 'jam-zone-fill', handleGpsClick);
+
+    // ⚓ Submarine Cable Landings Click Popup
+    map.on('click', 'cable-landing-dots', (e: any) => {
+      const p = e.features?.[0]?.properties;
+      if (!p) return;
+      const coords = (e.features![0].geometry as any).coordinates;
+      popup(coords, `<div style="${pStyle}border:1.5px solid #00E5FF;background:rgba(5,15,20,0.96);max-width:320px;box-shadow:0 0 15px rgba(0,229,255,0.25);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;border-bottom:1px solid rgba(0,229,255,0.3);padding-bottom:4px;">
+          <span style="color:#00E5FF;font-size:12px;font-weight:bold;">⚓ 해저 광케이블 상륙국 (CLS)</span>
+          <span style="color:#80DEEA;font-size:9px;font-family:monospace;background:rgba(0,229,255,0.15);padding:1px 6px;border-radius:3px;">${p.is_korea ? '대한민국 기간망' : '글로벌 접속점'}</span>
+        </div>
+        <div style="font-size:12px;color:#FFF;font-weight:bold;margin-bottom:6px;">${htmlEsc(p.name || '해저 케이블 상륙국')}</div>
+        <div style="font-size:9px;color:#AAA;line-height:1.6;margin-bottom:6px;">
+          <div>접속 케이블 수: <span style="color:#FFD740;font-weight:bold;">${p.cable_count || 1}개 회선 연결</span></div>
+          <div>위치 좌표: <span style="color:#EEE;font-family:monospace;">${coords[1].toFixed(4)}°N, ${coords[0].toFixed(4)}°E</span></div>
+          <div>보안 등급: <span style="color:${p.is_korea ? '#FF5252' : '#00E5FF'};font-weight:bold;">${p.is_korea ? '국가 1급 통신 기반시설' : '국제 통신 기간점'}</span></div>
+          <div>물리적 감시: <span style="color:#00E676;">24/7 연안 사보타주 및 닻 투하 자동 탐지망 가동</span></div>
+        </div>
       </div>`);
     });
 
     // ── Generic hover for clickables ──
-    ['conflict-icons','cctv-dots','cctv-label','cctv-glow','eq-circles','sat-dots','fires-heat','gdelt-dots','weather-dots','infra-dots','maritime-dots','choke-dots','news-dots','sigint-news-dots','balloon-dots','rad-dots','ship-icons','ship-dots','ship-glow','sweep-device-dots','scan-targets-dots','sdk-sea','sdk-sea-glow','sdk-sea-atmo','sdk-air','sdk-air-glow','sdk-air-atmo','sdk-intel','sdk-intel-glow','sdk-intel-atmo','malware-dots','cyber-heads','dprk-sites-dots','dprk-activity-dots','seismic-nuclear-dots'].forEach((layer: string) => {
+    ['conflict-icons','cctv-dots','cctv-label','cctv-glow','eq-circles','sat-dots','fires-heat','gdelt-dots','weather-dots','infra-dots','maritime-dots','choke-dots','news-dots','sigint-news-dots','balloon-dots','rad-dots','ship-icons','ship-dots','ship-glow','sweep-device-dots','scan-targets-dots','sdk-sea','sdk-sea-glow','sdk-sea-atmo','sdk-air','sdk-air-glow','sdk-air-atmo','sdk-intel','sdk-intel-glow','sdk-intel-atmo','malware-dots','cyber-heads','dprk-sites-dots','dprk-activity-dots','seismic-nuclear-dots','cable-landing-dots','jam-fill','jam-source-dot','jam-zone-fill'].forEach((layer: string) => {
       map.on('mouseenter', layer, () => { map.getCanvas().style.cursor = 'pointer'; });
       map.on('mouseleave', layer, () => { map.getCanvas().style.cursor = ''; });
     });
@@ -3791,26 +3917,37 @@ function getVideoAnalysisKeyframe(p: any): string {
     const lines: any[] = [];
 
     for (const a of attacks) {
+      const sevCol = a.severity_color || (a.severity >= 9 ? '#FF1744' : a.severity >= 7 ? '#FF6D00' : '#FFD600');
       dots.push({
         type: 'Feature',
         geometry: { type: 'Point', coordinates: [a.dst_lng, a.dst_lat] },
         properties: {
-          malware: a.malware, action: a.action, target_ip: a.target_ip,
-          target_country: a.target_country, port: a.port, severity: a.severity,
+          malware: a.malware,
+          action: a.action,
+          target_ip: a.target_ip,
+          target_country: a.target_country,
+          target_country_name: a.target_country_name || a.target_country || 'Unknown',
+          port: a.port,
+          severity: a.severity,
+          severity_color: sevCol,
+          effect: a.effect || '시스템 침투 및 내부 데이터 유출 시도',
+          timestamp: a.timestamp || new Date().toISOString(),
           status: a.status,
-          src_lat: a.src_lat.toFixed(2), src_lng: a.src_lng.toFixed(2),
-          dst_lat: a.dst_lat.toFixed(2), dst_lng: a.dst_lng.toFixed(2),
+          src_lat: typeof a.src_lat === 'number' ? a.src_lat.toFixed(2) : a.src_lat,
+          src_lng: typeof a.src_lng === 'number' ? a.src_lng.toFixed(2) : a.src_lng,
+          dst_lat: typeof a.dst_lat === 'number' ? a.dst_lat.toFixed(2) : a.dst_lat,
+          dst_lng: typeof a.dst_lng === 'number' ? a.dst_lng.toFixed(2) : a.dst_lng,
         },
       });
       srcGlows.push({
         type: 'Feature',
         geometry: { type: 'Point', coordinates: [a.src_lng, a.src_lat] },
-        properties: { severity: a.severity },
+        properties: { severity: a.severity, severity_color: sevCol },
       });
       lines.push({
         type: 'Feature',
         geometry: { type: 'LineString', coordinates: [[a.src_lng, a.src_lat], [a.dst_lng, a.dst_lat]] },
-        properties: { malware: a.malware, severity: a.severity },
+        properties: { malware: a.malware, severity: a.severity, severity_color: sevCol },
       });
     }
 
@@ -3854,7 +3991,39 @@ function getVideoAnalysisKeyframe(p: any): string {
 
   useEffect(() => {
     if (!mapReady) return;
-    setGeo('gps-jamming', activeLayers.gps_jamming && data.gps_jamming ? data.gps_jamming.map((z: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [z.lng, z.lat] }, properties: { severity: z.severity } })) : []);
+    const jams = activeLayers.gps_jamming && data.gps_jamming ? data.gps_jamming : [];
+
+    // (1) Target center points (existing gps-jamming source)
+    setGeo('gps-jamming', jams.map((z: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [z.center_lng || z.lng, z.center_lat || z.lat] }, properties: { severity: z.severity || z.threat_level, type: z.type || 'JAMMING', freq: (z.jammed_frequencies || [])[0] || 'GPS L1' } })));
+
+    // (2) Affected radius zones — generate circle polygons
+    const zones: any[] = [];
+    const arrows: any[] = [];
+    const sources: any[] = [];
+    for (const z of jams) {
+      const cLat = z.center_lat || z.lat;
+      const cLng = z.center_lng || z.lng;
+      const r = z.affected_radius_km || 15;
+      // Generate 64-point circle polygon (no turf dependency)
+      const pts = 64;
+      const coords: [number, number][] = [];
+      for (let i = 0; i <= pts; i++) {
+        const angle = (i / pts) * 2 * Math.PI;
+        const dLat = (r / 111.32) * Math.cos(angle);
+        const dLng = (r / (111.32 * Math.cos(cLat * Math.PI / 180))) * Math.sin(angle);
+        coords.push([cLng + dLng, cLat + dLat]);
+      }
+      zones.push({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] }, properties: { type: z.type || 'JAMMING', radius_km: r, zone_name: z.zone_name || '' } });
+
+      // (3) Source→Target arrow (if source coordinates exist)
+      if (z.source_lat && z.source_lng) {
+        arrows.push({ type: 'Feature', geometry: { type: 'LineString', coordinates: [[z.source_lng, z.source_lat], [cLng, cLat]] }, properties: { type: z.type || 'JAMMING' } });
+        sources.push({ type: 'Feature', geometry: { type: 'Point', coordinates: [z.source_lng, z.source_lat] }, properties: { source_label: z.source_label || z.source_origin || '방사원' } });
+      }
+    }
+    setGeo('gps-jam-zones', zones);
+    setGeo('gps-jam-arrows', arrows);
+    setGeo('gps-jam-sources', sources);
   }, [mapReady, data.gps_jamming, activeLayers.gps_jamming, setGeo]);
 
   useEffect(() => {
@@ -4008,11 +4177,49 @@ function getVideoAnalysisKeyframe(p: any): string {
     setGeo('notam-hazards', activeLayers.notam_hazards && data.notam_geojson ? data.notam_geojson.features : []);
   }, [mapReady, data.notam_geojson, activeLayers.notam_hazards, setGeo]);
 
-  // Submarine cables
+  // Submarine cables & Landing Points
   useEffect(() => {
     if (!mapReady) return;
-    setGeo('submarine-cables', (activeLayers.submarine_cables || activeLayers.cables) && data.cables_geojson ? data.cables_geojson.features : []);
-  }, [mapReady, data.cables_geojson, activeLayers.submarine_cables, activeLayers.cables, setGeo]);
+    const isCablesActive = Boolean(activeLayers.submarine_cables || activeLayers.cables);
+    setGeo('submarine-cables', isCablesActive && data.cables_geojson ? data.cables_geojson.features : []);
+
+    if (isCablesActive) {
+      if (data.cable_landings_geojson?.features?.length) {
+        setGeo('cable-landings', data.cable_landings_geojson.features);
+      } else if (data.cables_geojson?.features) {
+        const landings: any[] = [];
+        const seen = new Set<string>();
+        for (const f of data.cables_geojson.features) {
+          const coords = f.geometry?.coordinates;
+          if (coords?.length >= 2) {
+            for (const pt of [coords[0], coords[coords.length - 1]]) {
+              if (Array.isArray(pt) && typeof pt[0] === 'number') {
+                const k = `${pt[0].toFixed(2)},${pt[1].toFixed(2)}`;
+                if (!seen.has(k)) {
+                  seen.add(k);
+                  const isKr = pt[1] >= 33 && pt[1] <= 39 && pt[0] >= 125 && pt[0] <= 130;
+                  landings.push({
+                    type: 'Feature',
+                    geometry: { type: 'Point', coordinates: pt },
+                    properties: {
+                      name: isKr ? '한국 해저 광케이블 상륙국' : `${(f.properties?.name || 'CLS').split(' ')[0]} 상륙국`,
+                      is_korea: isKr,
+                      cable_count: 1,
+                    }
+                  });
+                }
+              }
+            }
+          }
+        }
+        setGeo('cable-landings', landings);
+      } else {
+        setGeo('cable-landings', []);
+      }
+    } else {
+      setGeo('cable-landings', []);
+    }
+  }, [mapReady, data.cables_geojson, data.cable_landings_geojson, activeLayers.submarine_cables, activeLayers.cables, setGeo]);
 
   // Dark Fleet kinetic bubbles
   useEffect(() => {
@@ -4164,7 +4371,7 @@ function getVideoAnalysisKeyframe(p: any): string {
     setVis(['malware-glow','malware-dots','malware-label'], activeLayers.malware);
     setVis(['network-mesh-atmo', 'network-mesh-glow', 'network-mesh-core'], activeLayers.internet_outages || activeLayers.malware);
     setVis(['cyber-arcs-atmo','cyber-arcs-glow','cyber-arcs-core','cyber-arcs-flow','cyber-heads','cyber-impacts','cyber-labels'], (activeLayers as any).cyber_attacks);
-    setVis(['jam-fill','jam-label'], activeLayers.gps_jamming);
+    setVis(['jam-fill','jam-label','jam-zone-fill','jam-zone-border','jam-arrow-glow','jam-arrow','jam-source-dot'], activeLayers.gps_jamming);
     setVis(['day-night-fill'], activeLayers.day_night);
     setVis(['fl-commercial'], activeLayers.flights);
     setVis(['fl-private'], activeLayers.private);
@@ -4199,7 +4406,7 @@ function getVideoAnalysisKeyframe(p: any): string {
 
     // NOTAM, Cables, Dark Fleet layers
     setVis(['notam-hazards-fill', 'notam-hazards-line', 'notam-hazards-label'], activeLayers.notam_hazards);
-    setVis(['submarine-cables-glow', 'submarine-cables-line', 'submarine-cables-label'], activeLayers.submarine_cables || activeLayers.cables);
+    setVis(['submarine-cables-glow', 'submarine-cables-line', 'submarine-cables-label', 'cable-landing-glow', 'cable-landing-dots', 'cable-landing-label'], activeLayers.submarine_cables || activeLayers.cables);
     setVis(['dark-fleet-bubble-fill', 'dark-fleet-bubble-line', 'dark-fleet-dots', 'dark-fleet-label'], activeLayers.dark_fleet);
     setVis(['radio-stations-circle', 'radio-stations-label'], activeLayers.radio);
     setVis(['alpr-checkpoints-circle', 'alpr-checkpoints-label'], activeLayers.alpr);
