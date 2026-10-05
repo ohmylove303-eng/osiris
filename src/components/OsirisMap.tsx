@@ -2254,28 +2254,49 @@ function OsirisMap({
       </div>`);
     });
 
-    // ── Malware Threats (Abuse.ch) ──
+    // ── Malware Threats (Abuse.ch & Real-time C2 Botnets) ──
     map.on('click', 'malware-dots', (e: any) => {
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
       const tType = (p.threat_type || 'MALWARE').toUpperCase();
       const statusColor = p.status === 'online' ? '#39FF14' : '#FF1744';
+      const isOnline = p.status === 'online';
+      const malwareName = p.malware || 'Mozi IoT 봇넷';
       
-      popup(coords, `<div style="${pStyle}border:1px solid rgba(255,23,68,0.4);box-shadow:inset 0 0 12px rgba(255,23,68,0.1);">
+      popup(coords, `<div style="${pStyle}border:1.5px solid #FF1744;box-shadow:inset 0 0 15px rgba(255,23,68,0.2), 0 0 20px rgba(255,23,68,0.3);max-width:340px;">
         <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,23,68,0.3);padding-bottom:6px;margin-bottom:8px;">
-          <div style="color:#FF1744;font-size:12px;font-weight:700;letter-spacing:0.1em;text-shadow:0 0 4px rgba(255,23,68,0.5);">[ ${htmlEsc(tType)} ]</div>
-          <div style="color:#5C5A54;font-size:9px;">${htmlEsc(p.country || 'UNKNOWN')}</div>
+          <div style="color:#FF1744;font-size:12px;font-weight:700;letter-spacing:0.08em;text-shadow:0 0 6px rgba(255,23,68,0.6);">🚨 [ 악성 봇넷 / C2 노드 ]</div>
+          <div style="font-size:8.5px;padding:2px 6px;border-radius:3px;font-weight:bold;background:${isOnline ? 'rgba(57,255,20,0.15)' : 'rgba(255,23,68,0.15)'};color:${statusColor};border:1px solid ${statusColor}50;">
+            ${isOnline ? '● 실시간 가동 중 (ONLINE)' : '○ 비활성 (OFFLINE)'}
+          </div>
         </div>
-        <div style="color:#E8E6E0;font-size:11px;font-weight:bold;margin-bottom:10px;">${htmlEsc(p.malware || 'Unidentified Threat Payload')}</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:12px;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;">
-          <div><span style="color:#5C5A54;">TARGET IP</span><br/><span style="color:#00E5FF;font-family:monospace;">${htmlEsc(p.ip)}</span></div>
-          <div><span style="color:#5C5A54;">STATUS</span><br/><span style="color:${statusColor};">${(p.status||'UNKNOWN').toUpperCase()}</span></div>
+        <div style="color:#FFF;font-size:13px;font-weight:bold;margin-bottom:6px;">${htmlEsc(malwareName)}</div>
+        <div style="font-size:9.5px;color:#FFCDD2;background:rgba(255,23,68,0.1);padding:6px 8px;border-radius:4px;border-left:3px solid #FF1744;margin-bottom:8px;line-height:1.4;">
+          공유기·IP카메라 취약점을 장악해 좀비 군단을 형성하고 악성코드를 배포하는 실제 C2 유포 거점입니다.
         </div>
-        <div style="display:flex;gap:6px;">
-          <a href="https://feodotracker.abuse.ch/browse/" target="_blank" style="${linkStyle}flex:1;text-align:center;color:#E8E6E0;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);">THREAT INTEL ↗</a>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:10px;background:rgba(0,0,0,0.4);padding:8px;border-radius:4px;border:1px solid rgba(255,255,255,0.06);">
+          <div><span style="color:#888;font-size:7.5px;">공격지 IP</span><br/><span style="color:#00E5FF;font-family:monospace;font-weight:bold;">${htmlEsc(p.ip)}</span></div>
+          <div><span style="color:#888;font-size:7.5px;">위치/국가</span><br/><span style="color:#FFF;font-weight:bold;">${htmlEsc(p.country || 'GLOBAL')}</span></div>
         </div>
-        <button onclick="window.openOsirisIntel({ type: 'ip', ip: '${idSafe(p.ip)}', threat_type: '${idSafe(p.malware || p.threat_type || '')}', status: '${idSafe(p.status || '')}' })" style="width:100%;margin-top:8px;padding:8px 12px;background:linear-gradient(90deg, rgba(255,23,68,0.1) 0%, rgba(255,23,68,0.2) 100%);border:1px solid rgba(255,23,68,0.6);color:#FF1744;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.15em;border-radius:4px;cursor:pointer;transition:all 0.2s;">DEEP DIVE ANALYTICS</button>
+
+        <!-- 🛡️ 현 위치/사용자 긴급 대응 조치 가이드 -->
+        <div style="background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.25);border-radius:4px;padding:8px;margin-bottom:10px;font-size:9px;color:#E0F7FA;line-height:1.5;">
+          <div style="color:#00E5FF;font-weight:bold;font-size:10px;margin-bottom:4px;display:flex;align-items:center;gap:4px;">
+            <span>🛡️ 사용자/관리자 현 위치 긴급 조치 요령</span>
+          </div>
+          <div style="margin-bottom:3px;">
+            <strong>1. 개인/가정:</strong> 공유기 및 홈캠 관리자 비밀번호 변경, 펌웨어 최신 업데이트, 외부 원격 관리 포트(8080/23/22) 끄기
+          </div>
+          <div>
+            <strong>2. 기업/네트워크:</strong> 방화벽 차단 목록에 해당 IP(<code>${htmlEsc(p.ip)}</code>) 즉시 등록(Drop) 및 사내 아웃바운드 접속 로그 감사
+          </div>
+        </div>
+
+        <div style="display:flex;gap:6px;margin-bottom:6px;">
+          <a href="https://urlhaus.abuse.ch/host/${idSafe(p.ip)}/" target="_blank" style="${linkStyle}flex:1;text-align:center;color:#E8E6E0;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);font-size:8.5px;">위협 인텔리전스 검증 ↗</a>
+        </div>
+        <button onclick="window.openOsirisIntel({ type: 'ip', ip: '${idSafe(p.ip)}', threat_type: '${idSafe(p.malware || p.threat_type || '')}', status: '${idSafe(p.status || '')}' })" style="width:100%;padding:8px 12px;background:linear-gradient(90deg, rgba(255,23,68,0.15) 0%, rgba(255,23,68,0.25) 100%);border:1px solid rgba(255,23,68,0.6);color:#FF1744;font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:bold;letter-spacing:0.1em;border-radius:4px;cursor:pointer;transition:all 0.2s;">OSINT 심층 IP 추적 분석</button>
       </div>`);
     });
 
