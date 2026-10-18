@@ -63,6 +63,7 @@ const TABS: ToolDef[] = [
   { id: 'threats', label: 'THREATS', icon: AlertTriangle, placeholder: 'IP, domain, or hash', color: '#FF9500', group: 'threat', blurb: 'Reputation across feeds' },
   { id: 'leaks', label: 'DATA LEAKS', icon: ShieldAlert, placeholder: 'Email address', color: '#E040FB', group: 'threat', blurb: 'Breach exposure for an address' },
   { id: 'infostealer', label: 'INFOSTEALER', icon: Skull, placeholder: 'Email, domain, username or phone', color: '#FF1744', group: 'threat', blurb: 'Hudson Rock malware-compromised assets' },
+  { id: 'ransomware', label: 'RANSOM LIVE', icon: Skull, placeholder: 'Filter group or company (leave blank for all)...', color: '#FF1744', group: 'threat', blurb: 'Ransomware.live active groups & disclosure feed' },
 
   { id: 'crypto', label: 'CHAIN INTEL', icon: Bitcoin, placeholder: 'BTC, ETH or SOL wallet address', color: '#F7931A', group: 'chain', blurb: 'Wallet forensics and daily brief' },
 ];
@@ -174,7 +175,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
     };
 
   const runLookup = useCallback(async () => {
-    if (!query.trim() || loading) return;
+    if ((!query.trim() && activeTab !== 'ransomware') || loading) return;
     setLoading(true); setError(''); setResults(null);
 
     // IP Sweep — separate flow (only for the sweep tab)
@@ -260,6 +261,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
         case 'phone': url = `/api/osint/phone?number=${encodeURIComponent(query)}`; break;
         case 'leaks': url = `https://api.xposedornot.com/v1/breach-analytics?email=${encodeURIComponent(query)}`; break;
         case 'infostealer': url = `/api/osint/hudsonrock?query=${encodeURIComponent(query)}`; break;
+        case 'ransomware': url = `/api/ransomware`; break;
         case 'crypto': url = `/api/osint/crypto?address=${encodeURIComponent(query)}`; break;
         case 'username': url = `/api/osint/username?username=${encodeURIComponent(query)}`; break;
         case 'github': url = `/api/osint/github?user=${encodeURIComponent(query)}`; break;
@@ -1132,6 +1134,73 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
             </div>
           )}
           <HudsonRockCredit />
+        </div>
+      );
+    }
+
+    // ── RANSOMWARE (ransomware.live) ──
+    if (activeTab === 'ransomware') {
+      const stats = r.stats || {};
+      const groups = stats.groups || [];
+      const features = r.features || [];
+      const filter = (query || '').toLowerCase().trim();
+      const filteredFeatures = filter
+        ? features.filter((f: any) => 
+            (f.properties?.victim || '').toLowerCase().includes(filter) ||
+            (f.properties?.group || '').toLowerCase().includes(filter) ||
+            (f.properties?.sector || '').toLowerCase().includes(filter) ||
+            (f.properties?.country || '').toLowerCase().includes(filter)
+          )
+        : features;
+
+      return (
+        <div>
+          <SectionHeader title="RANSOMWARE.LIVE INTELLIGENCE" icon={Skull} color="#FF1744" />
+          <div className="grid grid-cols-2 gap-1.5 mb-3">
+            <div className="p-2 rounded border border-[var(--border-secondary)]/30 bg-[var(--bg-tertiary)]/30">
+              <div className="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider">Geolocated Victims</div>
+              <div className="text-[15px] font-mono font-bold text-[#FF1744]">{stats.total_victims || features.length}</div>
+            </div>
+            <div className="p-2 rounded border border-[var(--border-secondary)]/30 bg-[var(--bg-tertiary)]/30">
+              <div className="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider">Active Threat Groups</div>
+              <div className="text-[15px] font-mono font-bold text-[#FF9500]">{stats.active_groups || groups.length}</div>
+            </div>
+          </div>
+
+          <div className="mb-3">
+            <div className="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider mb-1.5">Top Active Gangs (Recent Claims)</div>
+            <div className="flex flex-wrap gap-1">
+              {groups.slice(0, 12).map((g: any, idx: number) => (
+                <span key={idx} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#FF1744]/10 text-[#FF1744] border border-[#FF1744]/30">
+                  {g.name}: {g.victim_count}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider mb-1.5">
+            Recent Victim Disclosures {filter ? `(Filtering: "${filter}")` : ''}
+          </div>
+          <div className="space-y-1.5 max-h-[360px] overflow-y-auto pr-1">
+            {filteredFeatures.slice(0, 30).map((f: any, idx: number) => {
+              const p = f.properties || {};
+              return (
+                <div key={idx} className="p-2 rounded border border-[var(--border-secondary)]/30 bg-[var(--bg-tertiary)]/30">
+                  <div className="flex items-center justify-between gap-1 mb-1">
+                    <span className="text-[11px] font-mono font-bold text-[var(--text-primary)] break-all">{p.victim}</span>
+                    <span className="text-[9px] font-mono px-1 rounded bg-[#FF1744]/20 text-[#FF1744]">{p.group}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] font-mono text-[var(--text-muted)]">
+                    <span>{p.country || 'GLOBAL'} · {p.sector}</span>
+                    <span>{p.discovered}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-2 text-[9px] font-mono text-[var(--text-muted)] text-right">
+            Feed provided by ransomware.live · Live CC-BY OSINT
+          </div>
         </div>
       );
     }

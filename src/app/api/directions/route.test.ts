@@ -193,4 +193,10 @@ describe('buildCostingOptions', () => {
   it('sends nothing when nothing is avoided', () => {
     expect(buildCostingOptions('auto', {})).toEqual({});
   });
+
+  it('sets shortest flag when requested for road distance minimization', () => {
+    expect(buildCostingOptions('auto', {}, true)).toEqual({ auto: { shortest: true } });
+    expect(buildCostingOptions('auto', { tolls: true }, true)).toEqual({ auto: { use_tolls: 0, shortest: true } });
+  });
 });
+

@@ -68,9 +68,10 @@ export interface PresetMode {
 }
 
 export const PRESET_MODES: PresetMode[] = [
-  { id: 'standard', label: '기본 관제', icon: '🌍', desc: '항공·해상·CCTV·자연재해 기본 상황판', layers: ['flights', 'maritime', 'cctv', 'fires', 'earthquakes', 'day_night'] },
+  { id: 'standard', label: '통합 기본 관제', icon: '🌍', desc: '항공·해상·GPS교란·랜섬웨어·기온·CCTV 종합 상황판', layers: ['flights', 'maritime', 'gps_jamming', 'ransomware', 'temperature', 'cctv', 'fires', 'earthquakes', 'day_night'] },
+  { id: 'all_tactical', label: '🔥 전체 센서 전면 가동 (ALL ON)', icon: '⚡', desc: '항공·해상·GPS교란·랜섬웨어·기온·위성·사이버·CCTV 모든 센서 총가동', layers: ['flights', 'military', 'jets', 'maritime', 'dark_fleet', 'gps_jamming', 'ransomware', 'temperature', 'satellites', 'sat_military', 'dprk_sites', 'cctv', 'earthquakes', 'fires', 'infrastructure', 'cyber_attacks', 'day_night'] },
   { id: 'tactical', label: '군사 전술', icon: '⚔️', desc: '피아식별·GPS교란·북한위협·NLL분계선', layers: ['military', 'dprk_sites', 'gps_jamming', 'military_demarcation', 'dark_fleet', 'notam_hazards'] },
-  { id: 'cyber', label: '사이버·인프라', icon: '🌐', desc: '사이버공격·해저광케이블·원전·통신망', layers: ['cyber_attacks', 'submarine_cables', 'malware', 'infrastructure'] },
+  { id: 'cyber', label: '사이버·인프라', icon: '🌐', desc: '사이버공격·랜섬웨어·해저광케이블·원전·통신망', layers: ['cyber_attacks', 'ransomware', 'submarine_cables', 'malware', 'infrastructure'] },
   { id: 'space', label: '우주·저위도위성', icon: '📡', desc: '정찰위성·GPS항법·지구관측 저위도 궤도', layers: ['sat_military', 'sat_navigation', 'sat_earth'] },
   { id: 'all', label: '전체 레이어', icon: '🔎', desc: '모든 레이어 세부 제어', layers: null },
 ];
@@ -104,6 +105,7 @@ const LAYER_GROUPS: LayerGroupDef[] = [
     icon: Satellite,
     layers: [
       { key: 'satellites', label: '전체 저위도 위성 (All Low-Lat Satellites)', description: '위도 60도 이하 저위도 상공 실시간 운용 위성', dataKey: 'satellites' },
+      { key: 'sat_high_lat', label: '고위도 / 극궤도 위성 (High-Lat / Polar)', description: '극궤도 및 위도 60도 이상 관측 위성 (필요시 표시)', dataKey: '' },
       { key: 'sat_comms', label: '스타링크 통신위성 (Starlink / Comms)', description: '스페이스X 초고속 저궤도 통신망', dataKey: 'satellites', catKey: 'comms' },
       { key: 'sat_military', label: '정찰 / 군사위성 (Military / Intel)', description: '미·중·러 군사 첩보/정찰 및 조기경보 위성', dataKey: 'satellites', catKey: 'military' },
       { key: 'sat_navigation', label: 'GPS / 항법위성 (GPS / Navigation)', description: 'GPS, GLONASS, Galileo 전 세계 항법위성', dataKey: 'satellites', catKey: 'navigation' },
@@ -132,6 +134,7 @@ const LAYER_GROUPS: LayerGroupDef[] = [
     icon: Network,
     layers: [
       { key: 'cyber_attacks', label: '⚡ 실시간 사이버 침투 공격 (Live Cyber Attacks)', description: '글로벌 악성 C2 침투 공격선 및 피격 대상국 실시간 추적', dataKey: 'cyber_attacks' },
+      { key: 'ransomware', label: '💀 실시간 랜섬웨어 피해 기업 (Ransomware Victims)', description: '전 세계 500개 피해 기업 지오로케이션 및 61개 랜섬웨어 갱단', dataKey: 'ransomware' },
       { key: 'submarine_cables', label: '🌐 해저 광케이블 & 상륙국 (Submarine Cables & CLS)', description: '부산/거제/제주 해저 광케이블 기간망 및 사보타주 감시', dataKey: 'cables_hazards' },
       { key: 'malware', label: 'Live 악성 봇넷 노드 (Malware Nodes)', description: '전 세계 활성 C2 서버 및 봇넷 감염 IP', dataKey: 'malware_threats' },
     ],
@@ -143,6 +146,7 @@ const LAYER_GROUPS: LayerGroupDef[] = [
     layers: [
       { key: 'cctv', label: 'CCTV 실시간 감시 카메라', description: '전국 주요 고속도로·국도·항만 실시간 영상', dataKey: 'cameras' },
       { key: 'cctv_previews', label: '지도 상 실시간 비디오 프리뷰', description: '줌 13+ 최근접 카메라 팝업 영상', dataKey: '', parent: 'cctv' },
+      { key: 'its_incidents', label: '🚨 국토부 ITS 실시간 돌발·사고 관제', description: '경부선·서해안선·순환선·올림픽대로 실시간 사고/공사/정체', dataKey: 'its_incidents' },
       { key: 'live_news', label: '실시간 뉴스 피드', description: '연합뉴스·BBC·로이터 주요 속보 피드', dataKey: 'live_feeds' },
       { key: 'radio', label: '전략 라디오 방송국 스트림 (Radio)', description: '대북 방송 및 긴급 재난 라디오 주파수', dataKey: 'radio_stations' },
       { key: 'alpr', label: 'ALPR 차량 번호판 감시국 & 보안 검문소', description: '주요 간선도로 및 접경지 차량 판독소', dataKey: 'alpr_checkpoints' },
@@ -155,6 +159,7 @@ const LAYER_GROUPS: LayerGroupDef[] = [
     layers: [
       { key: 'earthquakes', label: '실시간 지진 (Earthquakes)', description: 'USGS 실시간 전 세계 지진 진앙 및 규모', dataKey: 'earthquakes' },
       { key: 'fires', label: '열원 / 산불 (Active Fires)', description: 'NASA 위성 탐지 실시간 산불 및 고열원', dataKey: 'fires' },
+      { key: 'temperature', label: '🌡️ 전 세계 실시간 기온/해수면 수온 (Global Temperature)', description: 'Open-Meteo & NASA GIBS 실시간 지표/해수면 온도 필드', dataKey: 'temperature' },
       { key: 'weather', label: '기상 특보 (Severe Weather)', description: '태풍·폭설·한파 등 실시간 기상 재난', dataKey: 'weather_events' },
     ],
   },
@@ -169,8 +174,8 @@ const LAYER_GROUPS: LayerGroupDef[] = [
     ],
   },
   {
-    label: "GOD'S EYE",
-    fullLabel: "신의 눈 전술 시스템 (GOD'S EYE VIEW)",
+    label: "LIGHTNING EYE",
+    fullLabel: "번개의 눈동자 전술 시스템 (OSIRIS × 신의 눈)",
     icon: Crosshair,
     layers: [
       { key: 'cockpit_view', label: '3인칭 콕핏 추적 모드 ([C])', description: '선택한 항공기/함정 시점 3D 추적 비행', dataKey: '' },
@@ -425,7 +430,7 @@ function LayerPanel({
                 );
               })}
               {group.label === 'DISPLAY' && terrainDetails}
-              {group.label === "GOD'S EYE" && onSetSensorMode && (
+              {(group.label === "LIGHTNING EYE" || group.label === "GOD'S EYE") && onSetSensorMode && (
                 <div className="mt-2.5 pt-2 border-t border-white/[0.08]">
                   <div className="text-[9px] font-mono text-[var(--gold-primary)] font-bold mb-1.5 tracking-wider flex items-center justify-between">
                     <span>광학 센서 필터 (1-7)</span>
@@ -738,7 +743,7 @@ function LayerPanel({
                         );
                       })}
                       {group.label === 'DISPLAY' && terrainDetails}
-                      {group.label === "GOD'S EYE" && onSetSensorMode && (
+                      {(group.label === "LIGHTNING EYE" || group.label === "GOD'S EYE") && onSetSensorMode && (
                         <div className="mt-2.5 pt-2 border-t border-white/[0.08]">
                           <div className="text-[9px] font-mono text-[var(--gold-primary)] font-bold mb-1.5 tracking-wider flex items-center justify-between">
                             <span>광학 센서 필터 (1-7)</span>

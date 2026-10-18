@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { httpJson, optional } from '@/lib/httpJson';
+import { ROAD_CORRIDORS } from '@/lib/road-cctv-corridors';
 
 export const maxDuration = 30;
 
@@ -96,6 +97,7 @@ export interface DirectionsResult {
   elevation?: ElevationPoint[];
   ascent?: number;
   descent?: number;
+  routeType?: 'fastest' | 'shortest' | 'alternate';
 }
 
 /** What the operator asked the router to keep off the route. */
@@ -322,12 +324,19 @@ function parsePoint(raw: string | null): { lat: number; lng: number } | null {
  * Valhalla expresses avoidance as a 0..1 preference rather than a hard ban, so
  * 0 means "only if there is no other way" — which is the behaviour a user
  * expects from an "avoid tolls" switch.
+ * When `shortest = true`, Valhalla prioritises physical road network distance
+ * over speed limits and road hierarchy.
  */
-export function buildCostingOptions(mode: TravelMode, avoid: AvoidOptions): Record<string, unknown> {
-  const o: Record<string, number> = {};
+export function buildCostingOptions(
+  mode: TravelMode,
+  avoid: AvoidOptions,
+  shortest = false,
+): Record<string, unknown> {
+  const o: Record<string, unknown> = {};
   if (avoid.tolls) o.use_tolls = 0;
   if (avoid.highways) o.use_highways = 0;
   if (avoid.ferries) o.use_ferry = 0;
+  if (shortest) o.shortest = true;
   return Object.keys(o).length ? { [mode]: o } : {};
 }
 
@@ -335,19 +344,51 @@ async function tryValhalla(
   points: Array<{ lat: number; lng: number }>,
   mode: TravelMode,
   avoid: AvoidOptions,
+  shortest = false,
 ): Promise<DirectionsResult[]> {
-  const costingOptions = buildCostingOptions(mode, avoid);
+  const costingOptions = buildCostingOptions(mode, avoid, shortest);
   const body = {
     locations: points.map((p) => ({ lat: p.lat, lon: p.lng })),
     costing: mode,
     ...(Object.keys(costingOptions).length ? { costing_options: costingOptions } : {}),
-    // Give the operator a choice the way a consumer mapping app does; the
-    // engine only returns these when the network genuinely offers one.
-    alternates: 2,
+    alternates: 1,
     directions_options: { units: 'kilometers', language: 'ko-KR' },
   };
   const url = `${VALHALLA}?json=${encodeURIComponent(JSON.stringify(body))}`;
-  return normalizeValhallaAll(await httpJson<ValhallaResponse>(url), mode);
+  const res = normalizeValhallaAll(await httpJson<ValhallaResponse>(url), mode);
+  return res.map((r, i) => ({
+    ...r,
+    routeType: i === 0 ? (shortest ? 'shortest' : 'fastest') : 'alternate',
+  }));
+}
+
+export function normalizeOsrmAll(json: OsrmResponse, mode: TravelMode, lang: 'en' | 'ko' = 'en'): DirectionsResult[] {
+  if (!json?.routes || !json.routes.length) return [];
+  const out: DirectionsResult[] = [];
+  for (const route of json.routes) {
+    if (!route?.geometry?.coordinates?.length) continue;
+    const steps: DirectionStep[] = [];
+    for (const leg of route.legs || []) {
+      for (const s of leg.steps || []) {
+        steps.push({
+          instruction: osrmInstruction(s, lang),
+          distance: s.distance || 0,
+          duration: s.duration || 0,
+          location: (s.maneuver?.location as [number, number]) || [0, 0],
+          type: s.maneuver?.modifier || s.maneuver?.type || 'straight',
+        });
+      }
+    }
+    out.push({
+      provider: 'osrm',
+      mode,
+      distance: route.distance || 0,
+      duration: route.duration || 0,
+      geometry: { type: 'LineString', coordinates: route.geometry.coordinates },
+      steps,
+    });
+  }
+  return out;
 }
 
 async function tryOsrm(
@@ -356,9 +397,8 @@ async function tryOsrm(
 ): Promise<DirectionsResult[]> {
   // The public OSRM demo only carries the driving profile.
   const coords = points.map((p) => `${p.lng},${p.lat}`).join(';');
-  const url = `${OSRM}/driving/${coords}?steps=true&overview=full&geometries=geojson`;
-  const r = normalizeOsrm(await httpJson<OsrmResponse>(url), mode, 'ko');
-  return r ? [r] : [];
+  const url = `${OSRM}/driving/${coords}?steps=true&overview=full&geometries=geojson&alternatives=true`;
+  return normalizeOsrmAll(await httpJson<OsrmResponse>(url), mode, 'ko');
 }
 
 /**
@@ -432,24 +472,74 @@ export async function GET(request: Request) {
 
     const points = [from, ...via, to];
 
-    // The public Valhalla demo intermittently refuses bursts, so give it one
-    // retry before falling back — otherwise walking/cycling (which OSRM's demo
-    // cannot serve) would fail on an entirely recoverable blip.
+    // Compute both:
+    // 1) Minimum Time (Fastest) — speed & road hierarchy optimized
+    // 2) Shortest Distance (Shortest) — physical distance minimized
     let routes: DirectionsResult[] = [];
-    for (let attempt = 0; attempt < 2 && routes.length === 0; attempt++) {
-      if (attempt > 0) await new Promise((r) => setTimeout(r, 400));
-      try {
-        routes = await tryValhalla(points, mode, avoid);
-      } catch {
-        routes = [];
+    let fastestRoute: DirectionsResult | null = null;
+    let shortestRoute: DirectionsResult | null = null;
+
+    try {
+      const [fastRes, shortRes] = await Promise.allSettled([
+        tryValhalla(points, mode, avoid, false),
+        tryValhalla(points, mode, avoid, true),
+      ]);
+
+      const fRoutes = fastRes.status === 'fulfilled' ? fastRes.value : [];
+      const sRoutes = shortRes.status === 'fulfilled' ? shortRes.value : [];
+
+      if (fRoutes.length > 0) {
+        fastestRoute = { ...fRoutes[0], routeType: 'fastest' };
       }
+      if (sRoutes.length > 0) {
+        shortestRoute = { ...sRoutes[0], routeType: 'shortest' };
+      }
+
+      const combined: DirectionsResult[] = [];
+      if (fastestRoute) combined.push(fastestRoute);
+
+      if (shortestRoute && fastestRoute) {
+        const distDiff = Math.abs(shortestRoute.distance - fastestRoute.distance);
+        const timeDiff = Math.abs(shortestRoute.duration - fastestRoute.duration);
+        // Add shortest as distinct route if distance or duration difference is noticeable
+        if (distDiff >= 30 || timeDiff >= 10) {
+          combined.push(shortestRoute);
+        }
+      } else if (shortestRoute && !fastestRoute) {
+        combined.push(shortestRoute);
+      }
+
+      // Add remaining alternates
+      for (const r of [...fRoutes.slice(1), ...sRoutes.slice(1)]) {
+        if (!combined.some((c) => Math.abs(c.distance - r.distance) < 20 && Math.abs(c.duration - r.duration) < 5)) {
+          combined.push({ ...r, routeType: 'alternate' });
+        }
+      }
+      routes = combined;
+    } catch {
+      routes = [];
     }
 
-    // OSRM has no walking/cycling profile on the demo server, so only fall back
-    // for driving — a car route served for a walking request would be wrong.
+    // OSRM fallback when Valhalla is unavailable (auto mode only)
     if (routes.length === 0 && mode === 'auto') {
       try {
-        routes = await tryOsrm(points, mode);
+        const osrmRoutes = await tryOsrm(points, mode);
+        if (osrmRoutes.length > 0) {
+          const sortedByTime = [...osrmRoutes].sort((a, b) => a.duration - b.duration);
+          const sortedByDist = [...osrmRoutes].sort((a, b) => a.distance - b.distance);
+          fastestRoute = { ...sortedByTime[0], routeType: 'fastest' };
+          shortestRoute = { ...sortedByDist[0], routeType: 'shortest' };
+
+          routes = [fastestRoute];
+          if (Math.abs(shortestRoute.distance - fastestRoute.distance) >= 30) {
+            routes.push(shortestRoute);
+          }
+          for (const r of osrmRoutes) {
+            if (!routes.some((x) => x.geometry === r.geometry)) {
+              routes.push({ ...r, routeType: 'alternate' });
+            }
+          }
+        }
       } catch {
         routes = [];
       }
@@ -468,9 +558,38 @@ export async function GET(request: Request) {
       if (profile) Object.assign(routes[0], profile);
     }
 
-    // `routes` is the full set, best first; the top-level fields mirror routes[0]
-    // so anything reading a single route still works.
-    return NextResponse.json({ ...routes[0], routes }, {
+    const primary = routes[0];
+    const comparison = fastestRoute && shortestRoute ? {
+      timeDiffSec: Math.round(shortestRoute.duration - fastestRoute.duration),
+      distDiffMeters: Math.round(fastestRoute.distance - shortestRoute.distance),
+    } : undefined;
+
+    // Match navigation route with national/local MOLIT road corridors
+    const routeCoords = primary.geometry.coordinates;
+    const matchedCorridors = ROAD_CORRIDORS.filter((corridor) => {
+      return corridor.cameras.some((cam) => {
+        return routeCoords.some(([lng, lat]) => {
+          return Math.abs(lng - cam.lng) < 0.0018 && Math.abs(lat - cam.lat) < 0.0018;
+        });
+      });
+    }).map((corridor) => ({
+      id: corridor.id,
+      label: corridor.label,
+      routeNumber: corridor.routeNumber,
+      categoryLabel: corridor.categoryLabel,
+      officialGazette: corridor.officialGazette,
+      cctvCount: corridor.cameras.length,
+      standardNodeLink: corridor.standardNodeLink,
+    }));
+
+    return NextResponse.json({
+      ...primary,
+      routes,
+      fastest: fastestRoute || primary,
+      shortest: shortestRoute || primary,
+      comparison,
+      matchedCorridors,
+    }, {
       headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' },
     });
   } catch (error) {

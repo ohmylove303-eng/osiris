@@ -49,8 +49,13 @@ function CockpitHudInner({ aircraft, sensorMode, visible, onExit }: CockpitHudPr
 
   return (
     <div data-cockpit-hud="true" className="fixed inset-0 pointer-events-none z-[6] cockpit-hud" aria-hidden="true">
+      {/* ── Top indicator guide ── */}
+      <div className="absolute top-2 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full text-[9px] font-mono tracking-wider text-white/80 bg-black/60 border border-white/15 backdrop-blur-md pointer-events-none shadow-lg">
+        <span className="text-amber-400 font-bold">[C]</span> 또는 <span className="text-amber-400 font-bold">[ESC]</span>: 항공뷰 종료 · <span className="text-amber-400 font-bold">[1~7]</span>: 센서 전환
+      </div>
+
       {/* ── Top center: Heading tape ── */}
-      <div className="absolute top-6 left-1/2 -translate-x-1/2 w-[280px] overflow-hidden">
+      <div className="absolute top-7 left-1/2 -translate-x-1/2 w-[280px] overflow-hidden">
         <div className="relative h-8 flex items-center justify-center">
           {headingMarks.map(m => (
             <div
@@ -79,7 +84,8 @@ function CockpitHudInner({ aircraft, sensorMode, visible, onExit }: CockpitHudPr
             }}
           />
         </div>
-        <div className="text-center mt-1">
+        <div className="text-center mt-0.5 flex items-center justify-center gap-1.5">
+          <span className="text-[8px] font-mono tracking-wider text-white/50">방위각</span>
           <span className="text-[13px] font-mono font-bold tabular-nums" style={{ color: hudColor }}>
             {heading.toString().padStart(3, '0')}°
           </span>
@@ -88,27 +94,29 @@ function CockpitHudInner({ aircraft, sensorMode, visible, onExit }: CockpitHudPr
 
       {/* ── Left: Airspeed ── */}
       <div className="absolute left-6 top-1/2 -translate-y-1/2">
-        <div className="space-y-2">
-          <div className="text-[8px] font-mono tracking-[0.2em]" style={{ color: `${hudColor}88` }}>
-            AIRSPEED
+        <div className="space-y-1.5 bg-black/40 backdrop-blur-sm p-2 rounded-lg border border-white/5">
+          <div className="text-[9px] font-mono tracking-wider flex items-center gap-1" style={{ color: `${hudColor}aa` }}>
+            <span className="font-bold">대기속도</span>
+            <span className="text-[7px] opacity-60 font-normal">AIRSPEED</span>
           </div>
           <div className="text-[22px] font-mono font-bold tabular-nums leading-none" style={{ color: hudColor }}>
             {speed}
           </div>
-          <div className="text-[9px] font-mono" style={{ color: `${hudColor}66` }}>KTS</div>
+          <div className="text-[9px] font-mono" style={{ color: `${hudColor}77` }}>KTS (노트)</div>
         </div>
       </div>
 
       {/* ── Right: Altitude ── */}
       <div className="absolute right-6 top-1/2 -translate-y-1/2 text-right">
-        <div className="space-y-2">
-          <div className="text-[8px] font-mono tracking-[0.2em]" style={{ color: `${hudColor}88` }}>
-            ALTITUDE
+        <div className="space-y-1.5 bg-black/40 backdrop-blur-sm p-2 rounded-lg border border-white/5">
+          <div className="text-[9px] font-mono tracking-wider flex items-center justify-end gap-1" style={{ color: `${hudColor}aa` }}>
+            <span className="text-[7px] opacity-60 font-normal">ALTITUDE</span>
+            <span className="font-bold">비행고도</span>
           </div>
           <div className="text-[22px] font-mono font-bold tabular-nums leading-none" style={{ color: hudColor }}>
             {altFt.toLocaleString()}
           </div>
-          <div className="text-[9px] font-mono" style={{ color: `${hudColor}66` }}>
+          <div className="text-[9px] font-mono" style={{ color: `${hudColor}77` }}>
             FT · {formatAltitude(aircraft.alt)}
           </div>
           {/* Vertical speed indicator */}
@@ -133,10 +141,10 @@ function CockpitHudInner({ aircraft, sensorMode, visible, onExit }: CockpitHudPr
 
       {/* ── Bottom center: Aircraft briefing & exit strip (God's Eye View specification) ── */}
       <div className="absolute bottom-12 left-1/2 -translate-x-1/2 text-center">
-        <div className="flex items-center gap-3 px-4 py-2 rounded-xl shadow-2xl"
+        <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl shadow-2xl"
           style={{
-            backgroundColor: 'rgba(4,8,20,0.85)',
-            border: `1px solid ${hudColor}44`,
+            backgroundColor: 'rgba(4,8,20,0.88)',
+            border: `1px solid ${hudColor}55`,
             backdropFilter: 'blur(16px)',
             boxShadow: `0 8px 32px rgba(0,0,0,0.7), 0 0 16px ${hudColor}22`,
           }}
@@ -165,10 +173,10 @@ function CockpitHudInner({ aircraft, sensorMode, visible, onExit }: CockpitHudPr
             <button
               type="button"
               onClick={onExit}
-              className="pointer-events-auto px-2.5 py-1.5 rounded-lg text-[9px] font-mono font-bold tracking-wider transition-all border border-red-500/60 bg-red-500/10 text-red-300 hover:bg-red-500/30 hover:text-white hover:border-red-400 cursor-pointer shadow-lg ml-2 active:scale-95"
+              className="pointer-events-auto px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold tracking-wider transition-all border border-red-500/70 bg-red-500/20 text-red-200 hover:bg-red-500/40 hover:text-white hover:border-red-400 cursor-pointer shadow-lg ml-3 active:scale-95 flex items-center gap-1"
               title="3인칭 콕핏 추적 종료 (단축키: C 또는 ESC)"
             >
-              [EXIT · C]
+              <span>[항공뷰 탈출 · C / ESC]</span>
             </button>
           )}
         </div>

@@ -67,5 +67,13 @@ public/influencer/*.mp4
 public/influencer/viral_raw/
 public/osiris_*.json
 merge_map.py
-
-
+# Python & local dev cache
+__pycache__/
+*.pyc
+.venv/
+.cache/
+public/*_screenshot.png
+public/*_verified.png
+public/*_audit.png
+public/*_live.png
+public/*_success.png

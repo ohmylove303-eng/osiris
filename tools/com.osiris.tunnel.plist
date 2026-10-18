@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.osiris.permanent-tunnel</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/ohmylove303naver.com/.local/bin/cloudflared</string>
+        <string>tunnel</string>
+        <string>run</string>
+        <string>--token</string>
+        <string>REPLACE_WITH_YOUR_TOKEN</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/ohmylove303naver.com/.gemini/antigravity/scratch/osiris/logs/launchd_tunnel.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/ohmylove303naver.com/.gemini/antigravity/scratch/osiris/logs/launchd_tunnel_error.log</string>
+</dict>
+</plist>

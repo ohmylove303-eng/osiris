@@ -2721,3 +2721,62 @@ input[type="range"]::-moz-range-thumb {
   border-radius: 4px;
   padding: 4px 8px;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   OSIRIS CCTV Corridor — Tactical Ripple & Holographic Levitating Effects
+   ═══════════════════════════════════════════════════════════════ */
+@keyframes cctv-ripple-rise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 28px, 0) scale(0.82);
+    filter: blur(2px);
+  }
+  60% {
+    opacity: 1;
+    transform: translate3d(0, -3px, 0) scale(1.02);
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0px);
+  }
+}
+
+@keyframes cctv-hologram-pulse {
+  0%, 100% {
+    box-shadow: 0 0 10px var(--cctv-accent, rgba(0, 229, 255, 0.35)), 0 6px 20px rgba(0, 0, 0, 0.85);
+  }
+  50% {
+    box-shadow: 0 0 24px var(--cctv-accent, rgba(0, 229, 255, 0.7)), 0 8px 32px rgba(0, 0, 0, 0.95);
+  }
+}
+
+@keyframes cctv-stem-grow {
+  0% {
+    opacity: 0;
+    transform: scaleY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+.cctv-ripple-tile {
+  animation: cctv-ripple-rise 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.cctv-hologram-glow {
+  animation: cctv-hologram-pulse 2.8s ease-in-out infinite;
+}
+
+.cctv-stem-down .cctv-stem-animated {
+  transform-origin: top center;
+  animation: cctv-stem-grow 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.cctv-stem-up .cctv-stem-animated {
+  transform-origin: bottom center;
+  animation: cctv-stem-grow 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}

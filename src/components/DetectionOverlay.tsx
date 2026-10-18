@@ -109,10 +109,10 @@ function DetectionOverlayInner({
       aria-hidden="true"
     >
       {/* Top indicator tag */}
-      <div className="absolute top-16 left-1/2 -translate-x-1/2 px-3 py-1 bg-black/60 backdrop-blur-md border border-[var(--gold-primary)]/30 rounded text-[10px] font-mono text-[var(--gold-primary)] tracking-widest flex items-center gap-2 pointer-events-auto shadow-lg">
+      <div className="absolute top-16 left-1/2 -translate-x-1/2 px-3 py-1 bg-black/75 backdrop-blur-md border border-[var(--gold-primary)]/40 rounded-full text-[10px] font-mono text-[var(--gold-primary)] tracking-wider flex items-center gap-2 pointer-events-auto shadow-xl">
         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-        <span>GOD&apos;S EYE DETECTION: {projected.length} TRACKS</span>
-        <span className="text-[var(--text-muted)] text-[9px]">(Press D to hide)</span>
+        <span className="font-bold">⚡ 표적 실시간 탐지: {projected.length}기 포착</span>
+        <span className="text-[var(--text-muted)] text-[9px] bg-white/10 px-1.5 py-0.5 rounded">[D] 키로 숨김</span>
       </div>
 
       {projected.map((t) => {
@@ -180,7 +180,7 @@ function DetectionOverlayInner({
                 <div className="flex items-center gap-1 font-bold">
                   <span className="px-1 rounded text-[8px] bg-white/10">{meta.code}</span>
                   <span className="tracking-wider">{t.label || t.id.slice(0, 6)}</span>
-                  {isSelected && <span className="text-[7px] text-amber-400 font-black">[LOCK]</span>}
+                  {isSelected && <span className="text-[7px] text-amber-400 font-black">[락온]</span>}
                 </div>
                 <div className="text-[8px] text-white/80 flex items-center gap-1.5 font-mono">
                   <span>{altStr}</span>
@@ -194,10 +194,10 @@ function DetectionOverlayInner({
                       e.stopPropagation();
                       onTrackCockpit(t);
                     }}
-                    className="mt-1 px-1.5 py-0.5 rounded text-[8px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/40 transition-colors pointer-events-auto text-center"
-                    title="이 기체 콕핏 추적 모드 진입"
+                    className="mt-1 px-2 py-0.8 rounded text-[9px] font-bold bg-amber-500/25 text-amber-300 border border-amber-500/50 hover:bg-amber-500/50 hover:text-white transition-all pointer-events-auto text-center shadow"
+                    title="이 기체 3인칭 항공뷰 추적 모드 탑승 (단축키: C)"
                   >
-                    CHASE [C] ✈
+                    ✈ [C] 3D 항공뷰 탑승
                   </button>
                 )}
               </div>

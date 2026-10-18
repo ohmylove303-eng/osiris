@@ -1,0 +1,33 @@
+# OSIRIS Vision Engine — Python Dependencies
+# Phase 1: Real-time CCTV Object Detection & Tracking
+
+# Core ML Framework
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Rank 1: Object Detection (YOLO26 NMS-free)
+ultralytics>=8.3.0
+
+# Rank 2: Multi-Object Tracking (ByteTrack → trackers package)
+trackers>=0.2.0
+supervision>=0.28.0
+
+# Rank 3: Target Lock-on (SAM 2.1)
+# sam2 requires manual install from github: pip install git+https://github.com/facebookresearch/sam2.git
+
+# Rank 4: ALPR Korean License Plate
+# easyocr for Korean character recognition fallback
+easyocr>=1.7.0
+
+# Web Server
+fastapi>=0.128.0
+uvicorn[standard]>=0.30.0
+websockets>=12.0
+python-multipart>=0.0.9
+
+# Video Stream Processing
+opencv-python-headless>=4.8.0
+numpy>=1.24.0
+
+# Utilities
+pydantic>=2.0.0

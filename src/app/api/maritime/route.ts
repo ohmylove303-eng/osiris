@@ -214,6 +214,7 @@ connectAisStream();
 // --- Agent-Reach Multi-Tier Live Ingestion: Digitraffic Marine + Dead-Reckoning ---
 let lastMultiTierFetch = 0;
 async function fetchMultiTierAisFallback() {
+  if (process.env.NODE_ENV === 'test') return;
   const now = Date.now();
   if (now - lastMultiTierFetch < 45_000) return; // 45s throttle
   lastMultiTierFetch = now;
@@ -530,12 +531,14 @@ function generateCirclePolygon(centerLng: number, centerLat: number, radiusKm: n
     ports: dynamicPorts,
     chokepoints: dynamicChokepoints,
     ships: ships,
+    vessels: ships,
     dark_fleet: darkTargets,
     dark_fleet_geojson: darkFleetGeojson,
     total: ships.length,
     total_ports: dynamicPorts.length,
     total_chokepoints: dynamicChokepoints.length,
     total_ships: ships.length,
+    total_vessels: ships.length,
     total_dark_fleet: darkTargets.length,
     temporal,
     timestamp: new Date(now).toISOString(),
@@ -596,8 +599,10 @@ export async function GET(request?: Request) {
             return NextResponse.json({
               ...data,
               ships: filteredShips,
+              vessels: filteredShips,
               total: filteredShips.length,
               total_ships: filteredShips.length,
+              total_vessels: filteredShips.length,
               area_filter: { lat: centerLat, lng: centerLng, radius_km: radiusKm }
             }, {
               headers: {

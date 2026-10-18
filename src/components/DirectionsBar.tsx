@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   X, Car, Footprints, Bike, ArrowUpDown, MapPin, Flag, Route,
   CornerUpRight, CornerUpLeft, ArrowUp, RotateCw, Merge, Search,
   LocateFixed, Building2, Landmark, Globe2, Signpost, Home, Crosshair, Clock,
   Plus, Trash2, SlidersHorizontal, Mountain, Navigation, Play,
+  AlertTriangle, Shield, Video,
 } from 'lucide-react';
+import { ROAD_CORRIDORS } from '@/lib/road-cctv-corridors';
 
 /* ═══════════════════════════════════════════════════════════════
    OSIRIS — Route Planner
@@ -30,6 +32,7 @@ export interface RouteResult {
   steps: RouteStep[];
   /** All options the engine offered, best first. Present on the API response. */
   routes?: RouteResult[];
+  routeType?: 'fastest' | 'shortest' | 'alternate';
   hasHighway?: boolean;
   hasToll?: boolean;
   hasFerry?: boolean;
@@ -462,7 +465,59 @@ export default function DirectionsBar({
   const [vias, setVias] = useState<Array<{ place: Place | null; text: string }>>([]);
   const [avoid, setAvoid] = useState({ tolls: false, highways: false, ferries: false });
   const [showOptions, setShowOptions] = useState(false);
+  const [itsIncidents, setItsIncidents] = useState<any[]>([]);
   const watchId = useRef<number | null>(null);
+
+  useEffect(() => {
+    fetch('/api/its/incidents')
+      .then(res => res.json())
+      .then(d => {
+        if (d.status === 'ok' && Array.isArray(d.incidents)) {
+          setItsIncidents(d.incidents);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const routeIncidents = useMemo(() => {
+    if (!route || !itsIncidents.length) return [];
+    const coords = route.geometry.coordinates;
+    return itsIncidents.filter((inc) => {
+      for (let i = 0; i < coords.length; i += 3) {
+        if (haversine(coords[i][1], coords[i][0], inc.lat, inc.lng) < 1800) {
+          return true;
+        }
+      }
+      return false;
+    });
+  }, [route, itsIncidents]);
+
+  const detectedCorridor = useMemo(() => {
+    if (!route) return null;
+    const coords = route.geometry.coordinates;
+    for (const corridor of ROAD_CORRIDORS) {
+      let overlaps = 0;
+      for (const [cLng, cLat] of corridor.centerline) {
+        for (let i = 0; i < coords.length; i += 4) {
+          if (haversine(coords[i][1], coords[i][0], cLat, cLng) < 600) {
+            overlaps++;
+            if (overlaps >= 4) return corridor;
+          }
+        }
+      }
+    }
+    return null;
+  }, [route]);
+
+  const dmzNear = useMemo(() => {
+    if (!route) return false;
+    for (const [lng, lat] of route.geometry.coordinates) {
+      if (lat >= 37.76 && lng >= 126.5 && lng <= 128.4) {
+        return true;
+      }
+    }
+    return false;
+  }, [route]);
 
   const runRoute = useCallback(async (
     a: Place,
@@ -992,6 +1047,55 @@ export default function DirectionsBar({
                 </div>
               )}
 
+              {/* Organic Tactical Sensor Integration: ITS Hazards, CCTV Corridor, DMZ Border */}
+              {(routeIncidents.length > 0 || detectedCorridor || dmzNear) && (
+                <div className="mt-2.5 flex flex-col gap-1.5">
+                  {routeIncidents.length > 0 && (
+                    <div className="p-2 rounded-lg bg-[rgba(239,68,68,0.12)] border border-[rgba(239,68,68,0.4)]">
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-red-400 mb-1">
+                        <AlertTriangle className="w-3.5 h-3.5 animate-pulse text-red-400" />
+                        <span>경로 상 실시간 돌발 감지 ({routeIncidents.length}건)</span>
+                      </div>
+                      {routeIncidents.map((inc: any) => (
+                        <div
+                          key={inc.id}
+                          onClick={() => onLocate?.(inc.lat, inc.lng, 15)}
+                          className="text-[10px] text-zinc-300 hover:text-white cursor-pointer py-0.5 flex items-start gap-1 group"
+                          title="해당 지점으로 지도 이동"
+                        >
+                          <span className="text-red-400 font-bold shrink-0">[{inc.roadName}]</span>
+                          <span className="truncate group-hover:underline">{inc.title}</span>
+                          <span className="text-[9px] text-amber-300 ml-auto shrink-0 font-mono">({inc.lanesBlocked || '통제'})</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {detectedCorridor && (
+                    <div
+                      onClick={() => onLocate?.(detectedCorridor.centerline[0][1], detectedCorridor.centerline[0][0], 12)}
+                      className="p-2 rounded-lg bg-[rgba(0,229,255,0.08)] border border-[rgba(0,229,255,0.3)] hover:bg-[rgba(0,229,255,0.15)] transition-colors cursor-pointer flex items-center justify-between"
+                      title="해당 도로 CCTV 회랑으로 이동"
+                    >
+                      <div className="flex items-center gap-1.5 text-[10.5px] font-semibold text-cyan-300">
+                        <Video className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>CCTV 회랑 연동: <b className="text-white">{detectedCorridor.shortLabel}</b></span>
+                      </div>
+                      <span className="text-[9px] font-mono text-cyan-400 bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-500/20">
+                        실시간 {detectedCorridor.cameras.length}대 관제
+                      </span>
+                    </div>
+                  )}
+
+                  {dmzNear && (
+                    <div className="p-2 rounded-lg bg-[rgba(245,158,11,0.08)] border border-[rgba(245,158,11,0.3)] flex items-center gap-1.5 text-[10.5px] text-amber-300 font-semibold">
+                      <Shield className="w-3.5 h-3.5 text-amber-400" />
+                      <span>전술 안보 구역: DMZ·민통선 접경지 관제권 인접</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {onStartNavigation && (
                 <button
                   onClick={() => onStartNavigation(route, to?.label || '목적지')}
@@ -1006,10 +1110,32 @@ export default function DirectionsBar({
               )}
 
               {routes.length > 1 && (
-                <div className="flex gap-1 mt-2.5" role="tablist" aria-label="Route options">
+                <div className="flex gap-1.5 mt-2.5" role="tablist" aria-label="Route options">
                   {routes.map((r, i) => {
                     const on = i === chosen;
                     const slower = Math.round((r.duration - routes[0].duration) / 60);
+                    const distDiff = Math.round(routes[0].distance - r.distance);
+
+                    let label = '대안 경로';
+                    if (r.routeType === 'fastest' || (i === 0 && !r.routeType)) {
+                      label = '⚡ 최소 시간';
+                    } else if (r.routeType === 'shortest') {
+                      label = '📏 최단 거리';
+                    } else {
+                      label = `대안 ${i}`;
+                    }
+
+                    let subLabel = '';
+                    if (r.routeType === 'fastest' || (i === 0 && !r.routeType)) {
+                      subLabel = '추천 경로';
+                    } else if (r.routeType === 'shortest') {
+                      subLabel = distDiff > 0 ? `-${formatDistance(distDiff)} 단축` : formatDistance(r.distance);
+                    } else if (slower > 0) {
+                      subLabel = `+${slower}분 (${formatDistance(r.distance)})`;
+                    } else {
+                      subLabel = formatDistance(r.distance);
+                    }
+
                     return (
                       <button
                         key={i}
@@ -1027,16 +1153,15 @@ export default function DirectionsBar({
                             });
                           }
                         }}
-                        className={`flex-1 px-2 py-2 rounded-md border text-[10px] transition-all ${
+                        className={`flex-1 px-2 py-2 rounded-lg border text-[11px] transition-all cursor-pointer ${
                           on
-                            ? 'border-[var(--border-active)] bg-[rgba(var(--gold-rgb),0.12)] text-[var(--gold-primary)]'
-                            : 'border-[var(--border-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                            ? 'border-[var(--gold-primary)] bg-[rgba(var(--gold-rgb),0.15)] text-[var(--gold-primary)] shadow-[0_0_10px_rgba(var(--gold-rgb),0.2)]'
+                            : 'border-[var(--border-secondary)] bg-[rgba(255,255,255,0.02)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:border-[var(--border-primary)]'
                         }`}
                       >
-                        <span className="block tabular-nums font-semibold">{formatDuration(r.duration, 'ko')}</span>
-                        <span className="block text-[9px] opacity-70 tabular-nums">
-                          {i === 0 ? '최단시간' : slower > 0 ? `+${slower}분` : formatDistance(r.distance)}
-                        </span>
+                        <span className="block font-bold text-[10px] tracking-wide mb-0.5">{label}</span>
+                        <span className="block tabular-nums font-semibold text-[11px]">{formatDuration(r.duration, 'ko')}</span>
+                        <span className="block text-[9px] opacity-75 tabular-nums truncate">{subLabel}</span>
                       </button>
                     );
                   })}

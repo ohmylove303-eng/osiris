@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback, memo } from 'react';
+import { useEffect, useRef, useState, useCallback, memo, useMemo } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { buildGeometry, closeRing, drawReducer, initialDrawState, measure, type DrawAction, type DrawMode, type DrawProgress, type DrawResult, type DrawState } from '@/lib/draw';
@@ -12,6 +12,8 @@ import { latLngToMGRS, latLngToUTM } from '@/lib/mgrs-converter';
 import { verifyEntitySpatialBoundary, getAllDemarcationGeoJSON } from '@/lib/demarcation-boundaries';
 import { CHINA_ENCROACHMENT_SITES } from '@/lib/china-encroachment';
 import { applyJudgmentBadgeEl, renderVerifyTargetContentHtml } from '@/lib/judgment-ui';
+import { computeSortieState } from '@/lib/sortie-physics-engine';
+import { ROAD_CORRIDORS, findNearestRoadCorridor, type RoadCorridor } from '@/lib/road-cctv-corridors';
 
 interface OsirisMapProps {
   arcgisLayers?: any[];
@@ -118,8 +120,27 @@ function OsirisMap({
   const mapRef = useRef<maplibregl.Map | null>(null);
   const drawingCoordsRef = useRef<number[][]>([]);
   const popupRef = useRef<maplibregl.Popup | null>(null);
+  const liveAircraftMapRef = useRef<Map<string, any>>(new Map());
   const [mapReady, setMapReady] = useState(false);
+  const [selectedCorridorId, setSelectedCorridorId] = useState<string | null>(null);
   const prevStyleRef = useRef(mapStyle);
+
+  // Precomputed lookup map for CCTV cameras to their respective road corridors
+  const cameraCorridorMap = useMemo(() => {
+    const map = new Map<string, { corridorId: string; corridorColor: string; roadNumber: string; roadName: string; channelIndex: number }>();
+    for (const corridor of ROAD_CORRIDORS) {
+      corridor.cameras.forEach((cam, idx) => {
+        map.set(cam.id, {
+          corridorId: corridor.id,
+          corridorColor: corridor.color,
+          roadNumber: corridor.routeNumber,
+          roadName: corridor.shortLabel,
+          channelIndex: idx,
+        });
+      });
+    }
+    return map;
+  }, []);
 
   // Create aircraft icon on canvas (for WebGL symbol layer)
   const createIcon = useCallback((map: maplibregl.Map, id: string, color: string, size: number) => {
@@ -268,6 +289,12 @@ function OsirisMap({
       });
     }
 
+    mapRef.current = map;
+    if (typeof window !== 'undefined') {
+      (window as any).__map = map;
+      (window as any).map = map;
+    }
+
     map.on('load', () => {
       mapRef.current = map;
       if (typeof window !== 'undefined') {
@@ -332,7 +359,7 @@ function OsirisMap({
       createDot(map, 'dot-cctv', cameraColor, 10);
 
       const sources = [
-        'flights','military','jets','private-fl','satellites','earthquakes','gdelt','gps-jamming','gps-jam-zones','gps-jam-arrows','gps-jam-sources','day-night','cctv','fires','weather','infrastructure','maritime','maritime-choke','maritime-ships','live-news','sigint-news','conflict-zones', 'war-alerts-targets', 'war-alerts-lines', 'balloons', 'radiation', 'ip-sweep-devices', 'ip-sweep-pulse', 'ip-sweep-connections', 'scan-targets', 'sdk-entities', 'sdk-links', 'malware-nodes', 'network-mesh', 'cyber-arcs', 'cyber-heads', 'cyber-impacts', 'dprk-sites-src', 'dprk-activity-src', 'seismic-nuclear-src', 'demarcation-lines', 'drones', 'cuas-gcs-emitters', 'cuas-vector-lines', 'china-encroachment', 'notam-hazards', 'submarine-cables', 'cable-landings', 'dark-fleet', 'radio-stations', 'alpr-checkpoints'
+        'flights','military','jets','private-fl','flight-vectors','flight-trails','satellites','earthquakes','gdelt','gps-jamming','gps-jam-zones','gps-jam-arrows','gps-jam-sources','day-night','cctv','fires','weather','infrastructure','maritime','maritime-choke','maritime-ships','live-news','sigint-news','conflict-zones', 'war-alerts-targets', 'war-alerts-lines', 'balloons', 'radiation', 'ip-sweep-devices', 'ip-sweep-pulse', 'ip-sweep-connections', 'scan-targets', 'sdk-entities', 'sdk-links', 'malware-nodes', 'ransomware', 'temperature', 'network-mesh', 'cyber-arcs', 'cyber-heads', 'cyber-impacts', 'dprk-sites-src', 'dprk-activity-src', 'seismic-nuclear-src', 'demarcation-lines', 'drones', 'cuas-gcs-emitters', 'cuas-vector-lines', 'china-encroachment', 'notam-hazards', 'submarine-cables', 'cable-landings', 'dark-fleet', 'radio-stations', 'alpr-checkpoints', 'road-corridors', 'its-incidents', 'nav-route', 'nav-route-alternates'
       ];
       sources.forEach(s => {
         if (!map.getSource(s)) {
@@ -397,24 +424,286 @@ function OsirisMap({
         'circle-color': '#E65100', 'circle-opacity': 0.45, 'circle-blur': 0.5,
       }});
 
-      // CCTV — outer glow ring (black/white depending on theme)
+      // ══ 1. ROAD CORRIDORS (지방도 356, 355, 48번 국도 등 본선축) ══
+      // 도로망 선을 CCTV 마커 아래(Underneath)에 배치하여 원형 센서 점을 가로지르거나 쪼개지 않도록 보장
+      // (1) 비선택 일반 도로망 (은은한 배경 가이드)
+      map.addLayer({
+        id: 'road-corridors-casing',
+        type: 'line',
+        source: 'road-corridors',
+        filter: ['!=', ['get', 'selected'], true],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#000000',
+          'line-width': ['interpolate', ['linear'], ['zoom'], 6, 1.5, 10, 2.5, 14, 3.5],
+          'line-opacity': 0.15,
+        },
+      });
+      map.addLayer({
+        id: 'road-corridors-line',
+        type: 'line',
+        source: 'road-corridors',
+        filter: ['!=', ['get', 'selected'], true],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': ['get', 'color'],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 6, 1, 10, 1.8, 14, 2.5],
+          'line-opacity': 0.35,
+        },
+      });
+
+      // (2) 선택된 활성 전술 회랑 (선명한 네온 글로우 & 블랙 콘트라스트 Casing)
+      map.addLayer({
+        id: 'road-corridors-selected-casing',
+        type: 'line',
+        source: 'road-corridors',
+        filter: ['==', ['get', 'selected'], true],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#000000',
+          'line-width': ['interpolate', ['linear'], ['zoom'], 6, 4, 10, 7, 14, 10],
+          'line-opacity': 0.8,
+        },
+      });
+      map.addLayer({
+        id: 'road-corridors-selected-glow',
+        type: 'line',
+        source: 'road-corridors',
+        filter: ['==', ['get', 'selected'], true],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': ['get', 'color'],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 6, 7, 10, 12, 14, 18],
+          'line-opacity': 0.85,
+          'line-blur': 3,
+        },
+      });
+      map.addLayer({
+        id: 'road-corridors-selected-line',
+        type: 'line',
+        source: 'road-corridors',
+        filter: ['==', ['get', 'selected'], true],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': ['get', 'color'],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 6, 3, 10, 5, 14, 7],
+          'line-opacity': 0.95,
+        },
+      });
+
+      map.addLayer({
+        id: 'road-corridors-label',
+        type: 'symbol',
+        source: 'road-corridors',
+        minzoom: 11,
+        layout: {
+          'symbol-placement': 'line',
+          'text-field': ['concat', ['get', 'shortLabel'], ' (', ['get', 'routeNumber'], '호선)'],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 11, 10, 14, 12.5],
+          'text-font': ['Open Sans Bold'],
+          'text-letter-spacing': 0.05,
+          'text-allow-overlap': false,
+        },
+        paint: {
+          'text-color': '#E2E8F0',
+          'text-halo-color': '#000000',
+          'text-halo-width': 2,
+          'text-opacity': 0.8,
+        },
+      });
+
+      // ══ 2. NAVIGATION ROUTE (Valhalla 최단 거리 vs 최소 시간 정밀 경로선) ══
+      // 대체 경로 (점선)
+      map.addLayer({
+        id: 'nav-route-alt-casing',
+        type: 'line',
+        source: 'nav-route-alternates',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#000000',
+          'line-width': ['interpolate', ['linear'], ['zoom'], 6, 3, 10, 5, 14, 7],
+          'line-opacity': 0.6,
+        },
+      });
+      map.addLayer({
+        id: 'nav-route-alt-line',
+        type: 'line',
+        source: 'nav-route-alternates',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#64748B',
+          'line-width': ['interpolate', ['linear'], ['zoom'], 6, 2, 10, 3, 14, 4.5],
+          'line-opacity': 0.7,
+          'line-dasharray': [2, 2],
+        },
+      });
+      // 주 경로 Casing (블랙 하이 콘트라스트)
+      map.addLayer({
+        id: 'nav-route-casing',
+        type: 'line',
+        source: 'nav-route',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#020617',
+          'line-width': ['interpolate', ['linear'], ['zoom'], 6, 5, 10, 8, 14, 12],
+          'line-opacity': 0.9,
+        },
+      });
+      // 주 경로 Glow (네온 펄스 사이언/에메랄드)
+      map.addLayer({
+        id: 'nav-route-glow',
+        type: 'line',
+        source: 'nav-route',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': [
+            'case',
+            ['==', ['get', 'routeType'], 'shortest'], '#10B981',
+            '#00E5FF'
+          ],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 6, 8, 10, 14, 14, 20],
+          'line-opacity': 0.75,
+          'line-blur': 3.5,
+        },
+      });
+      // 주 경로 메인 라인
+      map.addLayer({
+        id: 'nav-route-line',
+        type: 'line',
+        source: 'nav-route',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': [
+            'case',
+            ['==', ['get', 'routeType'], 'shortest'], '#34D399',
+            '#38BDF8'
+          ],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 6, 3, 10, 5, 14, 7],
+          'line-opacity': 0.95,
+        },
+      });
+
+      // ══ 3. CCTV SENSORS (반드시 도로망과 경로선 위에 렌더링되며, 도로 고유 네온 색상과 일체화 연출) ══
+      // CCTV — outer glow ring (해당 도로의 고유 네온 색상으로 발광, 회랑 활성화 시 광폭 네온 펄스)
       map.addLayer({ id: 'cctv-glow', type: 'circle', source: 'cctv', paint: {
-        'circle-radius': ['interpolate',['linear'],['zoom'], 1,5, 5,8, 10,14, 14,20],
-        'circle-color': '#000000', 'circle-opacity': 0.35, 'circle-blur': 1,
+        'circle-radius': [
+          'interpolate', ['linear'], ['zoom'],
+          1, ['case', ['boolean', ['get', 'isSelectedCorridor'], false], 10, 6],
+          5, ['case', ['boolean', ['get', 'isSelectedCorridor'], false], 16, 9],
+          10, ['case', ['boolean', ['get', 'isSelectedCorridor'], false], 26, 15],
+          14, ['case', ['boolean', ['get', 'isSelectedCorridor'], false], 36, 22]
+        ],
+        'circle-color': [
+          'case',
+          ['has', 'corridorColor'], ['get', 'corridorColor'],
+          cameraColor
+        ],
+        'circle-opacity': [
+          'case',
+          ['boolean', ['get', 'isSelectedCorridor'], false], 0.85,
+          ['has', 'corridorColor'], 0.5,
+          0.35
+        ],
+        'circle-blur': 1,
       }});
-      // CCTV — main dot
+      // CCTV — main dot (해당 도로의 네온 색상과 100% 일치)
       map.addLayer({ id: 'cctv-dots', type: 'circle', source: 'cctv', paint: {
-        'circle-radius': ['interpolate',['linear'],['zoom'], 1,3, 5,5, 10,8, 14,12],
-        'circle-color': cameraColor, 'circle-opacity': 0.9,
-        'circle-stroke-width': 2.5, 'circle-stroke-color': '#000000', 'circle-stroke-opacity': 0.9,
+        'circle-radius': [
+          'interpolate', ['linear'], ['zoom'],
+          1, ['case', ['boolean', ['get', 'isSelectedCorridor'], false], 5, 3.5],
+          5, ['case', ['boolean', ['get', 'isSelectedCorridor'], false], 8.5, 5.5],
+          10, ['case', ['boolean', ['get', 'isSelectedCorridor'], false], 13, 8.5],
+          14, ['case', ['boolean', ['get', 'isSelectedCorridor'], false], 18, 13]
+        ],
+        'circle-color': [
+          'case',
+          ['has', 'corridorColor'], ['get', 'corridorColor'],
+          cameraColor
+        ],
+        'circle-opacity': 0.95,
+        'circle-stroke-width': [
+          'case',
+          ['boolean', ['get', 'isSelectedCorridor'], false], 3.5,
+          2.5
+        ],
+        'circle-stroke-color': [
+          'case',
+          ['boolean', ['get', 'isSelectedCorridor'], false], '#FFFFFF',
+          '#000000'
+        ],
+        'circle-stroke-opacity': 0.95,
       }});
       // CCTV — labels at zoom 10+
       map.addLayer({ id: 'cctv-label', type: 'symbol', source: 'cctv', minzoom: 10, layout: {
-        'text-field': ['get','name'], 'text-size': 9, 'text-font': ['Open Sans Regular'],
+        'text-field': ['get','name'], 'text-size': 9.5, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 1.8], 'text-max-width': 12, 'text-allow-overlap': false,
-      }, paint: { 'text-color': cameraColor, 'text-halo-color': '#000000', 'text-halo-width': 1.5, 'text-opacity': 0.8 }});
+      }, paint: {
+        'text-color': [
+          'case',
+          ['has', 'corridorColor'], ['get', 'corridorColor'],
+          cameraColor
+        ],
+        'text-halo-color': '#000000',
+        'text-halo-width': 1.8,
+        'text-opacity': 0.9
+      }});
 
-      // GDELT
+      // ══ 4. KOREA ITS INCIDENTS (국토교통부 실시간 돌발·사고·정체 — 최상위 오버레이) ══
+      map.addLayer({
+        id: 'its-incidents-glow',
+        type: 'circle',
+        source: 'its-incidents',
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 8, 12, 16],
+          'circle-color': [
+            'match', ['get', 'type'],
+            'accident', '#EF4444',
+            'construction', '#F59E0B',
+            'control', '#8B5CF6',
+            'weather', '#06B6D4',
+            '#EF4444'
+          ],
+          'circle-opacity': 0.5,
+          'circle-blur': 1,
+        },
+      });
+      map.addLayer({
+        id: 'its-incidents-circle',
+        type: 'circle',
+        source: 'its-incidents',
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 4.5, 12, 7.5],
+          'circle-color': [
+            'match', ['get', 'type'],
+            'accident', '#DC2626',
+            'construction', '#D97706',
+            'control', '#7C3AED',
+            'weather', '#0891B2',
+            '#DC2626'
+          ],
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#FFFFFF',
+        },
+      });
+      map.addLayer({
+        id: 'its-incidents-label',
+        type: 'symbol',
+        source: 'its-incidents',
+        minzoom: 9,
+        layout: {
+          'text-field': ['get', 'title'],
+          'text-size': 11,
+          'text-font': ['Open Sans Bold'],
+          'text-offset': [0, 1.4],
+          'text-max-width': 14,
+          'text-allow-overlap': false,
+        },
+        paint: {
+          'text-color': '#FFFFFF',
+          'text-halo-color': '#000000',
+          'text-halo-width': 2,
+        },
+      });
 
 
 
@@ -433,6 +722,22 @@ function OsirisMap({
         'text-field': ['get','malware'], 'text-size': 8, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
         'text-offset': [0, 1.5], 'text-max-width': 10, 'text-allow-overlap': false,
       }, paint: { 'text-color': '#D32F2F', 'text-halo-color': '#111', 'text-halo-width': 1.5, 'text-opacity': 0.85 }});
+
+      // ══ NETWORK INTEL — Ransomware.live Victims — skull purple/red ══
+      map.addLayer({ id: 'ransomware-glow', type: 'circle', source: 'ransomware', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,8, 5,16, 10,24],
+        'circle-color': '#FF1744', 'circle-opacity': 0.12, 'circle-blur': 0.5,
+      }});
+      map.addLayer({ id: 'ransomware-dots', type: 'circle', source: 'ransomware', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,3, 5,6, 10,9],
+        'circle-color': '#FF1744',
+        'circle-opacity': 0.95,
+        'circle-stroke-width': 1.5, 'circle-stroke-color': '#FFFFFF', 'circle-stroke-opacity': 0.8,
+      }});
+      map.addLayer({ id: 'ransomware-label', type: 'symbol', source: 'ransomware', minzoom: 3, layout: {
+        'text-field': ['concat', ['get','victim'], ' (', ['get','group'], ')'], 'text-size': 9, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
+        'text-offset': [0, 1.8], 'text-max-width': 12, 'text-allow-overlap': false,
+      }, paint: { 'text-color': '#FF5252', 'text-halo-color': '#000', 'text-halo-width': 2, 'text-opacity': 0.95 }});
 
       // ── NETWORK INTEL MESH (SDK STYLE) ──
       map.addLayer({ id: 'network-mesh-atmo', type: 'line', source: 'network-mesh', paint: {
@@ -538,6 +843,23 @@ function OsirisMap({
         'text-field': ['get','title'], 'text-size': 9, 'text-font': ['Open Sans Regular'],
         'text-offset': [0, 2], 'text-max-width': 14, 'text-allow-overlap': false,
       }, paint: { 'text-color': '#7E57C2', 'text-halo-color': '#000', 'text-halo-width': 1, 'text-opacity': 0.8 }});
+
+      // ══ GLOBAL TEMPERATURE FIELD — Open-Meteo & NASA GIBS ══
+      map.addLayer({ id: 'temperature-glow', type: 'circle', source: 'temperature', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,12, 5,22, 10,34],
+        'circle-color': ['coalesce', ['get','color'], '#00BCD4'],
+        'circle-opacity': 0.16, 'circle-blur': 0.8,
+      }});
+      map.addLayer({ id: 'temperature-dots', type: 'circle', source: 'temperature', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,4, 5,7, 10,12],
+        'circle-color': ['coalesce', ['get','color'], '#00BCD4'],
+        'circle-opacity': 0.9,
+        'circle-stroke-width': 1.5, 'circle-stroke-color': '#FFFFFF', 'circle-stroke-opacity': 0.8,
+      }});
+      map.addLayer({ id: 'temperature-label', type: 'symbol', source: 'temperature', layout: {
+        'text-field': ['get','label'], 'text-size': 10, 'text-font': ['JetBrains Mono Bold', 'Open Sans Bold'],
+        'text-offset': [0, 1.8], 'text-max-width': 12, 'text-allow-overlap': false,
+      }, paint: { 'text-color': '#FFFFFF', 'text-halo-color': '#000', 'text-halo-width': 2, 'text-opacity': 0.95 }});
 
       // Nuclear Infrastructure — teal / amber risk
       map.addLayer({ id: 'infra-glow', type: 'circle', source: 'infrastructure', paint: {
@@ -868,6 +1190,7 @@ function OsirisMap({
         id: 'submarine-cables-glow',
         type: 'line',
         source: 'submarine-cables',
+        filter: ['any', ['==', ['get', 'priority'], 'CRITICAL_DEFENSE'], ['==', ['get', 'priority'], 'HIGH']],
         paint: {
           'line-color': ['match', ['get', 'category'], 'CRITICAL_DEFENSE', '#FF1744', '#00E5FF'],
           'line-width': ['match', ['get', 'priority'], 'CRITICAL_DEFENSE', 7, 'HIGH', 5, 2.5],
@@ -879,6 +1202,7 @@ function OsirisMap({
         id: 'submarine-cables-line',
         type: 'line',
         source: 'submarine-cables',
+        filter: ['any', ['==', ['get', 'priority'], 'CRITICAL_DEFENSE'], ['==', ['get', 'priority'], 'HIGH']],
         paint: {
           'line-color': ['match', ['get', 'category'], 'CRITICAL_DEFENSE', '#FF1744', 'ENERGY_INTERCONNECT', '#FFD700', '#00E5FF'],
           'line-width': ['match', ['get', 'priority'], 'CRITICAL_DEFENSE', 4, 'HIGH', 3.2, 1.4],
@@ -889,6 +1213,7 @@ function OsirisMap({
         id: 'submarine-cables-label',
         type: 'symbol',
         source: 'submarine-cables',
+        filter: ['any', ['==', ['get', 'priority'], 'CRITICAL_DEFENSE'], ['==', ['get', 'priority'], 'HIGH']],
         minzoom: 5,
         layout: {
           'text-field': ['get', 'name'],
@@ -912,6 +1237,7 @@ function OsirisMap({
         id: 'cable-landing-glow',
         type: 'circle',
         source: 'cable-landings',
+        filter: ['==', ['get', 'hub_tier'], 'KOREA'],
         paint: {
           'circle-radius': ['match', ['get', 'hub_tier'], 'KOREA', 10, 6],
           'circle-color': ['match', ['get', 'hub_tier'], 'KOREA', '#00E5FF', '#80DEEA'],
@@ -923,6 +1249,7 @@ function OsirisMap({
         id: 'cable-landing-dots',
         type: 'circle',
         source: 'cable-landings',
+        filter: ['==', ['get', 'hub_tier'], 'KOREA'],
         paint: {
           'circle-radius': ['match', ['get', 'hub_tier'], 'KOREA', 5, 3.5],
           'circle-color': ['match', ['get', 'hub_tier'], 'KOREA', '#00E5FF', '#26A69A'],
@@ -936,6 +1263,7 @@ function OsirisMap({
         id: 'cable-landing-label',
         type: 'symbol',
         source: 'cable-landings',
+        filter: ['==', ['get', 'hub_tier'], 'KOREA'],
         minzoom: 5,
         layout: {
           'text-field': ['get', 'name'],
@@ -1195,6 +1523,30 @@ function OsirisMap({
         'text-color': ['case', ['get','is_nuclear_suspect'], '#D500F9', '#80DEEA'],
         'text-halo-color': '#000', 'text-halo-width': 1.5, 'text-opacity': 0.85,
       }});
+
+      // Flight trails & forward motion vectors (항적 및 전방 진행 벡터)
+      map.addLayer({
+        id: 'flight-trail-lines',
+        type: 'line',
+        source: 'flight-trails',
+        paint: {
+          'line-color': ['coalesce', ['get', 'color'], '#00E5FF'],
+          'line-width': ['match', ['get', 'category'], 'military', 2.4, 1.5],
+          'line-opacity': 0.65,
+          'line-blur': 0.5,
+        }
+      });
+      map.addLayer({
+        id: 'flight-vector-lines',
+        type: 'line',
+        source: 'flight-vectors',
+        paint: {
+          'line-color': ['coalesce', ['get', 'color'], '#00E5FF'],
+          'line-width': ['match', ['get', 'category'], 'military', 2.0, 1.2],
+          'line-opacity': 0.85,
+          'line-dasharray': [3, 2],
+        }
+      });
 
       // Flight layers (WebGL symbol — GPU rendered, handles 50K+ smooth)
       const flightLayers = [
@@ -1824,6 +2176,29 @@ function OsirisMap({
         const spatialAudit = verifyEntitySpatialBoundary(coords[1], coords[0], p.alt || 1000);
         const popupTargetId = idSafe(hex || cs || 'target');
 
+        const isGrounded = p.grounded === true || p.grounded === 'true' || (p.alt || 0) < 50;
+        const sortiePhase = (p.sortie_phase as string) || (isGrounded ? 'LANDED' : 'ON_STATION');
+        const sortieLabel = (p.sortie_label as string) || (isGrounded ? '모기지 활주로 착륙 및 주기/재급유' : '작전 공역 초계 임무 중 (CAP)');
+        const fuelPct = typeof p.fuel_pct === 'number' ? Math.max(0, Math.min(100, Math.round(p.fuel_pct))) : (isGrounded ? 96 : 64);
+        const fuelDurationMin = typeof p.fuel_duration_min === 'number' ? Math.round(p.fuel_duration_min) : (isGrounded ? 0 : 48);
+        const homeBaseName = p.home_base_name || (card.isHostile ? '순안 공군기지' : '청주/대구 공군기지');
+        const homeBaseIcao = p.home_base_icao ? ` (${p.home_base_icao})` : '';
+
+        let phaseColor = '#76FF03';
+        let phaseIcon = '🛡️';
+        if (sortiePhase === 'TAKEOFF') {
+          phaseColor = '#00E5FF';
+          phaseIcon = '🛫';
+        } else if (sortiePhase === 'RTB') {
+          phaseColor = '#FF9100';
+          phaseIcon = '⛽';
+        } else if (sortiePhase === 'LANDED' || isGrounded) {
+          phaseColor = '#90A4AE';
+          phaseIcon = '🛬';
+        }
+
+        const fuelColor = fuelPct <= 25 ? '#FF1744' : (fuelPct <= 45 ? '#FF9100' : '#00E5FF');
+
         popup(coords, `<div style="${pStyle}border:1.5px solid ${card.themeColor};background:rgba(10,12,18,0.96);max-width:380px;">
           <!-- 1. Header with Flag, Title, Affiliation -->
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;border-bottom:1px solid ${card.themeColor}50;padding-bottom:5px;">
@@ -1889,11 +2264,36 @@ function OsirisMap({
             </div>
           </div>
 
+          <!-- 4.5. 물리적 실재성: 소티 수명 주기 & 연료 현황 (Physical Sortie Lifecycle & Fuel Reality) -->
+          <div style="background:rgba(12,18,28,0.92);border:1px solid ${phaseColor}80;border-radius:4px;padding:7px 9px;margin-bottom:8px;font-size:9px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+              <span style="color:${phaseColor};font-weight:bold;font-size:9.5px;">${phaseIcon} 소티 상태: ${htmlEsc(sortieLabel)}</span>
+              <span style="color:#FFF;font-family:monospace;font-size:8px;background:${phaseColor}25;border:1px solid ${phaseColor}60;padding:1px 5px;border-radius:2px;font-weight:bold;">${htmlEsc(sortiePhase)}</span>
+            </div>
+
+            <!-- 연료 게이지 바 & 잔여 체공 시간 -->
+            <div style="margin-bottom:5px;">
+              <div style="display:flex;justify-content:space-between;font-size:8.5px;margin-bottom:3px;">
+                <span style="color:#8A8880;">🛢️ 잔여 연료량: <b style="color:${fuelColor};">${fuelPct}%</b> ${fuelPct <= 25 ? '<span style="color:#FF1744;font-weight:bold;">[빙고연료/RTB복귀]</span>' : ''}</span>
+                <span style="color:#BBB;">체공 잔여: <b style="color:#FFF;">${isGrounded ? '지상 대기' : fuelDurationMin + '분'}</b></span>
+              </div>
+              <div style="width:100%;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;border:1px solid rgba(255,255,255,0.15);">
+                <div style="width:${fuelPct}%;height:100%;background:${fuelColor};border-radius:3px;transition:width 0.4s ease;"></div>
+              </div>
+            </div>
+
+            <!-- 소속 모기지 활주로 안내 -->
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:8.5px;color:#A0AEC0;border-top:1px dashed rgba(255,255,255,0.08);padding-top:4px;">
+              <span>🏛️ 모기지: <b style="color:#E2E8F0;">${htmlEsc(homeBaseName)}${htmlEsc(homeBaseIcao)}</b></span>
+              <span style="color:${isGrounded ? '#76FF03' : '#81D4FA'};font-weight:bold;">${isGrounded ? '● 활주로 주기·재급유' : '▲ 공중 작전 전개 중'}</span>
+            </div>
+          </div>
+
           <!-- 5. Flight Telemetry Grid -->
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;font-size:9.5px;margin-bottom:8px;background:rgba(0,0,0,0.35);padding:6px;border-radius:4px;border:1px solid rgba(255,255,255,0.06);">
             <div><span style="color:#8A8880;">🛩️ 기종:</span> <span style="color:#FFF;font-weight:bold;">${htmlEsc(p.model||'기종 미확인')}</span></div>
-            <div><span style="color:#8A8880;">📏 비행 고도:</span> <span style="color:#00E5FF;font-weight:bold;">${p.alt ? Math.round(p.alt) + 'm (' + Math.round(p.alt * 3.28084) + 'ft)' : '—'}</span></div>
-            <div><span style="color:#8A8880;">🚀 비행 속도:</span> <span style="color:#FFF;font-weight:bold;">${p.speed_knots ? p.speed_knots + '노트 (' + Math.round(p.speed_knots * 1.852) + 'km/h)' : '—'}</span></div>
+            <div><span style="color:#8A8880;">📏 비행 고도:</span> <span style="color:#00E5FF;font-weight:bold;">${isGrounded ? '0m (지상 주기)' : (p.alt ? Math.round(p.alt) + 'm (' + Math.round(p.alt * 3.28084) + 'ft)' : '—')}</span></div>
+            <div><span style="color:#8A8880;">🚀 비행 속도:</span> <span style="color:#FFF;font-weight:bold;">${isGrounded ? '0노트 (지상 정지)' : (p.speed_knots ? p.speed_knots + '노트 (' + Math.round(p.speed_knots * 1.852) + 'km/h)' : '—')}</span></div>
             <div><span style="color:#8A8880;">🧭 비행 방위:</span> <span style="color:#FFF;font-weight:bold;">${Math.round(p.heading||0)}°</span></div>
             ${p.origin ? `<div style="grid-column:1 / -1;"><span style="color:#8A8880;">🛫 항로:</span> <span style="color:#FFD700;font-weight:bold;">${htmlEsc(p.origin)} ➔ ${htmlEsc(p.destination||'미상')}</span></div>` : ''}
             <div><span style="color:#8A8880;">🔢 등록번호:</span> <span style="color:#FFD700;font-family:monospace;">${htmlEsc(p.registration||'N/A')}</span></div>
@@ -2191,6 +2591,67 @@ function OsirisMap({
     map.on('click', 'cctv-label', handleCctvClick);
     map.on('click', 'cctv-glow', handleCctvClick);
 
+    // ── Road Corridors (지방도 356, 355, 48번 국도, 고속도로 등 클릭 시 회랑 활성화 & 6개 CCTV 라이브 프리뷰) ──
+    const handleRoadClick = (e: any) => {
+      if (!e.features?.length) return;
+      const p = e.features[0].properties as any;
+      const corridorId = p.id;
+      if (!corridorId) return;
+      setSelectedCorridorId(corridorId);
+      const corridor = ROAD_CORRIDORS.find(c => c.id === corridorId);
+      if (corridor) {
+        map.fitBounds(corridor.bounds, { padding: 90, duration: 1200, maxZoom: 14.5 });
+      }
+    };
+    ['road-corridors-line', 'road-corridors-selected-line', 'road-corridors-selected-glow'].forEach((layerId: string) => {
+      map.on('click', layerId, handleRoadClick);
+      map.on('mouseenter', layerId, () => { map.getCanvas().style.cursor = 'pointer'; });
+      map.on('mouseleave', layerId, () => { map.getCanvas().style.cursor = ''; });
+    });
+
+    // ── Korea ITS Incidents Popup Handler ──
+    map.on('click', 'its-incidents-circle', (e: any) => {
+      const p = e.features?.[0]?.properties;
+      if (!p) return;
+      new maplibregl.Popup({ closeButton: true, closeOnClick: true, className: 'osiris-popup', offset: 12 })
+        .setLngLat(e.lngLat)
+        .setHTML(`
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 11px; color: #fff; background: rgba(15,23,42,0.96); padding: 10px 12px; border-radius: 8px; border: 1px solid #ef4444; box-shadow: 0 8px 24px rgba(0,0,0,0.8); min-width: 220px; max-width: 280px;">
+            <div style="font-weight: 800; color: #f87171; font-size: 12px; margin-bottom: 6px; letter-spacing: -0.02em;">🚨 ${p.title}</div>
+            <div style="color: #94a3b8; margin-bottom: 3px;">• 도로: <b style="color: #e2e8f0;">${p.roadName}</b></div>
+            <div style="color: #94a3b8; margin-bottom: 3px;">• 상황: <b style="color: #fbbf24;">${p.lanesBlocked || '정보 확인중'}</b></div>
+            <div style="color: #cbd5e1; margin-top: 5px; line-height: 1.4; font-size: 10.5px;">${p.description}</div>
+            <div style="color: #64748b; font-size: 9px; margin-top: 6px; text-align: right;">출처: ${p.source}</div>
+          </div>
+        `)
+        .addTo(map);
+    });
+    map.on('mouseenter', 'its-incidents-circle', () => { map.getCanvas().style.cursor = 'pointer'; });
+    map.on('mouseleave', 'its-incidents-circle', () => { map.getCanvas().style.cursor = ''; });
+
+    // Map-wide road click: clicking directly on or near a major road on the map activates its corridor
+    map.on('click', (e: any) => {
+      if (!e.lngLat) return;
+      const feats = map.queryRenderedFeatures(e.point);
+      // Skip if clicking a specific entity like a CCTV marker, flight, satellite, war alert, earthquake
+      const hasSpecificEntity = feats.some((f: any) =>
+        f.layer.id.startsWith('cctv') ||
+        f.layer.id.startsWith('fl-') ||
+        f.layer.id.startsWith('sat-') ||
+        f.layer.id.startsWith('war-') ||
+        f.layer.id.startsWith('eq-') ||
+        f.layer.id.startsWith('fires-') ||
+        f.layer.id.startsWith('ship-')
+      );
+      if (hasSpecificEntity) return;
+
+      const nearest = findNearestRoadCorridor(e.lngLat.lng, e.lngLat.lat, 2500);
+      if (nearest) {
+        setSelectedCorridorId(nearest.id);
+        map.fitBounds(nearest.bounds, { padding: 90, duration: 1200, maxZoom: 14.5 });
+      }
+    });
+
     // ── Earthquakes (with USGS link) ──
     map.on('click', 'eq-circles', (e: any) => {
       if (!e.features?.length) return;
@@ -2212,14 +2673,29 @@ function OsirisMap({
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
-      popup(coords, `<div style="${pStyle}border:1px solid rgba(212,175,55,0.3);">
-        <div style="color:#D4AF37;font-size:12px;font-weight:700;letter-spacing:0.1em;margin-bottom:4px;">🛰️ ${htmlEsc(p.name)}</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;font-size:9px;margin-bottom:8px;">
-          <div><span style="color:#5C5A54;">MISSION</span><br/><span style="color:${colorSafe(p.color)};">${htmlEsc(p.mission||'Unknown')}</span></div>
-          <div><span style="color:#5C5A54;">ALT</span><br/><span style="color:#00E5FF;">${p.alt ? p.alt+' km' : '—'}</span></div>
-          <div><span style="color:#5C5A54;">POS</span><br/><span style="color:#E8E6E0;">${coords[1].toFixed(2)}°, ${coords[0].toFixed(2)}°</span></div>
+      
+      let imgUrl = 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=400&q=80';
+      if (p.category === 'military') imgUrl = 'https://images.unsplash.com/photo-1517976487492-5750f3195933?w=400&q=80';
+      else if (p.category === 'comms') imgUrl = 'https://images.unsplash.com/photo-1541873676-a18131494184?w=400&q=80';
+      else if (p.category === 'navigation') imgUrl = 'https://images.unsplash.com/photo-1518331647614-7a1f04cd34cb?w=400&q=80';
+      else if (p.category === 'science') imgUrl = 'https://images.unsplash.com/photo-1614729939124-032f0b56c9ce?w=400&q=80';
+      
+      popup(coords, `<div style="${pStyle}border:1px solid rgba(212,175,55,0.3); width: 220px;">
+        <div style="color:#D4AF37;font-size:12px;font-weight:700;letter-spacing:0.1em;margin-bottom:6px;">🛰️ ${htmlEsc(p.name)}</div>
+        
+        <div style="margin-bottom:8px; border:1px solid rgba(0,229,255,0.2); border-radius:4px; overflow:hidden; background:#000; height:80px; position:relative;">
+          <img src="${imgUrl}" style="width:100%; height:100%; object-fit:cover; opacity:0.75; mix-blend-mode:luminosity;" alt="Satellite" />
+          <div style="position:absolute; bottom:2px; right:4px; font-size:7px; color:rgba(255,255,255,0.5);">SENSOR IMAGERY</div>
         </div>
-        ${p.noradId ? `<a href="https://www.n2yo.com/satellite/?s=${p.noradId}" target="_blank" style="display:block;text-align:center;padding:4px;margin-top:6px;font-size:8px;font-family:monospace;letter-spacing:0.1em;text-decoration:none;color:#00E5FF;border:1px solid rgba(0,229,255,0.4);background:rgba(0,229,255,0.1);border-radius:2px;cursor:pointer;">📡 TRACK ON N2YO</a>` : ''}
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:8px;">
+          <div><span style="color:#5C5A54;">COUNTRY</span><br/><span style="color:#E8E6E0;font-weight:600;">${htmlEsc(p.country||'Unknown')}</span></div>
+          <div><span style="color:#5C5A54;">LAUNCH</span><br/><span style="color:#E8E6E0;font-weight:600;">${htmlEsc(p.launch_year||'Unknown')}</span></div>
+          <div><span style="color:#5C5A54;">MISSION / DATA</span><br/><span style="color:${colorSafe(p.color)};font-weight:600;">${htmlEsc(p.mission||'Unknown')}</span></div>
+          <div><span style="color:#5C5A54;">ALTITUDE</span><br/><span style="color:#00E5FF;font-weight:600;">${p.alt ? p.alt+' km' : '—'}</span></div>
+          ${p.is_high_lat ? `<div style="grid-column: span 2;"><span style="color:#5C5A54;">ORBIT TYPE</span><br/><span style="color:#FF3D3D;font-weight:600;">High-Latitude / Polar Orbit</span></div>` : ''}
+        </div>
+        ${p.noradId ? `<a href="https://www.n2yo.com/satellite/?s=${p.noradId}" target="_blank" style="display:block;text-align:center;padding:5px;margin-top:6px;font-size:8px;font-family:monospace;letter-spacing:0.1em;text-decoration:none;color:#00E5FF;border:1px solid rgba(0,229,255,0.4);background:rgba(0,229,255,0.1);border-radius:3px;cursor:pointer;transition:all 0.2s;">📡 TRACK ON N2YO</a>` : ''}
       </div>`);
     });
 
@@ -2460,8 +2936,47 @@ function OsirisMap({
       </div>`);
     });
 
+    // ── Ransomware Victims click handler ──
+    map.on('click', 'ransomware-dots', (e: any) => {
+      const p = e.features?.[0]?.properties;
+      if (!p) return;
+      const coords = (e.features![0].geometry as any).coordinates;
+      popup(coords, `<div style="${pStyle}border:1.5px solid #FF1744;background:rgba(20,5,10,0.96);max-width:320px;box-shadow:0 0 15px rgba(255,23,68,0.3);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;border-bottom:1px solid rgba(255,23,68,0.3);padding-bottom:4px;">
+          <span style="color:#FF1744;font-size:12px;font-weight:bold;">💀 RANSOMWARE VICTIM</span>
+          <span style="color:#FFF;font-size:9px;font-family:monospace;background:rgba(255,23,68,0.2);padding:1px 6px;border-radius:3px;">${htmlEsc(p.group || 'GANG')}</span>
+        </div>
+        <div style="font-size:13px;color:#FFF;font-weight:bold;margin-bottom:4px;">${htmlEsc(p.victim || 'Unknown')}</div>
+        <div style="font-size:9px;color:#AAA;line-height:1.6;margin-bottom:4px;">
+          <div>공격 그룹: <span style="color:#FF5252;font-weight:bold;">${htmlEsc(p.group || 'Unknown')}</span></div>
+          <div>피해 국가: <span style="color:#FFF;font-weight:bold;">${htmlEsc(p.country || 'Global')}</span></div>
+          <div>산업 분야: <span style="color:#FFD740;">${htmlEsc(p.sector || 'General')}</span></div>
+          <div>유출 일자: <span style="color:#80DEEA;">${htmlEsc(p.discovered || 'Recent')}</span></div>
+        </div>
+      </div>`);
+    });
+
+    // ── Temperature Field click handler ──
+    map.on('click', 'temperature-dots', (e: any) => {
+      const p = e.features?.[0]?.properties;
+      if (!p) return;
+      const coords = (e.features![0].geometry as any).coordinates;
+      popup(coords, `<div style="${pStyle}border:1.5px solid #00BCD4;background:rgba(5,20,25,0.96);max-width:280px;box-shadow:0 0 15px rgba(0,188,212,0.3);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;border-bottom:1px solid rgba(0,188,212,0.3);padding-bottom:4px;">
+          <span style="color:#00BCD4;font-size:12px;font-weight:bold;">🌡️ GLOBAL TEMPERATURE</span>
+          <span style="color:#FFF;font-size:9px;font-family:monospace;background:rgba(0,188,212,0.2);padding:1px 6px;border-radius:3px;">${p.kind === 'ocean' ? '해양 SST' : '지표 2m'}</span>
+        </div>
+        <div style="font-size:13px;color:#FFF;font-weight:bold;margin-bottom:4px;">${htmlEsc(p.name || '관측점')}</div>
+        <div style="font-size:10px;color:#AAA;line-height:1.6;">
+          <div>실시간 기온: <span style="color:#FFD740;font-size:13px;font-weight:bold;">${p.temp}°C</span></div>
+          ${p.humidity ? `<div>상대 습도: <span style="color:#FFF;">${p.humidity}%</span></div>` : ''}
+          ${p.pressure_hpa ? `<div>표면 기압: <span style="color:#FFF;">${p.pressure_hpa} hPa</span></div>` : ''}
+        </div>
+      </div>`);
+    });
+
     // ── Generic hover for clickables ──
-    ['conflict-icons','cctv-dots','cctv-label','cctv-glow','eq-circles','sat-dots','fires-heat','gdelt-dots','weather-dots','infra-dots','maritime-dots','choke-dots','news-dots','sigint-news-dots','balloon-dots','rad-dots','ship-icons','ship-dots','ship-glow','sweep-device-dots','scan-targets-dots','sdk-sea','sdk-sea-glow','sdk-sea-atmo','sdk-air','sdk-air-glow','sdk-air-atmo','sdk-intel','sdk-intel-glow','sdk-intel-atmo','malware-dots','cyber-heads','dprk-sites-dots','dprk-activity-dots','seismic-nuclear-dots','cable-landing-dots','jam-fill','jam-source-dot','jam-zone-fill'].forEach((layer: string) => {
+    ['conflict-icons','cctv-dots','cctv-label','cctv-glow','road-corridors-line','road-corridors-glow','eq-circles','sat-dots','fires-heat','gdelt-dots','weather-dots','infra-dots','maritime-dots','choke-dots','news-dots','sigint-news-dots','balloon-dots','rad-dots','ship-icons','ship-dots','ship-glow','sweep-device-dots','scan-targets-dots','sdk-sea','sdk-sea-glow','sdk-sea-atmo','sdk-air','sdk-air-glow','sdk-air-atmo','sdk-intel','sdk-intel-glow','sdk-intel-atmo','malware-dots','ransomware-dots','temperature-dots','cyber-heads','dprk-sites-dots','dprk-activity-dots','seismic-nuclear-dots','cable-landing-dots','jam-fill','jam-source-dot','jam-zone-fill'].forEach((layer: string) => {
       map.on('mouseenter', layer, () => { map.getCanvas().style.cursor = 'pointer'; });
       map.on('mouseleave', layer, () => { map.getCanvas().style.cursor = ''; });
     });
@@ -3558,10 +4073,14 @@ function getVideoAnalysisKeyframe(p: any): string {
     return () => clearInterval(iv);
   }, [mapReady, activeLayers.day_night]);
 
-  // Helper to set GeoJSON
+  // Helper to set GeoJSON safely
   const setGeo = useCallback((source: string, features: any[]) => {
-    const src = mapRef.current?.getSource(source) as any;
-    if (src) src.setData({ type: 'FeatureCollection', features });
+    try {
+      const src = mapRef.current?.getSource(source) as any;
+      if (src) src.setData({ type: 'FeatureCollection', features });
+    } catch (err) {
+      console.warn(`[OsirisMap] setGeo bounded suppression for ${source}:`, err);
+    }
   }, []);
 
   const setVis = useCallback((ids: string[], visible: boolean) => {
@@ -3570,42 +4089,260 @@ function getVideoAnalysisKeyframe(p: any): string {
     ids.forEach(id => { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none'); });
   }, []);
 
-  // Flight data → GeoJSON (GPU rendered, displays 100% of all live aircraft)
+  // ── LIVE AIRCRAFT & TACTICAL FLIGHT KINEMATICS ENGINE ──
+  // 1. Ingest incoming telemetry from API into live map (preserves trails and momentum)
   useEffect(() => {
     if (!mapReady) return;
-    const toFeatures = (arr: any[]) => {
-      return (arr || []).map((f: any) => ({
-        type: 'Feature' as const, geometry: { type: 'Point' as const, coordinates: [f.lng, f.lat] },
-        properties: {
-          callsign: f.callsign,
-          heading: f.heading || 0,
-          alt: f.alt,
-          alt_feet: f.alt_feet || f.altFt,
-          model: f.model,
-          speed_knots: f.speed_knots || f.speed,
-          registration: f.registration || f.reg,
-          icao24: f.hex || f.icao24,
-          affiliation: f.affiliation || '',
-          category: f.category || 'commercial',
-          country: f.country || '',
-          model_image: f.model_image || '',
-          origin: f.origin || '',
-          destination: f.destination || f.dest || '',
-          stage1_verification: f.stage1_verification || '',
-          stage2_verification: f.stage2_verification || '',
-          harness_verified: f.harness_verified || false,
-          harness_bridge_id: f.harness_bridge_id || '',
-          verification_source: f.verification_source || '',
-          trust_score: f.trust_score || 99.8,
-          color: f.color || '',
-        },
-      }));
+    const lMap = liveAircraftMapRef.current;
+
+    const ingest = (arr: any[], defaultCat: string) => {
+      if (!arr || !Array.isArray(arr)) return;
+      for (const f of arr) {
+        const id = String(f.icao24 || f.hex || f.callsign || '').trim();
+        if (!id) continue;
+        const existing = lMap.get(id);
+        if (existing) {
+          existing.speed_knots = typeof f.speed_knots === 'number' ? f.speed_knots : (typeof f.speed === 'number' ? f.speed : existing.speed_knots);
+          existing.alt = typeof f.alt === 'number' ? f.alt : existing.alt;
+          existing.alt_feet = f.alt_feet || f.altFt || existing.alt_feet;
+          existing.model = f.model || existing.model;
+          existing.model_image = f.model_image || existing.model_image;
+          existing.origin = f.origin || existing.origin;
+          existing.destination = f.destination || f.dest || existing.destination;
+          existing.affiliation = f.affiliation || existing.affiliation;
+          existing.country = f.country || existing.country;
+          existing.color = f.color || existing.color;
+          existing.callsign = f.callsign || existing.callsign;
+          existing.sortieConfig = f.sortieConfig || existing.sortieConfig;
+          existing.sortie_phase = f.sortie_phase || existing.sortie_phase;
+          existing.sortie_label = f.sortie_label || existing.sortie_label;
+          existing.fuel_pct = f.fuel_pct ?? existing.fuel_pct;
+          existing.fuel_duration_min = f.fuel_duration_min ?? existing.fuel_duration_min;
+          existing.sortie_elapsed_min = f.sortie_elapsed_min ?? existing.sortie_elapsed_min;
+          existing.home_base_name = f.home_base_name || existing.home_base_name;
+          existing.home_base_icao = f.home_base_icao || existing.home_base_icao;
+          existing.grounded = f.grounded ?? existing.grounded;
+          if (f.lat != null && f.lng != null && !f.sortieConfig) {
+            existing.lat = f.lat;
+            existing.lng = f.lng;
+            existing.heading = typeof f.heading === 'number' ? f.heading : existing.heading;
+          }
+        } else {
+          if (typeof f.lat !== 'number' || typeof f.lng !== 'number') continue;
+          lMap.set(id, {
+            id,
+            callsign: f.callsign || id,
+            category: f.category || defaultCat,
+            affiliation: f.affiliation || '',
+            country: f.country || '',
+            color: f.color || '',
+            model: f.model || '',
+            model_image: f.model_image || '',
+            registration: f.registration || f.reg || id,
+            origin: f.origin || '',
+            destination: f.destination || f.dest || '',
+            alt: f.alt || 0,
+            alt_feet: f.alt_feet || f.altFt || 0,
+            speed_knots: f.speed_knots || f.speed || 450,
+            heading: f.heading || 0,
+            lat: f.lat,
+            lng: f.lng,
+            sortieConfig: f.sortieConfig,
+            sortie_phase: f.sortie_phase,
+            sortie_label: f.sortie_label,
+            fuel_pct: f.fuel_pct,
+            fuel_duration_min: f.fuel_duration_min,
+            sortie_elapsed_min: f.sortie_elapsed_min,
+            home_base_name: f.home_base_name,
+            home_base_icao: f.home_base_icao,
+            grounded: f.grounded || false,
+            trail: [[f.lng, f.lat]],
+            stage1_verification: f.stage1_verification,
+            stage2_verification: f.stage2_verification,
+            harness_verified: f.harness_verified,
+            harness_bridge_id: f.harness_bridge_id,
+            verification_source: f.verification_source,
+            trust_score: f.trust_score,
+          });
+        }
+      }
     };
-    setGeo('flights', activeLayers.flights ? toFeatures(data.commercial_flights) : []);
-    setGeo('private-fl', activeLayers.private ? toFeatures(data.private_flights) : []);
-    setGeo('jets', activeLayers.jets ? toFeatures(data.private_jets) : []);
-    setGeo('military', activeLayers.military ? toFeatures(data.military_flights) : []);
-  }, [mapReady, data.commercial_flights, data.private_flights, data.private_jets, data.military_flights, activeLayers.flights, activeLayers.private, activeLayers.jets, activeLayers.military]);
+
+    ingest(data.military_flights, 'military');
+    ingest(data.commercial_flights, 'commercial');
+    ingest(data.private_flights, 'private');
+    ingest(data.private_jets, 'jet');
+  }, [mapReady, data.commercial_flights, data.private_flights, data.private_jets, data.military_flights]);
+
+  // 2. Real-time kinematic flight animation loop (1000ms tick for live flight movement)
+  useEffect(() => {
+    if (!mapReady) return;
+
+    const animateFlights = () => {
+      const lMap = liveAircraftMapRef.current;
+      if (!lMap || lMap.size === 0) return;
+
+      const now = Date.now();
+
+      const milFeatures: any[] = [];
+      const comFeatures: any[] = [];
+      const privFeatures: any[] = [];
+      const jetFeatures: any[] = [];
+      const vectorFeatures: any[] = [];
+      const trailFeatures: any[] = [];
+
+      lMap.forEach((f: any) => {
+        const isMil = f.category === 'military';
+        const isPriv = f.category === 'private';
+        const isJet = f.category === 'jet';
+        const isCom = !isMil && !isPriv && !isJet;
+
+        if (isMil && !activeLayers.military) return;
+        if (isCom && !activeLayers.flights) return;
+        if (isPriv && !activeLayers.private) return;
+        if (isJet && !activeLayers.jets) return;
+
+        let calcLat = f.lat;
+        let calcLng = f.lng;
+        let heading = f.heading || 0;
+
+        if (f.sortieConfig) {
+          const st = computeSortieState(f.sortieConfig, now);
+          calcLat = st.lat;
+          calcLng = st.lng;
+          heading = st.heading;
+          f.alt = st.altMeters;
+          f.alt_feet = st.altFeet;
+          f.speed_knots = st.speedKnots;
+          f.heading = st.heading;
+          f.grounded = st.grounded;
+          f.sortie_phase = st.sortiePhase;
+          f.sortie_label = st.sortieLabel;
+          f.fuel_pct = st.fuelPct;
+          f.fuel_duration_min = st.fuelDurationMin;
+          f.sortie_elapsed_min = st.sortieElapsedMin;
+          f.home_base_name = st.homeBaseName;
+          f.home_base_icao = st.homeBaseIcao;
+        } else if (f.grounded) {
+          // Parked on base tarmac
+          calcLat = f.lat;
+          calcLng = f.lng;
+          heading = f.heading || 0;
+          f.speed_knots = 0;
+          f.alt = 0;
+          f.alt_feet = 0;
+        } else {
+          // Standard live ADS-B flight dead-reckoning forward along true heading (1.0x realistic speed)
+          const dt = 1.0;
+          const speedMps = (f.speed_knots || 450) * 0.514444;
+          const distM = speedMps * dt * 1.0;
+          const rad = (heading * Math.PI) / 180;
+          calcLat = f.lat + (distM * Math.cos(rad)) / 111320;
+          calcLng = f.lng + (distM * Math.sin(rad)) / (111320 * Math.cos((f.lat * Math.PI) / 180));
+        }
+
+        f.lat = calcLat;
+        f.lng = calcLng;
+        f.heading = heading;
+
+        // Trail accumulation (up to 12 points, only while airborne)
+        if (!f.trail) f.trail = [];
+        const lastPt = f.trail[f.trail.length - 1];
+        if (!f.grounded && (!lastPt || Math.hypot(calcLng - lastPt[0], calcLat - lastPt[1]) > 0.0003)) {
+          f.trail.push([calcLng, calcLat]);
+          if (f.trail.length > 12) f.trail.shift();
+        }
+
+        const feat = {
+          type: 'Feature' as const,
+          geometry: { type: 'Point' as const, coordinates: [calcLng, calcLat] },
+          properties: {
+            callsign: f.callsign,
+            heading: f.heading,
+            alt: f.alt,
+            alt_feet: f.alt_feet,
+            model: f.model,
+            speed_knots: f.speed_knots,
+            registration: f.registration,
+            icao24: f.id,
+            affiliation: f.affiliation,
+            category: f.category,
+            country: f.country,
+            model_image: f.model_image,
+            origin: f.origin,
+            destination: f.destination,
+            grounded: f.grounded,
+            sortie_phase: f.sortie_phase,
+            sortie_label: f.sortie_label,
+            fuel_pct: f.fuel_pct,
+            fuel_duration_min: f.fuel_duration_min,
+            sortie_elapsed_min: f.sortie_elapsed_min,
+            home_base_name: f.home_base_name,
+            home_base_icao: f.home_base_icao,
+            stage1_verification: f.stage1_verification,
+            stage2_verification: f.stage2_verification,
+            harness_verified: f.harness_verified,
+            harness_bridge_id: f.harness_bridge_id,
+            verification_source: f.verification_source,
+            trust_score: f.trust_score,
+            color: f.color,
+          },
+        };
+
+        if (isMil) milFeatures.push(feat);
+        else if (isPriv) privFeatures.push(feat);
+        else if (isJet) jetFeatures.push(feat);
+        else comFeatures.push(feat);
+
+        // Forward vector (2.0 minutes ahead for military, 1.5 minutes for civil) — ONLY when airborne and flying
+        if (!f.grounded && (f.speed_knots || 0) > 20) {
+          const forwardMin = isMil ? 2.0 : 1.5;
+          const forwardDist = (f.speed_knots || 450) * 0.514444 * (forwardMin * 60);
+          const headRad = (heading * Math.PI) / 180;
+          const aheadLat = calcLat + (forwardDist * Math.cos(headRad)) / 111320;
+          const aheadLng = calcLng + (forwardDist * Math.sin(headRad)) / (111320 * Math.cos((calcLat * Math.PI) / 180));
+
+          vectorFeatures.push({
+            type: 'Feature' as const,
+            geometry: {
+              type: 'LineString' as const,
+              coordinates: [[calcLng, calcLat], [aheadLng, aheadLat]],
+            },
+            properties: {
+              color: f.color || (isMil ? '#00E676' : '#00E5FF'),
+              category: f.category,
+            },
+          });
+        }
+
+        // Historical trail line (only while airborne)
+        if (!f.grounded && f.trail.length >= 2) {
+          trailFeatures.push({
+            type: 'Feature' as const,
+            geometry: {
+              type: 'LineString' as const,
+              coordinates: [...f.trail],
+            },
+            properties: {
+              color: f.color || (isMil ? '#00E676' : '#00E5FF'),
+              category: f.category,
+            },
+          });
+        }
+      });
+
+      setGeo('military', activeLayers.military ? milFeatures : []);
+      setGeo('flights', activeLayers.flights ? comFeatures : []);
+      setGeo('private-fl', activeLayers.private ? privFeatures : []);
+      setGeo('jets', activeLayers.jets ? jetFeatures : []);
+      setGeo('flight-vectors', vectorFeatures);
+      setGeo('flight-trails', trailFeatures);
+    };
+
+    animateFlights();
+    const animInterval = setInterval(animateFlights, 1000);
+    return () => clearInterval(animInterval);
+  }, [mapReady, activeLayers.military, activeLayers.flights, activeLayers.private, activeLayers.jets, setGeo]);
 
     // Update aircraft icon colors dynamically on theme switch
     useEffect(() => {
@@ -3669,10 +4406,23 @@ function getVideoAnalysisKeyframe(p: any): string {
     if (!mapReady) return;
     const sats = data.satellites || [];
     const al = activeLayers as any;
+    const showHighLat = !!al.sat_high_lat;
     
-    // If 'All Satellites' is on, show everything
+    // Filter by latitude first
+    const latFiltered = sats.filter((s: any) => showHighLat ? true : !s.is_high_lat);
+
+    const mapSat = (s: any) => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [s.lng, s.lat] },
+      properties: { 
+        name: s.name, color: s.color, mission: s.mission, alt: s.alt, noradId: s.noradId, category: s.category,
+        country: s.country, launch_year: s.launch_year, is_high_lat: s.is_high_lat 
+      }
+    });
+
+    // If 'All Satellites' is on, show everything (respecting lat filter)
     if (al.satellites) {
-      setGeo('satellites', sats.map((s: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [s.lng, s.lat] }, properties: { name: s.name, color: s.color, mission: s.mission, alt: s.alt, noradId: s.noradId, category: s.category } })));
+      setGeo('satellites', latFiltered.map(mapSat));
       return;
     }
     
@@ -3689,9 +4439,9 @@ function getVideoAnalysisKeyframe(p: any): string {
       return;
     }
     
-    const filtered = sats.filter((s: any) => enabledCategories.includes(s.category));
-    setGeo('satellites', filtered.map((s: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [s.lng, s.lat] }, properties: { name: s.name, color: s.color, mission: s.mission, alt: s.alt, noradId: s.noradId, category: s.category } })));
-  }, [mapReady, data.satellites, activeLayers.satellites, (activeLayers as any).sat_comms, (activeLayers as any).sat_military, (activeLayers as any).sat_navigation, (activeLayers as any).sat_earth, (activeLayers as any).sat_science, setGeo]);
+    const catFiltered = latFiltered.filter((s: any) => enabledCategories.includes(s.category));
+    setGeo('satellites', catFiltered.map(mapSat));
+  }, [mapReady, data.satellites, activeLayers.satellites, (activeLayers as any).sat_high_lat, (activeLayers as any).sat_comms, (activeLayers as any).sat_military, (activeLayers as any).sat_navigation, (activeLayers as any).sat_earth, (activeLayers as any).sat_science, setGeo]);
 
   useEffect(() => {
     if (!mapReady) return;
@@ -4009,6 +4759,26 @@ function getVideoAnalysisKeyframe(p: any): string {
     return () => cancelAnimationFrame(cyberAnimRef.current);
   }, [mapReady, (activeLayers as any).cyber_attacks, data.cyber_attacks, setGeo]);
 
+  useEffect(() => {
+    if (!mapReady) return;
+    if (activeLayers.cctv === false && (activeLayers as any).its_incidents === false) {
+      setGeo('its-incidents', []);
+      return;
+    }
+    fetch('/api/its/incidents')
+      .then(res => res.json())
+      .then(d => {
+        if (d.status === 'ok' && Array.isArray(d.incidents)) {
+          const features = d.incidents.map((i: any) => ({
+            type: 'Feature' as const,
+            geometry: { type: 'Point' as const, coordinates: [i.lng, i.lat] },
+            properties: { ...i },
+          }));
+          setGeo('its-incidents', features);
+        }
+      })
+      .catch(() => setGeo('its-incidents', []));
+  }, [mapReady, activeLayers.cctv, (activeLayers as any).its_incidents, setGeo]);
 
   useEffect(() => {
     if (!mapReady) return;
@@ -4047,10 +4817,195 @@ function getVideoAnalysisKeyframe(p: any): string {
     setGeo('gps-jam-sources', sources);
   }, [mapReady, data.gps_jamming, activeLayers.gps_jamming, setGeo]);
 
+  // Ransomware Victims Feed
   useEffect(() => {
     if (!mapReady) return;
-    setGeo('cctv', activeLayers.cctv && data.cameras ? data.cameras.map((c: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [c.lng, c.lat] }, properties: { id: c.id, name: c.name, city: c.city, country: c.country, source: c.source, feed_url: c.feed_url, stream_url: c.stream_url, stream_type: c.stream_type, external_url: c.external_url } })) : []);
-  }, [mapReady, data.cameras, activeLayers.cctv, setGeo]);
+    const feats = activeLayers.ransomware && data.ransomware ? data.ransomware : [];
+    setGeo('ransomware', feats);
+  }, [mapReady, data.ransomware, activeLayers.ransomware, setGeo]);
+
+  // Global Temperature Field
+  useEffect(() => {
+    if (!mapReady) return;
+    const feats = activeLayers.temperature && data.temperature ? data.temperature : [];
+    setGeo('temperature', feats);
+  }, [mapReady, data.temperature, activeLayers.temperature, setGeo]);
+
+  useEffect(() => {
+    if (!mapReady) return;
+    if (!activeLayers.cctv) {
+      setGeo('cctv', []);
+      return;
+    }
+
+    const baseCameras = data.cameras || [];
+    const seenCameraIds = new Set<string>();
+    const features: any[] = [];
+
+    // 1. Process base cameras from backend
+    for (const c of baseCameras) {
+      seenCameraIds.add(c.id);
+      let corr = cameraCorridorMap.get(c.id);
+      if (!corr && c.lat && c.lng) {
+        const nearest = findNearestRoadCorridor(c.lat, c.lng, 400);
+        if (nearest) {
+          const matchedIdx = nearest.cameras.findIndex(nc => nc.id === c.id);
+          corr = {
+            corridorId: nearest.id,
+            corridorColor: nearest.color,
+            roadNumber: nearest.routeNumber,
+            roadName: nearest.shortLabel,
+            channelIndex: matchedIdx >= 0 ? matchedIdx : 0,
+          };
+        }
+      }
+
+      const isSelectedCorridor = corr ? corr.corridorId === selectedCorridorId : false;
+
+      features.push({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [c.lng, c.lat] },
+        properties: {
+          id: c.id,
+          name: c.name,
+          city: c.city,
+          country: c.country,
+          source: c.source,
+          feed_url: c.feed_url,
+          stream_url: c.stream_url,
+          stream_type: c.stream_type,
+          external_url: c.external_url,
+          corridorId: corr?.corridorId,
+          corridorColor: corr?.corridorColor,
+          roadNumber: corr?.roadNumber,
+          roadName: corr?.roadName,
+          channelIndex: corr?.channelIndex,
+          isSelectedCorridor,
+        },
+      });
+    }
+
+    // 2. Ensure all cameras from ROAD_CORRIDORS are included
+    for (const corridor of ROAD_CORRIDORS) {
+      corridor.cameras.forEach((cam, idx) => {
+        if (!seenCameraIds.has(cam.id)) {
+          seenCameraIds.add(cam.id);
+          const isSelectedCorridor = corridor.id === selectedCorridorId;
+          features.push({
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [cam.lng, cam.lat] },
+            properties: {
+              id: cam.id,
+              name: cam.name,
+              city: '김포시',
+              country: 'KR',
+              source: 'its-road-corridor',
+              feed_url: cam.feed_url,
+              stream_url: cam.stream_url,
+              stream_type: cam.stream_type,
+              external_url: cam.feed_url,
+              corridorId: corridor.id,
+              corridorColor: corridor.color,
+              roadNumber: corridor.routeNumber,
+              roadName: corridor.shortLabel,
+              channelIndex: idx,
+              isSelectedCorridor,
+            },
+          });
+        }
+      });
+    }
+
+    setGeo('cctv', features);
+  }, [mapReady, data.cameras, activeLayers.cctv, selectedCorridorId, cameraCorridorMap, setGeo]);
+
+  useEffect(() => {
+    if (!mapReady) return;
+    if (!activeLayers.cctv) {
+      setGeo('road-corridors', []);
+      return;
+    }
+    const features = ROAD_CORRIDORS.map(corridor => {
+      const isSelected = corridor.id === selectedCorridorId;
+      return {
+        type: 'Feature',
+        geometry: {
+          type: 'LineString',
+          coordinates: corridor.centerline,
+        },
+        properties: {
+          id: corridor.id,
+          label: corridor.label,
+          shortLabel: corridor.shortLabel,
+          routeNumber: corridor.routeNumber,
+          category: corridor.category,
+          categoryLabel: corridor.categoryLabel,
+          color: corridor.color,
+          cameraCount: corridor.cameras.length,
+          selected: isSelected,
+        },
+      };
+    });
+    setGeo('road-corridors', features);
+  }, [mapReady, activeLayers.cctv, selectedCorridorId, setGeo]);
+
+  // ── Navigation Route (Valhalla / OSRM dual routing route line rendering) ──
+  useEffect(() => {
+    if (!mapReady) return;
+    if (!route || !route.geometry || !route.geometry.coordinates || route.geometry.coordinates.length < 2) {
+      setGeo('nav-route', []);
+      setGeo('nav-route-alternates', []);
+      return;
+    }
+
+    const mainFeature = {
+      type: 'Feature',
+      geometry: route.geometry,
+      properties: {
+        distance: route.distance,
+        duration: route.duration,
+        mode: route.mode,
+        routeType: route.routeType || 'fastest',
+      },
+    };
+    setGeo('nav-route', [mainFeature]);
+
+    const altFeatures: any[] = [];
+    if (route.alternates && Array.isArray(route.alternates)) {
+      route.alternates.forEach((alt: any, idx: number) => {
+        if (alt?.coordinates && alt.coordinates.length >= 2) {
+          altFeatures.push({
+            type: 'Feature',
+            geometry: alt,
+            properties: { id: `alt-${idx}`, type: 'alternate' },
+          });
+        }
+      });
+    }
+    setGeo('nav-route-alternates', altFeatures);
+
+    // If map instance is available, fitBounds to show the whole route nicely
+    if (mapRef.current && route.geometry.coordinates.length >= 2) {
+      let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+      for (const [lng, lat] of route.geometry.coordinates) {
+        if (lng < minLng) minLng = lng;
+        if (lat < minLat) minLat = lat;
+        if (lng > maxLng) maxLng = lng;
+        if (lat > maxLat) maxLat = lat;
+      }
+      if (minLng !== Infinity && maxLng !== -Infinity && (maxLng - minLng > 0.0001 || maxLat - minLat > 0.0001)) {
+        try {
+          mapRef.current.fitBounds([[minLng, minLat], [maxLng, maxLat]], {
+            padding: { top: 90, bottom: 90, left: 340, right: 90 },
+            duration: 1000,
+            maxZoom: 15,
+          });
+        } catch {
+          // ignore fitBounds race conditions
+        }
+      }
+    }
+  }, [mapReady, route, setGeo]);
 
   useEffect(() => {
     if (!mapReady) return;
@@ -4394,12 +5349,17 @@ function getVideoAnalysisKeyframe(p: any): string {
     setVis(['network-mesh-atmo', 'network-mesh-glow', 'network-mesh-core'], activeLayers.internet_outages || activeLayers.malware);
     setVis(['cyber-arcs-atmo','cyber-arcs-glow','cyber-arcs-core','cyber-arcs-flow','cyber-heads','cyber-impacts','cyber-labels'], (activeLayers as any).cyber_attacks);
     setVis(['jam-fill','jam-label','jam-zone-fill','jam-zone-border','jam-arrow-glow','jam-arrow','jam-source-dot'], activeLayers.gps_jamming);
+    setVis(['ransomware-glow','ransomware-dots','ransomware-label'], (activeLayers as any).ransomware);
+    setVis(['temperature-glow','temperature-dots','temperature-label'], (activeLayers as any).temperature);
     setVis(['day-night-fill'], activeLayers.day_night);
     setVis(['fl-commercial'], activeLayers.flights);
     setVis(['fl-private'], activeLayers.private);
     setVis(['fl-jets'], activeLayers.jets);
     setVis(['fl-mil-rokus', 'fl-mil-dprk', 'fl-mil-china', 'fl-mil-russia', 'fl-mil-ukraine', 'fl-mil-israel', 'fl-mil-japan', 'fl-mil-other'], activeLayers.military);
-    setVis(['cctv-glow','cctv-dots','cctv-label'], activeLayers.cctv);
+    setVis(['flight-trail-lines', 'flight-vector-lines'], !!(activeLayers.flights || activeLayers.private || activeLayers.jets || activeLayers.military));
+    setVis(['cctv-glow','cctv-dots','cctv-label','road-corridors-casing','road-corridors-line','road-corridors-selected-casing','road-corridors-selected-glow','road-corridors-selected-line','road-corridors-label'], activeLayers.cctv);
+    setVis(['its-incidents-glow','its-incidents-circle','its-incidents-label'], (activeLayers as any).its_incidents !== false && activeLayers.cctv !== false);
+    setVis(['nav-route-alt-casing','nav-route-alt-line','nav-route-casing','nav-route-glow','nav-route-line'], true);
     setVis(['fires-heat'], activeLayers.fires);
     setVis(['weather-glow','weather-dots','weather-label'], activeLayers.weather);
     setVis(['infra-glow','infra-dots','infra-label'], activeLayers.infrastructure);
@@ -4850,14 +5810,25 @@ function getVideoAnalysisKeyframe(p: any): string {
     };
   }, [mapReady, drawMode]);
 
+
   return (
     <div className="relative w-full h-full overflow-hidden select-none">
       <div ref={containerRef} className="absolute inset-0 w-full h-full" />
-      {/* CCTV real-time preview tiles on map (zoom 11+) */}
+      {/* CCTV real-time preview tiles on map (zoom 11+ or selected road corridor) */}
       {activeLayers.cctv !== false && activeLayers.cctv_previews !== false && (
         <CctvPreviews
           mapRef={mapRef}
           active={mapReady}
+          selectedCorridorId={selectedCorridorId}
+          onSelectCorridor={(id) => {
+            setSelectedCorridorId(id);
+            if (id && mapRef.current) {
+              const corridor = ROAD_CORRIDORS.find(c => c.id === id);
+              if (corridor) {
+                mapRef.current.fitBounds(corridor.bounds, { padding: 90, duration: 1200, maxZoom: 14.5 });
+              }
+            }
+          }}
           onOpen={(cam: any) => {
             onEntityClick?.({ ...cam, type: 'cctv' });
           }}

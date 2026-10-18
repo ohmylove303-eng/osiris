@@ -76,9 +76,9 @@ export const FEYNMAN_DICTIONARY: Record<string, FeynmanExplanation> = {
     actionHint: '클릭하면 3D 입체 건물과 지형 elevation을 토글할 수 있습니다.',
   },
   "group_GOD'S EYE": {
-    title: "🎯 신의 눈 전술 시스템 (GOD'S EYE)",
-    category: '군사 광학 렌즈 필터',
-    explanation: '일반 화면을 야간투시경(녹색), 열화상(FLIR 적외선), 조종석 추적 뷰, 전투기 HUD 계기판으로 바꿔 칠흑 같은 어둠 속에서도 표적을 선명하게 식별합니다.',
+    title: "⚡ 번개의 눈동자 전술 시스템 (OSIRIS × 신의 눈)",
+    category: '전술 융합 광학 센서 필터',
+    explanation: 'OSIRIS 전구 관제망과 신의 눈(God\'s Eye) 침투 렌즈가 융합된 [번개의 눈동자] 시스템으로, 야간투시경(녹색), 열화상(FLIR 적외선), 조종석 추적 뷰, 전투기 HUD 계기판으로 칠흑 같은 어둠 속에서도 표적을 선명하게 식별합니다.',
     actionHint: '단축키 1~7을 누르거나 필터를 골라 표적 자동 추적과 3인칭 비행 모드를 켭니다.',
   },
 

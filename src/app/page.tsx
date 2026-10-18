@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState, useRef, useCallback, useMemo, use } from 'react';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Layers, BarChart3, Newspaper, Search, X, Globe, MapPinned, Route, Radar, Satellite, Moon, ExternalLink, AlertTriangle, Activity, Database, Wifi, Play, Network, Crosshair, Bluetooth, Pentagon, Radio, PenLine, Zap, Navigation, ChevronDown } from 'lucide-react';
+import { Layers, BarChart3, Newspaper, Search, X, Globe, MapPinned, Route, Radar, Satellite, Moon, ExternalLink, AlertTriangle, Activity, Database, Wifi, Play, Network, Crosshair, Bluetooth, Pentagon, Radio, PenLine, Zap, Navigation, ChevronDown, Eye } from 'lucide-react';
 import { type TerrainStatus } from '@/lib/map-terrain';
 import { loadCameraCatalog, mergeCameraCatalog } from '@/lib/camera-catalog';
 import IntelFeed from '@/components/IntelFeed';
@@ -50,6 +50,8 @@ const DrawHud = dynamic(() => import('@/components/DrawHud'), { ssr: false });
 const DprkReportDossierModal = dynamic(() => import('@/components/DprkReportDossierModal'), { ssr: false });
 const ChinaEncroachmentModal = dynamic(() => import('@/components/ChinaEncroachmentModal'), { ssr: false });
 const AudioCommsHud = dynamic(() => import('@/components/AudioCommsHud'), { ssr: false });
+const IntelLegendModal = dynamic(() => import('@/components/IntelLegendModal'), { ssr: false });
+const GodsEyeReconModal = dynamic(() => import('@/components/GodsEyeReconModal'), { ssr: false });
 // The measurement helpers are pure functions — importing them directly keeps
 // them out of the lazy chunk, so a finished polygon can be measured whether or
 // not the toolbar has loaded yet.
@@ -234,6 +236,8 @@ export default function Dashboard(props?: {
   const [dprkReportModalData, setDprkReportModalData] = useState<any>(null);
   const [chinaEncroachmentModalSiteId, setChinaEncroachmentModalSiteId] = useState<string | null>(null);
   const [showAudioComms, setShowAudioComms] = useState(false);
+  const [showIntelLegend, setShowIntelLegend] = useState(false);
+  const [showGodsEyeModal, setShowGodsEyeModal] = useState(false);
 
   // The popup lives in raw map HTML, so it hands aircraft and DPRK dossiers over through globals.
   useEffect(() => {
@@ -385,6 +389,12 @@ export default function Dashboard(props?: {
         setShowContacts(prev => !prev);
         return;
       }
+      // Legend toggle
+      if (e.key === 'l' || e.key === 'L') {
+        if (e.ctrlKey || e.metaKey) return;
+        setShowIntelLegend(prev => !prev);
+        return;
+      }
       // Reset globe
       if (e.key === 'r' || e.key === 'R') {
         if (!e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -534,6 +544,30 @@ export default function Dashboard(props?: {
           type: typeof match.meta.type === 'string' ? match.meta.type : undefined,
         };
       }
+
+      // Check all available flight lists (commercial, military, private) if not in contactsList
+      const allFlights = [
+        ...(data?.commercial_flights || []),
+        ...(data?.military_flights || []),
+        ...(data?.private_flights || []),
+        ...(data?.private_jets || []),
+      ];
+      const fMatch = allFlights.find((f: any) =>
+        f && (f.icao24 === selectedContactId || f.callsign === selectedContactId || f.hex === selectedContactId || f.id === selectedContactId)
+      );
+      if (fMatch && typeof fMatch.lat === 'number' && typeof fMatch.lng === 'number') {
+        return {
+          icao24: fMatch.icao24 || fMatch.hex || selectedContactId,
+          callsign: fMatch.callsign || fMatch.icao24,
+          lat: fMatch.lat,
+          lng: fMatch.lng,
+          alt: fMatch.alt ?? 3500,
+          heading: fMatch.heading ?? 0,
+          speed: fMatch.speed_knots ?? fMatch.speed ?? 380,
+          verticalRate: fMatch.vert_rate,
+          type: fMatch.type,
+        };
+      }
     }
     const candidate =
       (data?.military_flights && data.military_flights[0]) ||
@@ -604,12 +638,12 @@ export default function Dashboard(props?: {
       };
     }
 
-    // Initial smooth transition to cockpit chase position
+    // Initial smooth transition to cockpit chase position (3D steep flight view)
     const initCam = computeCockpitCamera(cockpitAircraftRef.current);
     map.easeTo({
       center: [initCam.lng, initCam.lat],
-      zoom: initCam.zoom,
-      pitch: Math.max(55, initCam.pitch),
+      zoom: Math.max(13, initCam.zoom),
+      pitch: Math.max(60, initCam.pitch),
       bearing: initCam.bearing,
       duration: 600,
     });
@@ -642,11 +676,11 @@ export default function Dashboard(props?: {
           lng: currentLng,
         });
 
-        // 60fps instant follow behind aircraft
+        // 60fps instant follow behind aircraft with 3D aerial tilt and heading alignment
         map.jumpTo({
           center: [cam.lng, cam.lat],
-          zoom: cam.zoom,
-          pitch: Math.max(55, cam.pitch),
+          zoom: Math.max(13, cam.zoom),
+          pitch: Math.max(60, cam.pitch),
           bearing: cam.bearing,
         });
       }
@@ -665,7 +699,7 @@ export default function Dashboard(props?: {
         cockpitAnimFrameRef.current = null;
       }
     };
-  }, [cockpitMode]);
+  }, [cockpitMode, selectedContactId]);
 
   // Voice AI Action Handler
   const handleVoiceAction = useCallback((action: VoiceActionResult) => {
@@ -733,18 +767,19 @@ export default function Dashboard(props?: {
   const [activeLayers, setActiveLayers] = useState({
     flights: true,
     private: false,
-    jets: false,
-    military: false,
+    jets: true,
+    military: true,
     maritime: true,
-    satellites: false,
+    satellites: true,
     sat_comms: false,
-    sat_military: false,
+    sat_military: true,
     sat_navigation: false,
     sat_earth: false,
     sat_science: false,
     balloons: false,
     cctv: true,
-    cctv_previews: false,
+    cctv_previews: true,
+    its_incidents: true,
     live_news: false,
     earthquakes: true,
     fires: true,
@@ -752,24 +787,24 @@ export default function Dashboard(props?: {
     radiation: false,
     infrastructure: false,
     global_incidents: false,
-    military_demarcation: false,
-    dprk_sites: false,
-    dprk_activity: false,
-    seismic_watch: false,
-    china_encroachment: false,
-    war_alerts: false,
+    military_demarcation: true,
+    dprk_sites: true,
+    dprk_activity: true,
+    seismic_watch: true,
+    china_encroachment: true,
+    war_alerts: true,
     day_night: true,
     cables: false,
-    submarine_cables: false,
-    notam_hazards: false,
-    dark_fleet: false,
+    submarine_cables: true,
+    notam_hazards: true,
+    dark_fleet: true,
     sdk_sea: false,
     sdk_air: false,
     sdk_naval: false,
     terrain_3d: false,
     terrain_elevation: false,
-    malware: false,
-    cyber_attacks: false,
+    malware: true,
+    cyber_attacks: true,
     gdelt_events: false,
     cf_outages: false,
     cf_attacks: false,
@@ -779,6 +814,9 @@ export default function Dashboard(props?: {
     detection_overlay: false,
     military_hud: false,
     contacts_roster: false,
+    gps_jamming: true,
+    ransomware: true,
+    temperature: true,
   });
 
   // Synchronize God's Eye state with activeLayers
@@ -1193,10 +1231,10 @@ export default function Dashboard(props?: {
     // Maritime
     if ((activeLayers.maritime || activeLayers.dark_fleet) && !layerFetchedRef.current.has('maritime')) {
       fetchEndpoint('/api/maritime', d => ({
-        maritime_ports: d.ports,
-        maritime_chokepoints: d.chokepoints,
-        maritime_ships: d.ships,
-        dark_fleet: d.dark_fleet,
+        maritime_ports: d.ports || [],
+        maritime_chokepoints: d.chokepoints || [],
+        maritime_ships: d.ships || d.vessels || [],
+        dark_fleet: d.dark_fleet || [],
         dark_fleet_geojson: d.dark_fleet_geojson
       }));
       layerFetchedRef.current.add('maritime');
@@ -1225,6 +1263,30 @@ export default function Dashboard(props?: {
     if (activeLayers.infrastructure && !layerFetchedRef.current.has('infrastructure')) {
       fetchEndpoint('/api/infrastructure', d => ({ infrastructure: d.infrastructure }));
       layerFetchedRef.current.add('infrastructure');
+    }
+    // GPS Jamming
+    if (activeLayers.gps_jamming && !layerFetchedRef.current.has('gps_jamming')) {
+      fetchEndpoint('/api/gps-jamming', d => ({
+        gps_jamming: d.gps_jamming || d.alerts || [],
+        gps_jamming_features: d.features || []
+      }));
+      layerFetchedRef.current.add('gps_jamming');
+    }
+    // Ransomware Victims Feed
+    if (activeLayers.ransomware && !layerFetchedRef.current.has('ransomware')) {
+      fetchEndpoint('/api/ransomware', d => ({
+        ransomware: d.features || [],
+        ransomware_stats: d.stats || {}
+      }));
+      layerFetchedRef.current.add('ransomware');
+    }
+    // Global Temperature Field
+    if (activeLayers.temperature && !layerFetchedRef.current.has('temperature')) {
+      fetchEndpoint('/api/temperature', d => ({
+        temperature: d.features || [],
+        temperature_meta: d.meta || {}
+      }));
+      layerFetchedRef.current.add('temperature');
     }
     // Global Incidents (GDELT)
     if (activeLayers.global_incidents && !layerFetchedRef.current.has('gdelt')) {
@@ -1326,7 +1388,7 @@ export default function Dashboard(props?: {
   useEffect(() => {
     const intervals: ReturnType<typeof setInterval>[] = [];
     if (activeLayers.flights || activeLayers.military || activeLayers.jets || activeLayers.private) {
-      intervals.push(setInterval(() => fetchEndpoint('/api/flights'), 300000)); // 5 min (was 2 min)
+      intervals.push(setInterval(() => fetchEndpoint('/api/flights'), 15000)); // 15 sec live radar sync
     }
 
     if (activeLayers.balloons) {
@@ -1336,7 +1398,7 @@ export default function Dashboard(props?: {
       intervals.push(setInterval(() => fetchEndpoint('/api/radiation', d => ({ radiation: d.stations })), 300000)); // 5m
     }
     if (activeLayers.maritime) {
-      intervals.push(setInterval(() => fetchEndpoint('/api/maritime', d => ({ maritime_ports: d.ports, maritime_chokepoints: d.chokepoints, maritime_ships: d.ships })), 10000)); // 10s
+      intervals.push(setInterval(() => fetchEndpoint('/api/maritime', d => ({ maritime_ports: d.ports || [], maritime_chokepoints: d.chokepoints || [], maritime_ships: d.ships || d.vessels || [] })), 10000)); // 10s
     }
     if ((activeLayers as any).cyber_attacks) {
       intervals.push(setInterval(() => {
@@ -1350,6 +1412,23 @@ export default function Dashboard(props?: {
     }
     if (activeLayers.seismic_watch) {
       intervals.push(setInterval(() => fetchEndpoint('/api/osint/seismic-watch', d => ({ seismic_events: d.events })), 60000));
+    }
+    if (activeLayers.gps_jamming) {
+      intervals.push(setInterval(() => fetchEndpoint('/api/gps-jamming', d => ({
+        gps_jamming: d.gps_jamming || d.alerts || []
+      })), 30000)); // 30s
+    }
+    if (activeLayers.ransomware) {
+      intervals.push(setInterval(() => fetchEndpoint('/api/ransomware', d => ({
+        ransomware: d.features || [],
+        ransomware_stats: d.stats || {}
+      })), 60000)); // 60s
+    }
+    if (activeLayers.temperature) {
+      intervals.push(setInterval(() => fetchEndpoint('/api/temperature', d => ({
+        temperature: d.features || [],
+        temperature_meta: d.meta || {}
+      })), 300000)); // 5m
     }
     return () => intervals.forEach(clearInterval);
   }, [activeLayers, fetchEndpoint]);
@@ -1943,6 +2022,17 @@ export default function Dashboard(props?: {
             </button>
           </FeynmanTooltip>
 
+          {/* 1.9 신의 눈 (GOD'S EYE) 초광역 위성 정찰 관제소 */}
+          <button
+            type="button"
+            onClick={() => setShowGodsEyeModal(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-mono font-bold transition-all shrink-0 cursor-pointer bg-[#D4AF37]/20 border border-[#D4AF37]/60 hover:border-[#FFD700] text-[#FFD700] hover:bg-[#D4AF37]/35 shadow-[0_0_14px_rgba(212,175,55,0.4)]"
+            aria-label="신의 눈 위성 정찰"
+          >
+            <Eye className="w-3.5 h-3.5 text-[#D4AF37] animate-pulse" />
+            <span>👁️ 신의 눈 (GOD&apos;S EYE)</span>
+          </button>
+
           {/* 2. 번개의 눈동자 최신 인텔리전스 브릿지 */}
           <div className="relative">
             <FeynmanTooltip dictKey="top_bridge" position="bottom">
@@ -1976,12 +2066,12 @@ export default function Dashboard(props?: {
                     <span className="text-[9px] font-mono text-purple-400/70">HARNESS BRIDGE v3</span>
                   </div>
 
-                  {/* ── 🎯 신의 눈 전술 시스템 (GOD'S EYE VIEW) ── */}
+                  {/* ── ⚡ 번개의 눈동자 전술 시스템 (LIGHTNING EYE — OSIRIS × 신의 눈 융합) ── */}
                   <div className="bg-cyan-950/40 border border-cyan-500/40 rounded-xl p-2.5 flex flex-col gap-2 shadow-[0_0_12px_rgba(0,229,255,0.15)]">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_6px_#00e5ff]" />
-                        <span className="text-[11px] font-mono font-bold text-cyan-200">🎯 신의 눈 전술 관제 (GOD&apos;S EYE)</span>
+                        <span className="text-[11px] font-mono font-bold text-cyan-200">⚡ 번개의 눈동자 전술 관제 (LIGHTNING EYE)</span>
                       </div>
                       <span className="text-[9px] font-mono text-cyan-400/90 bg-cyan-900/50 px-1.5 py-0.5 rounded border border-cyan-500/40">
                         단축키 C / D / H / T
@@ -2206,6 +2296,13 @@ export default function Dashboard(props?: {
             <ZuluClock />
           </span>
         </FeynmanTooltip>
+
+        <button 
+          onClick={() => setShowIntelLegend(true)}
+          className="pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded bg-[var(--cyan-primary)]/20 text-[var(--cyan-primary)] hover:bg-[var(--cyan-primary)]/40 border border-[var(--cyan-primary)]/50 transition-colors shadow-[0_0_10px_rgba(0,229,255,0.2)]"
+        >
+          <span className="font-bold text-xs">⚡ 번개의 눈동자 가이드</span>
+        </button>
 
         <FeynmanTooltip dictKey="top_status" position="bottom" className="pointer-events-auto cursor-help">
           <span className="flex items-center gap-1">상태: <span className={backendStatus === 'connected' ? 'text-[var(--alert-green)]' : 'text-[var(--alert-red)]'}>{backendStatus === 'connected' ? '정상 가동' : backendStatus.toUpperCase()}</span></span>
@@ -2900,6 +2997,28 @@ export default function Dashboard(props?: {
         />
       )}
 
+      {/* ── 👁️ 신의 눈 (GOD'S EYE) 초광역 위성 정찰 관제소 모달 ── */}
+      {showGodsEyeModal && (
+        <GodsEyeReconModal
+          onClose={() => setShowGodsEyeModal(false)}
+          satellitesCount={data.satellites?.length || 14}
+          firesCount={data.fires?.length || 365}
+          onActivateReconMode={() => {
+            setActiveLayers(prev => ({
+              ...prev,
+              satellites: true,
+              fires: true,
+              radar: true,
+              military: true,
+              'demarcation-lines': true
+            }));
+          }}
+          onFocusTarget={(coords) => {
+            setFlyToLocation({ lat: coords[1], lng: coords[0], zoom: 12, ts: Date.now() });
+          }}
+        />
+      )}
+
 
       {/* ── OVERLAYS ── */}
       <div className="vignette absolute inset-0 pointer-events-none z-[2]" />
@@ -2997,41 +3116,130 @@ export default function Dashboard(props?: {
         onClose={() => setShowContacts(false)}
       />
 
+      <AnimatePresence>
+        {showIntelLegend && <IntelLegendModal onClose={() => setShowIntelLegend(false)} />}
+      </AnimatePresence>
+
       {/* Keyboard Shortcuts Overlay */}
       <KeyboardShortcuts />
 
       {/* ── GLOBAL STATUS TICKER (bottom) ── */}
       <GlobalStatusBar />
 
-      {/* Shortcut hint — with interactive Feynman tooltips */}
-      <div className="desktop-only absolute bottom-[26px] right-5 z-[200] flex items-center gap-1.5 text-[9px] font-mono text-[var(--text-muted)] opacity-60 tracking-wider">
-        <FeynmanTooltip dictKey="hint_shortcuts" position="top" className="pointer-events-auto cursor-help">
-          <span className="hover:text-white hover:underline transition-colors">Press <span className="text-[var(--gold-primary)] font-bold">?</span> shortcuts</span>
+      {/* ── KOREAN TACTICAL SHORTCUT BAR (전술 단축키 인터랙티브 바) ── */}
+      <div className="desktop-only absolute bottom-[28px] right-4 z-[200] flex flex-row flex-nowrap whitespace-nowrap items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/85 backdrop-blur-md border border-[var(--gold-primary)]/40 text-[10px] font-mono shadow-2xl select-none pointer-events-auto">
+        {/* 전체 단축키 모달 버튼 */}
+        <FeynmanTooltip dictKey="hint_shortcuts" position="top" className="pointer-events-auto">
+          <button
+            type="button"
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent('osiris-open-shortcuts'));
+            }}
+            className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[var(--gold-primary)]/15 border border-[var(--gold-primary)]/50 text-[var(--gold-primary)] hover:bg-[var(--gold-primary)]/30 hover:scale-105 active:scale-95 transition-all font-bold cursor-pointer shadow-sm"
+            title="모든 전술 키보드 단축키 안내창 열기 (? 키)"
+          >
+            <span>⚡ 단축키 안내</span>
+            <kbd className="px-1 py-0.2 rounded bg-black/60 text-[9px] border border-[var(--gold-primary)]/40 font-mono text-[var(--gold-primary)]">?</kbd>
+          </button>
         </FeynmanTooltip>
-        <span>·</span>
-        <FeynmanTooltip dictKey="hint_sensor" position="top" className="pointer-events-auto cursor-help">
-          <span className="hover:text-white hover:underline transition-colors"><span className="text-[var(--gold-primary)] font-bold">1-7</span> sensor</span>
+
+        <span className="text-white/20">|</span>
+
+        {/* 3D 항공뷰 콕핏 */}
+        <FeynmanTooltip dictKey="hint_cockpit" position="top" className="pointer-events-auto">
+          <button
+            type="button"
+            onClick={() => setCockpitMode(prev => !prev)}
+            className={`flex items-center gap-1 px-2 py-0.5 rounded transition-all cursor-pointer ${
+              cockpitMode 
+                ? 'bg-amber-500/30 text-amber-300 border border-amber-500/60 font-bold shadow-[0_0_8px_rgba(245,158,11,0.5)]' 
+                : 'text-white/70 hover:text-white hover:bg-white/10'
+            }`}
+            title="3D 항공뷰 콕핏 추적 모드 토글 (C 키)"
+          >
+            <kbd className={`px-1 py-0.2 rounded text-[9px] font-bold ${cockpitMode ? 'bg-amber-400 text-black' : 'bg-white/10 text-amber-400'}`}>C</kbd>
+            <span>3D항공뷰</span>
+          </button>
         </FeynmanTooltip>
-        <span>·</span>
-        <FeynmanTooltip dictKey="hint_voice" position="top" className="pointer-events-auto cursor-help">
-          <span className="hover:text-white hover:underline transition-colors"><span className="text-[var(--gold-primary)] font-bold">V</span> voice</span>
+
+        {/* 표적 탐지 락온 */}
+        <FeynmanTooltip dictKey="hint_detect" position="top" className="pointer-events-auto">
+          <button
+            type="button"
+            onClick={() => setShowDetectionOverlay(prev => !prev)}
+            className={`flex items-center gap-1 px-2 py-0.5 rounded transition-all cursor-pointer ${
+              showDetectionOverlay 
+                ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/60 font-bold shadow-[0_0_8px_rgba(16,185,129,0.5)]' 
+                : 'text-white/70 hover:text-white hover:bg-white/10'
+            }`}
+            title="표적 탐지 락온 사각 조준경 토글 (D 키)"
+          >
+            <kbd className={`px-1 py-0.2 rounded text-[9px] font-bold ${showDetectionOverlay ? 'bg-emerald-400 text-black' : 'bg-white/10 text-emerald-400'}`}>D</kbd>
+            <span>표적락온</span>
+          </button>
         </FeynmanTooltip>
-        <span>·</span>
-        <FeynmanTooltip dictKey="hint_detect" position="top" className="pointer-events-auto cursor-help">
-          <span className="hover:text-white hover:underline transition-colors"><span className="text-[var(--gold-primary)] font-bold">D</span> detect</span>
+
+        {/* 광학 센서 렌즈 */}
+        <FeynmanTooltip dictKey="hint_sensor" position="top" className="pointer-events-auto">
+          <button
+            type="button"
+            onClick={() => {
+              const modes: SensorMode[] = ['NORMAL', 'CRT', 'NVG', 'FLIR_WHITE', 'FLIR_IRONBOW', 'NOIR', 'SNOW'];
+              const idx = modes.indexOf(sensorMode);
+              setSensorMode(modes[(idx + 1) % modes.length]);
+            }}
+            className="flex items-center gap-1 px-2 py-0.5 rounded text-white/70 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+            title="광학 센서 렌즈 순환 변경 (1~7번 키)"
+          >
+            <kbd className="px-1 py-0.2 rounded text-[9px] font-bold bg-white/10 text-cyan-400">1~7</kbd>
+            <span>센서렌즈 <span className="text-cyan-400 font-bold">({sensorMode})</span></span>
+          </button>
         </FeynmanTooltip>
-        <span>·</span>
-        <FeynmanTooltip dictKey="hint_hud" position="top" className="pointer-events-auto cursor-help">
-          <span className="hover:text-white hover:underline transition-colors"><span className="text-[var(--gold-primary)] font-bold">H</span> HUD</span>
+
+        {/* 군사 전술 HUD */}
+        <FeynmanTooltip dictKey="hint_hud" position="top" className="pointer-events-auto">
+          <button
+            type="button"
+            onClick={() => setShowMilitaryHud(prev => !prev)}
+            className={`flex items-center gap-1 px-2 py-0.5 rounded transition-all cursor-pointer ${
+              showMilitaryHud 
+                ? 'bg-blue-500/30 text-blue-300 border border-blue-500/60 font-bold shadow-[0_0_8px_rgba(59,130,246,0.5)]' 
+                : 'text-white/70 hover:text-white hover:bg-white/10'
+            }`}
+            title="MGRS 군사 전술 헤드업 디스플레이 (H 키)"
+          >
+            <kbd className={`px-1 py-0.2 rounded text-[9px] font-bold ${showMilitaryHud ? 'bg-blue-400 text-black' : 'bg-white/10 text-blue-400'}`}>H</kbd>
+            <span>전술HUD</span>
+          </button>
         </FeynmanTooltip>
-        <span>·</span>
-        <FeynmanTooltip dictKey="hint_cockpit" position="top" className="pointer-events-auto cursor-help">
-          <span className="hover:text-white hover:underline transition-colors"><span className="text-[var(--gold-primary)] font-bold">C</span> cockpit</span>
+
+        {/* 주변 비행체 로스터 */}
+        <FeynmanTooltip dictKey="hint_contacts" position="top" className="pointer-events-auto">
+          <button
+            type="button"
+            onClick={() => setShowContacts(prev => !prev)}
+            className={`flex items-center gap-1 px-2 py-0.5 rounded transition-all cursor-pointer ${
+              showContacts 
+                ? 'bg-purple-500/30 text-purple-300 border border-purple-500/60 font-bold shadow-[0_0_8px_rgba(168,85,247,0.5)]' 
+                : 'text-white/70 hover:text-white hover:bg-white/10'
+            }`}
+            title="반경 250km 비행체/선박 로스터 (T 키)"
+          >
+            <kbd className={`px-1 py-0.2 rounded text-[9px] font-bold ${showContacts ? 'bg-purple-400 text-black' : 'bg-white/10 text-purple-400'}`}>T</kbd>
+            <span>주변항적</span>
+          </button>
         </FeynmanTooltip>
-        <span>·</span>
-        <FeynmanTooltip dictKey="hint_contacts" position="top" className="pointer-events-auto cursor-help">
-          <span className="hover:text-white hover:underline transition-colors"><span className="text-[var(--gold-primary)] font-bold">T</span> contacts</span>
-        </FeynmanTooltip>
+
+        {/* 글로벌 뷰 리셋 */}
+        <button
+          type="button"
+          onClick={() => setFlyToLocation({ lat: 20, lng: 0, zoom: 2.2, ts: Date.now() })}
+          className="flex items-center gap-1 px-2 py-0.5 rounded text-white/70 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+          title="전 세계 글로벌 뷰 중심 리셋 (R 키)"
+        >
+          <kbd className="px-1 py-0.2 rounded text-[9px] font-bold bg-white/10 text-white/80">R</kbd>
+          <span>리셋</span>
+        </button>
       </div>
 
 
