@@ -26,6 +26,7 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import json
 import logging
@@ -99,6 +100,13 @@ class TrackedEntity(BaseModel):
     attribute: Optional[str] = None
     segment_mask: Optional[list[list[float]]] = None  # SAM 2.1 polygon mask [ [x, y], ... ]
 
+
+class FrameTrackRequest(BaseModel):
+    cam_id: str = "CAM-LIVE"
+    frame_base64: Optional[str] = None
+    stream_url: Optional[str] = None
+    filter: str = "all"
+    target_id: Optional[str] = None
 
 class TrackingFrame(BaseModel):
     status: str = "ok"
@@ -382,145 +390,15 @@ def generate_segment_mask(box: list[float], entity_type: EntityType) -> list[lis
 
 def generate_simulated_entities(cam_id: str, time_step: float) -> list[TrackedEntity]:
     """
-    Generate high-precision dynamic deterministic tracking entities for any CCTV camera.
-    Matches real Korean highway/urban traffic with SAM 2.1 contours and ALPR plates.
+    Zero-fake-data policy (jh-physical-truth-harness):
+    Never generate hallucinated or simulated bounding boxes on empty pavement.
+    Returns empty list when no real image frame is present.
     """
-    cam_hash = sum(ord(c) * (31 ** i) for i, c in enumerate(cam_id)) & 0x7FFFFFFF
-    cam_offset = (cam_hash % 37) + 1
+    return []
 
-    # Vehicle 1: Hyundai Grandeur Sedan
-    v1_left = round(max(5.0, min(95.0, ((time_step * 4.6 + cam_offset * 7.3) % 100))), 2)
-    v1_top = round(54.0 + math.sin(time_step * 0.25 + cam_offset * 0.3) * 2.5, 2)
-    v1_box = [v1_top, v1_left, 16.5, 11.2]
-    v1_speed = round(54 + math.cos(time_step * 0.3 + cam_offset) * 5, 1)
 
-    # Vehicle 2: Kia Carnival Van
-    v2_left = round(max(8.0, min(92.0, 100 - ((time_step * 5.3 + cam_offset * 5.1) % 100))), 2)
-    v2_top = round(68.0 + math.cos(time_step * 0.2 + cam_offset * 0.2) * 2.2, 2)
-    v2_box = [v2_top, v2_left, 19.0, 13.0]
-    v2_speed = round(62 + math.sin(time_step * 0.25 + cam_offset) * 4, 1)
-
-    # Vehicle 3: Heavy Truck
-    v3_left = round(max(10.0, min(90.0, ((time_step * 2.9 + 25 + cam_offset * 3.7) % 100))), 2)
-    v3_top = round(42.0 + (cam_offset % 5) * 1.5, 2)
-    v3_box = [v3_top, v3_left, 22.0, 15.5]
-    v3_speed = round(46.0 + (cam_offset % 6), 1)
-
-    # Person 1: Pedestrian
-    p1_left = round(max(15.0, min(85.0, 36.0 + math.sin(time_step * 0.32) * 14.0)), 2)
-    p1_top = round(32.0 + math.sin(time_step * 0.42) * 1.8, 2)
-    p1_box = [p1_top, p1_left, 8.5, 15.0]
-
-    # Person 2: Cyclist
-    p2_left = round(max(10.0, min(88.0, 68.0 - (time_step * 1.9 + cam_offset) % 45)), 2)
-    p2_top = round(38.0 + math.cos(time_step * 0.28) * 1.4, 2)
-    p2_box = [p2_top, p2_left, 10.5, 14.0]
-
-    entities = [
-        TrackedEntity(
-            id="TRK-V-102",
-            type=EntityType.VEHICLE,
-            label="VEHICLE",
-            subclass="현대 그랜저 (Sedan)",
-            confidence=0.965,
-            box=v1_box,
-            velocity_kmh=v1_speed,
-            heading_deg=(92 + cam_offset * 3) % 360,
-            status=EntityStatus.MOVING,
-            history=[
-                [round(((v1_left - 15) + 100) % 100, 2), round(v1_top + 0.5, 2)],
-                [round(((v1_left - 10) + 100) % 100, 2), round(v1_top + 0.3, 2)],
-                [round(((v1_left - 5) + 100) % 100, 2), round(v1_top, 2)],
-                [v1_left, v1_top],
-            ],
-            color="#00E5FF",
-            license_plate="서울34가 8291",
-            attribute="블랙 세단 · 2차로 정속 주행",
-            segment_mask=generate_segment_mask(v1_box, EntityType.VEHICLE),
-        ),
-        TrackedEntity(
-            id="TRK-V-105",
-            type=EntityType.VEHICLE,
-            label="VEHICLE",
-            subclass="기아 카니발 (Van)",
-            confidence=0.942,
-            box=v2_box,
-            velocity_kmh=v2_speed,
-            heading_deg=(272 + cam_offset * 5) % 360,
-            status=EntityStatus.MOVING,
-            history=[
-                [round(((v2_left + 15) % 100), 2), round(v2_top - 0.5, 2)],
-                [round(((v2_left + 10) % 100), 2), round(v2_top - 0.2, 2)],
-                [round(((v2_left + 5) % 100), 2), round(v2_top, 2)],
-                [v2_left, v2_top],
-            ],
-            color="#38EF7D",
-            license_plate="경기70바 1403",
-            attribute="화이트 밴 · 1차로 추월 주행",
-            segment_mask=generate_segment_mask(v2_box, EntityType.VEHICLE),
-        ),
-        TrackedEntity(
-            id="TRK-V-108",
-            type=EntityType.VEHICLE,
-            label="VEHICLE",
-            subclass="볼보 FL 트럭 (Heavy)",
-            confidence=0.915,
-            box=v3_box,
-            velocity_kmh=v3_speed,
-            heading_deg=(90 + cam_offset * 7) % 360,
-            status=EntityStatus.MOVING,
-            history=[
-                [round(((v3_left - 15) + 100) % 100, 2), v3_top],
-                [round(((v3_left - 10) + 100) % 100, 2), v3_top],
-                [round(((v3_left - 5) + 100) % 100, 2), v3_top],
-                [v3_left, v3_top],
-            ],
-            color="#FFB300",
-            license_plate="인천88아 5920",
-            attribute="적재 화물 트럭 · 3차로",
-            segment_mask=generate_segment_mask(v3_box, EntityType.VEHICLE),
-        ),
-        TrackedEntity(
-            id="TRK-P-021",
-            type=EntityType.PERSON,
-            label="PERSON",
-            subclass="보행자 (Pedestrian)",
-            confidence=0.892,
-            box=p1_box,
-            velocity_kmh=4.8,
-            heading_deg=45.0,
-            status=EntityStatus.MOVING,
-            history=[
-                [round(p1_left - 4, 2), round(p1_top + 1, 2)],
-                [round(p1_left - 2, 2), round(p1_top + 0.5, 2)],
-                [p1_left, p1_top],
-            ],
-            color="#FF0055",
-            attribute="어두운 외투 · 횡단보도 진입",
-            segment_mask=generate_segment_mask(p1_box, EntityType.PERSON),
-        ),
-        TrackedEntity(
-            id="TRK-P-024",
-            type=EntityType.PERSON,
-            label="PERSON",
-            subclass="자전거/이륜차 (Cyclist)",
-            confidence=0.931,
-            box=p2_box,
-            velocity_kmh=18.2,
-            heading_deg=265.0,
-            status=EntityStatus.MOVING,
-            history=[
-                [round(p2_left + 6, 2), p2_top],
-                [round(p2_left + 3, 2), p2_top],
-                [p2_left, p2_top],
-            ],
-            color="#E040FB",
-            attribute="자전거 도로 통행",
-            segment_mask=generate_segment_mask(p2_box, EntityType.PERSON),
-        ),
-    ]
-    return entities
-
+# Global track history for real kinematics (speed, heading, trajectory)
+_track_history: dict[int, list[tuple[float, float, float]]] = defaultdict(list)
 
 def detect_and_track(
     frame: np.ndarray,
@@ -528,11 +406,11 @@ def detect_and_track(
     frame_h: int,
     frame_w: int,
 ) -> list[TrackedEntity]:
-    """Run real YOLO detection + ByteTrack MOT tracking on a frame."""
+    """Run real YOLO detection + ByteTrack MOT tracking on a real frame."""
     entities: list[TrackedEntity] = []
 
     yolo = engines.yolo
-    if yolo is None:
+    if yolo is None or frame is None or frame.size == 0:
         return entities
 
     results = yolo(frame, conf=CONFIDENCE_THRESHOLD, verbose=False)
@@ -561,6 +439,8 @@ def detect_and_track(
             except Exception as e:
                 log.warning(f"Tracker update warning: {e}")
 
+        now = time.time()
+
         for i in range(len(detections)):
             cls_id = int(detections.class_id[i]) if detections.class_id is not None else 0
             label_info = COCO_LABELS.get(cls_id, ("unknown", "Unknown", EntityType.PERSON))
@@ -583,18 +463,76 @@ def detect_and_track(
             entity_type = label_info[2]
             prefix = "TRK-V" if entity_type == EntityType.VEHICLE else "TRK-P"
 
+            # Real kinematics calculation from displacement history
+            hist_records = _track_history[tracker_id]
+            hist_records.append((left, top, now))
+            if len(hist_records) > 20:
+                hist_records.pop(0)
+
+            history_coords = [[h_item[0], h_item[1]] for h_item in hist_records[-6:]]
+
+            # Estimate real speed and heading
+            velocity = 0.0
+            heading = 0.0
+            status = EntityStatus.STATIONARY
+            if len(hist_records) >= 2:
+                p_prev = hist_records[-2]
+                p_curr = hist_records[-1]
+                dx = p_curr[0] - p_prev[0]
+                dy = p_curr[1] - p_prev[1]
+                dt = max(0.01, p_curr[2] - p_prev[2])
+                dist = math.sqrt(dx * dx + dy * dy)
+                # Calibrate normalized screen % to km/h assuming road FOV
+                velocity = round(min(130.0, max(0.0, (dist / dt) * 3.6 * 2.2)), 1)
+                heading = round(math.degrees(math.atan2(dy, dx)) % 360, 1)
+                status = EntityStatus.MOVING if velocity > 4.0 else EntityStatus.STATIONARY
+
+            # Real color extraction from vehicle crop
+            subclass_str = label_info[1]
+            attribute_str = f"{subclass_str}"
+            x1_i, y1_i = max(0, int(x1)), max(0, int(y1))
+            x2_i, y2_i = min(frame_w, int(x2)), min(frame_h, int(y2))
+
+            if entity_type == EntityType.VEHICLE and (x2_i - x1_i > 15) and (y2_i - y1_i > 15):
+                try:
+                    # Sample center 40%
+                    cx1 = x1_i + int((x2_i - x1_i) * 0.3)
+                    cx2 = x2_i - int((x2_i - x1_i) * 0.3)
+                    cy1 = y1_i + int((y2_i - y1_i) * 0.3)
+                    cy2 = y2_i - int((y2_i - y1_i) * 0.3)
+                    crop = frame[cy1:cy2, cx1:cx2]
+                    if crop.size > 0:
+                        b, g, r = crop.mean(axis=(0, 1))
+                        lum = (r * 0.299 + g * 0.587 + b * 0.114)
+                        if lum < 55:
+                            c_name = "블랙"
+                        elif lum > 190:
+                            c_name = "화이트"
+                        elif max(abs(r - g), abs(g - b), abs(b - r)) < 22:
+                            c_name = "실버/그레이"
+                        elif r > g + 30 and r > b + 30:
+                            c_name = "레드"
+                        elif b > r + 30 and b > g + 30:
+                            c_name = "블루"
+                        else:
+                            c_name = "차량"
+                        attribute_str = f"{c_name} {subclass_str} · 실시간 추적"
+                except Exception:
+                    pass
+
             entity = TrackedEntity(
                 id=f"{prefix}-{tracker_id:03d}",
                 type=entity_type,
                 label=entity_type.value.upper(),
-                subclass=label_info[1],
+                subclass=subclass_str,
                 confidence=round(conf, 3),
                 box=box,
-                velocity_kmh=round(45.0 + (tracker_id % 20), 1),
-                heading_deg=round((tracker_id * 47) % 360, 1),
-                status=EntityStatus.MOVING,
-                history=[[left, top]],
+                velocity_kmh=velocity,
+                heading_deg=heading,
+                status=status,
+                history=history_coords,
                 color=ENTITY_COLORS[tracker_id % len(ENTITY_COLORS)],
+                attribute=attribute_str,
                 segment_mask=generate_segment_mask(box, entity_type),
             )
             entities.append(entity)
@@ -737,6 +675,95 @@ async def list_cameras():
     }
 
 
+@app.post("/track/frame")
+async def track_frame(req: FrameTrackRequest):
+    """
+    Real-time AI Vision Tracking on incoming video/image frame (YOLO11n + ByteTrack).
+    Enforces zero fake data: only returns boxes if objects are actually detected in the frame.
+    """
+    frame = None
+
+    # 1. Base64 frame from client canvas
+    if req.frame_base64:
+        try:
+            b64_str = req.frame_base64
+            if "," in b64_str:
+                b64_str = b64_str.split(",", 1)[1]
+            img_bytes = base64.b64decode(b64_str)
+            np_arr = np.frombuffer(img_bytes, np.uint8)
+            frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        except Exception as e:
+            log.warning(f"Error decoding base64 frame: {e}")
+
+    # 2. Direct stream/snapshot URL fetch if provided
+    elif req.stream_url:
+        try:
+            import urllib.request
+            req_hdrs = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+            req_obj = urllib.request.Request(req.stream_url, headers=req_hdrs)
+            with urllib.request.urlopen(req_obj, timeout=2.5) as resp:
+                data = resp.read()
+                np_arr = np.frombuffer(data, np.uint8)
+                frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        except Exception as e:
+            log.warning(f"Error fetching frame from stream_url: {e}")
+
+    # 3. Camera manager registered feed
+    if frame is None:
+        feed = camera_manager.get_camera(req.cam_id)
+        if feed and feed.last_frame is not None:
+            frame = feed.last_frame
+
+    # If no real frame available, return clean waiting state (NO FAKE BOXES!)
+    if frame is None:
+        return {
+            "status": "awaiting_frame",
+            "cam_id": req.cam_id,
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime()),
+            "fps": FRAME_RATE,
+            "frame_index": 0,
+            "counts": {"total": 0, "vehicles": 0, "persons": 0},
+            "entities": [],
+            "locked_target": None,
+            "engines": engines.get_engine_info(),
+            "source": "python_vision_server_real_time",
+            "message": "실제 영상 프레임 수신 대기 중 (가짜 좌표 생성 차단됨)",
+        }
+
+    h, w = frame.shape[:2]
+    all_entities = detect_and_track(frame, engines, h, w)
+
+    if req.filter == "vehicle":
+        filtered = [e for e in all_entities if e.type == EntityType.VEHICLE]
+    elif req.filter == "person":
+        filtered = [e for e in all_entities if e.type == EntityType.PERSON]
+    else:
+        filtered = all_entities
+
+    locked = None
+    if req.target_id:
+        locked = next((e for e in all_entities if e.id == req.target_id), None)
+    elif filtered:
+        locked = filtered[0]
+
+    return {
+        "status": "ok",
+        "cam_id": req.cam_id,
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime()),
+        "fps": FRAME_RATE,
+        "frame_index": 0,
+        "counts": {
+            "total": len(all_entities),
+            "vehicles": sum(1 for e in all_entities if e.type == EntityType.VEHICLE),
+            "persons": sum(1 for e in all_entities if e.type == EntityType.PERSON),
+        },
+        "entities": [e.model_dump() for e in filtered],
+        "locked_target": locked.model_dump() if locked else None,
+        "engines": engines.get_engine_info(),
+        "source": "python_vision_server_real_time",
+    }
+
+
 @app.get("/track/{cam_id}")
 async def track_single(
     cam_id: str,
@@ -745,19 +772,15 @@ async def track_single(
 ):
     """
     Get current tracking data for a camera.
-    Uses live frame if camera is connected, or high-fidelity dynamic deterministic simulation.
+    Returns real detections if feed is connected, or empty list if no frame available.
     """
-    now = time.time()
-    time_step = now % 60.0
-
     feed = camera_manager.get_camera(cam_id)
     if feed and feed.last_frame is not None:
         h, w = feed.last_frame.shape[:2]
         all_entities = detect_and_track(feed.last_frame, engines, h, w)
     else:
-        all_entities = generate_simulated_entities(cam_id, time_step)
+        all_entities = []
 
-    # Filter by type
     if filter == "vehicle":
         filtered = [e for e in all_entities if e.type == EntityType.VEHICLE]
     elif filter == "person":
@@ -771,24 +794,22 @@ async def track_single(
     elif filtered:
         locked = filtered[0]
 
-    frame_data = TrackingFrame(
-        status="ok",
-        cam_id=cam_id,
-        timestamp=time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime()),
-        fps=FRAME_RATE,
-        frame_index=feed.frame_index if feed else int(time_step * 30),
-        counts={
+    return {
+        "status": "ok",
+        "cam_id": cam_id,
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime()),
+        "fps": FRAME_RATE,
+        "frame_index": feed.frame_index if feed else 0,
+        "counts": {
             "total": len(all_entities),
             "vehicles": sum(1 for e in all_entities if e.type == EntityType.VEHICLE),
             "persons": sum(1 for e in all_entities if e.type == EntityType.PERSON),
         },
-        entities=filtered,
-        locked_target=locked,
-        engines=engines.get_engine_info(),
-        source="python_vision_server",
-    )
-
-    return frame_data.model_dump()
+        "entities": [e.model_dump() for e in filtered],
+        "locked_target": locked.model_dump() if locked else None,
+        "engines": engines.get_engine_info(),
+        "source": "python_vision_server_real_time",
+    }
 
 
 # ──────────────────────────────────────────────────────────────

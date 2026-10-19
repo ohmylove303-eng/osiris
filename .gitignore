@@ -68,6 +68,8 @@ public/influencer/viral_raw/
 public/osiris_*.json
 merge_map.py
 # Python & local dev cache
+logs/
+*.log
 __pycache__/
 *.pyc
 .venv/

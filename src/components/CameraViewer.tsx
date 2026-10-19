@@ -51,7 +51,7 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
   const [trackingEnabled, setTrackingEnabled] = useState<boolean>(true);
   const [filterMode, setFilterMode] = useState<'all' | 'vehicle' | 'person'>('all');
   const [trackedEntities, setTrackedEntities] = useState<TrackedEntity[]>([]);
-  const [selectedTargetId, setSelectedTargetId] = useState<string | null>('TRK-V-102');
+  const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
   const [trackingEngines, setTrackingEngines] = useState<any>(null);
 
   useEffect(() => {
@@ -105,12 +105,55 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
     let pollInterval: any = null;
 
     const setupPolling = () => {
+      let isFetching = false;
       const fetchTracking = async () => {
+        if (isFetching) return;
+        isFetching = true;
         try {
-          const res = await fetch(`/api/cctv/track?camId=${encodeURIComponent(camId)}&filter=${filterMode}&targetId=${selectedTargetId || ''}`);
+          // 1. Capture real frame from video or image if rendered
+          let frameBase64: string | null = null;
+          try {
+            const video = videoRef.current;
+            if (video && video.readyState >= 2 && video.videoWidth > 0) {
+              const canvas = document.createElement('canvas');
+              canvas.width = 640;
+              canvas.height = 360;
+              const ctx = canvas.getContext('2d');
+              if (ctx) {
+                ctx.drawImage(video, 0, 0, 640, 360);
+                frameBase64 = canvas.toDataURL('image/jpeg', 0.65);
+              }
+            } else {
+              const img = document.querySelector<HTMLImageElement>('#cctv-live-feed-img');
+              if (img && img.naturalWidth > 0) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 640;
+                canvas.height = 360;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                  ctx.drawImage(img, 0, 0, 640, 360);
+                  frameBase64 = canvas.toDataURL('image/jpeg', 0.65);
+                }
+              }
+            }
+          } catch {
+            // Tainted canvas or cross-origin - will pass streamUrl fallback
+          }
+
+          const res = await fetch('/api/cctv/track', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              camId,
+              frame: frameBase64,
+              streamUrl: camera?.stream_url || camera?.feed_url || streamUrl,
+              filter: filterMode,
+              targetId: selectedTargetId || null,
+            }),
+          });
           if (!res.ok) return;
           const data = await res.json();
-          if (active && data.status === 'ok') {
+          if (active) {
             setTrackedEntities(data.entities || []);
             if (data.engines) setTrackingEngines(data.engines);
             if (data.lockedTarget && !selectedTargetId) {
@@ -119,11 +162,13 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
           }
         } catch (err) {
           console.warn('[AI Vision Tracking] Stream poll error suppressed:', err);
+        } finally {
+          isFetching = false;
         }
       };
       fetchTracking();
       if (!pollInterval) {
-        pollInterval = setInterval(fetchTracking, 1000);
+        pollInterval = setInterval(fetchTracking, 600); // 1.6 FPS real AI inference
       }
     };
 
@@ -516,12 +561,15 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
                   autoPlay
                   muted
                   playsInline
+                  crossOrigin="anonymous"
                 />
               ) : streamType === 'mjpeg' && camera.stream_url ? (
                 <img
+                  id="cctv-live-feed-img"
                   src={camera.stream_url}
                   alt={camera.name}
                   className={`w-full h-full ${fullscreen ? 'object-contain' : 'object-cover'}`}
+                  crossOrigin="anonymous"
                   onLoad={() => setLoading(false)}
                   onError={() => { setLoading(false); setError(true); }}
                 />
@@ -533,6 +581,7 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
                   muted
                   playsInline
                   loop
+                  crossOrigin="anonymous"
                 />
               ) : streamType === 'iframe' && streamUrl ? (
                 <iframe
@@ -542,9 +591,11 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
                 />
               ) : imageUrl ? (
                 <img
+                  id="cctv-live-feed-img"
                   src={imageUrl}
                   alt={camera.name}
                   className={`w-full h-full ${fullscreen ? 'object-contain' : 'object-cover'}`}
+                  crossOrigin="anonymous"
                   onLoad={() => setLoading(false)}
                   onError={() => { setLoading(false); setError(true); }}
                 />
@@ -661,9 +712,9 @@ export default function CameraViewer({ camera, onClose, onLocate }: CameraViewer
             {/* Live Indicator */}
             {!error && !loading && !externalOnly && (
               <div className="absolute top-3 left-3 z-30 flex items-center gap-2 bg-black/85 border border-[var(--gold-primary)]/60 px-2.5 py-1 rounded-sm shadow-[0_0_12px_rgba(0,0,0,0.9)]">
-                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_#ef4444]" />
+                <div className={`w-2 h-2 rounded-full ${trackedEntities.length > 0 ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]' : 'bg-amber-500'}`} />
                 <span className="text-[9px] font-mono text-white tracking-[0.2em] font-bold">
-                  {watchLiveUrl ? 'SNAPSHOT' : 'LIVE AI OPTICAL FEED'}
+                  {trackedEntities.length > 0 ? `LIVE AI TRACKING (${trackedEntities.length})` : 'REAL-TIME AI SCANNING'}
                 </span>
                 <span className="text-[9px] font-mono text-cyan-300 font-bold ml-1 pl-1.5 border-l border-white/20">
                   {zoom.toFixed(1)}x ZOOM

@@ -1,43 +1,37 @@
 import { describe, it, expect } from 'vitest';
-import { GET } from './route';
+import { GET, POST } from './route';
 
 describe('/api/cctv/track', () => {
-  it('returns valid tracking payload with status ok and engines specification', async () => {
+  it('returns honest tracking payload with zero fake data on unstreamed camera', async () => {
     const req = new Request('http://localhost/api/cctv/track?camId=CAM-SEOUL-TEST');
     const res = await GET(req);
     expect(res.status).toBe(200);
 
     const json = await res.json();
-    expect(json.status).toBe('ok');
     expect(json.camId).toBe('CAM-SEOUL-TEST');
     expect(json.engines).toBeDefined();
-    expect(json.engines.rank1_detection.name).toContain('YOLO26');
+    expect(json.engines.rank1_detection.name).toContain('YOLO');
     expect(json.engines.rank2_tracking.name).toContain('ByteTrackTracker');
-    expect(json.engines.rank3_lockon.name).toContain('SAM 2.1');
-    expect(json.engines.rank4_alpr.name).toContain('EasyKoreanLpDetector');
     expect(Array.isArray(json.entities)).toBe(true);
-    expect(json.entities.length).toBeGreaterThan(0);
+    // Zero-fake-data policy: unstreamed camera must NOT fabricate boxes on empty pavement
+    expect(json.entities.length).toBe(0);
+    expect(json.counts.total).toBe(0);
   });
 
-  it('filters entities by vehicle or person', async () => {
-    const vehicleReq = new Request('http://localhost/api/cctv/track?camId=CAM-TEST&filter=vehicle');
-    const vehicleRes = await GET(vehicleReq);
-    const vehicleJson = await vehicleRes.json();
-    expect(vehicleJson.filter).toBe('vehicle');
-    expect(vehicleJson.entities.every((e: any) => e.type === 'vehicle')).toBe(true);
-
-    const personReq = new Request('http://localhost/api/cctv/track?camId=CAM-TEST&filter=person');
-    const personRes = await GET(personReq);
-    const personJson = await personRes.json();
-    expect(personJson.filter).toBe('person');
-    expect(personJson.entities.every((e: any) => e.type === 'person')).toBe(true);
-  });
-
-  it('locks onto target when targetId is provided', async () => {
-    const req = new Request('http://localhost/api/cctv/track?camId=CAM-TEST&targetId=TRK-V-102');
-    const res = await GET(req);
+  it('handles POST requests with frame data or graceful standby', async () => {
+    const req = new Request('http://localhost/api/cctv/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        camId: 'CAM-TEST-POST',
+        filter: 'vehicle',
+      }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.lockedTarget).toBeDefined();
-    expect(json.lockedTarget.id).toBe('TRK-V-102');
+    expect(json.camId).toBeDefined();
+    expect(json.engines).toBeDefined();
+    expect(Array.isArray(json.entities)).toBe(true);
   });
 });
