@@ -2,10 +2,11 @@ import type { Metadata, Viewport } from "next";
 import ErrorBoundary from '@/components/ErrorBoundary';
 import "./globals.css";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://grew-gym-arrow-workflow.trycloudflare.com";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://maps-scenic-inserted-ping.trycloudflare.com";
 const SITE_NAME = "번개의 눈동자";
 const SITE_TITLE = "번개의 눈동자 (LIGHTNING EYE) — 전 세계 실시간 관제 · OSINT";
-const SITE_DESCRIPTION = "항공기·위성·함정·CCTV·OSINT 피드를 한 지도에서 관측하는 실시간 관제 HUD.";
+const SITE_DESCRIPTION = "항공기·위성·함정·CCTV·대중교통·기상·OSINT 피드를 한 지도에서 통합 관제하는 브라우저 기반 지능형 HUD.";
+
 
 export const viewport: Viewport = {
   themeColor: "#FFD700",
@@ -152,12 +153,12 @@ const jsonLd = {
     "SSL/TLS certificate transparency search",
     "BGP routing & ASN lookup",
     "IP geolocation & threat intelligence",
-    "Real-time flight tracking (10,000+ aircraft via ADS-B)",
-    "Satellite tracking (2,000+ objects including ISS)",
-    "Worldwide CCTV camera monitoring (1,400+ feeds)",
+    "Real-time flight tracking via ADS-B",
+    "Satellite tracking (including ISS)",
+    "Worldwide CCTV camera monitoring",
     "Earthquake monitoring (USGS live feed)",
     "Wildfire detection (NASA FIRMS satellite data)",
-    "Nuclear facility mapping (worldwide)",
+    "Nuclear facility mapping (curated reference list, not a live feed)",
     "Severe weather alerts & tracking",
     "Cyber threat & CVE intelligence",
     "Space weather & solar storm monitoring",

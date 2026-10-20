@@ -144,6 +144,7 @@ function buildContext(data: DashboardData): IntelligenceContext {
     risk_score: item.risk_score,
     coords: item.coords,
     machine_assessment: item.machine_assessment ?? null,
+    keyword_assessment: (item as any).keyword_assessment ?? null,
   }));
 
   const threats = (data.gdelt || []).slice(0, 15).map((ev) => ({

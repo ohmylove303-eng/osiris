@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Keyboard, X } from 'lucide-react';
 
 const SHORTCUTS = [
+  { key: 'O', desc: '🧠 OI 전술 지능 AI 패널 (자문 및 Swarm 예측)' },
   { key: 'C', desc: '✈️ 3D 항공뷰 콕핏 추적 (비행체 락온 후 탑승)' },
   { key: 'D', desc: '🎯 AI 표적 탐지 락온 (사각 조준경 및 고도/속도)' },
   { key: '1–7', desc: '🎨 광학 센서 렌즈 (일반/CRT/야간/열화상/흑백/설한)' },

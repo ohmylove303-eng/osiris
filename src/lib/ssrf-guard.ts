@@ -232,7 +232,81 @@ export function isRateLimited(ip: string, limit: number = 20, windowMs: number =
   return entry.count > limit;
 }
 
+/**
+ * Best available identity for the caller, for rate-limiting purposes.
+ *
+ * This used to read the FIRST entry of `x-forwarded-for`, which is the one
+ * value in the whole chain the client writes itself. Sending a different
+ * `X-Forwarded-For` on every request therefore bought a fresh rate-limit
+ * bucket every time, and the scanner's five-per-minute limit did not bind at
+ * all. The header order is `client, proxy1, proxy2` — read left to right it is
+ * attacker-controlled; the entry our own edge appended is the rightmost one.
+ *
+ * So: prefer the headers a platform edge sets and overwrites (a client cannot
+ * forge `cf-connecting-ip` through Cloudflare), then fall back to the rightmost
+ * forwarded entry rather than the leftmost. Anything that does not parse as an
+ * address collapses to a single shared 'unknown' bucket, which throttles
+ * unidentifiable callers together rather than exempting them.
+ */
 export function getClientIp(req: Request): string {
-  const forwarded = req.headers.get('x-forwarded-for');
-  return forwarded?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || 'unknown';
+  const h = (name: string) => req.headers.get(name)?.trim() || '';
+
+  // Set by the edge itself, not forwardable by the client.
+  const platform = h('cf-connecting-ip') || h('x-vercel-forwarded-for') || h('true-client-ip');
+  if (platform && isIpLike(platform)) return platform;
+
+  // Set by a reverse proxy we run (nginx et al).
+  const real = h('x-real-ip');
+  if (real && isIpLike(real)) return real;
+
+  // Rightmost entry is the peer address our nearest proxy observed.
+  const chain = h('x-forwarded-for').split(',').map(s => s.trim()).filter(Boolean);
+  const nearest = chain[chain.length - 1];
+  if (nearest && isIpLike(nearest)) return nearest;
+
+  return 'unknown';
+}
+
+/** `[2a00::1]` → `2a00::1`, and `::ffff:81.2.69.142` (how a dual-stack
+ *  socket reports an IPv4 peer) → `81.2.69.142`. */
+function bareIp(value: string): string {
+  return value.trim().replace(/^\[|\]$/g, '').replace(/^::ffff:(?=\d+\.)/i, '');
+}
+
+/**
+ * True only for an address that can locate a person: a canonical IPv4 or an
+ * IPv6 literal outside every reserved range above. The geolocation route
+ * used to treat all of 172.0.0.0/8 as private, which threw away real public
+ * visitors (T-Mobile US hands out 172.56–172.63) along with 172.16/12.
+ */
+export function isPublicIp(value: string): boolean {
+  const ip = bareIp(value);
+  const v4 = parseIPv4(ip);
+  if (v4) return !ipv4InBlocked(v4);
+  return isIP(ip) === 6 && !ipv6InBlocked(ip);
+}
+
+/**
+ * The visitor's own address, for geolocation: the first public one among the
+ * headers an edge or proxy sets, or null when there is none.
+ *
+ * Unlike getClientIp this reads X-Forwarded-For left to right. The leftmost
+ * entry is client-written, and here that is fine: a forged value only
+ * mislocates the person who forged it, while the rightmost entry is often a
+ * CDN edge in another city.
+ */
+export function visitorIp(req: Request): string | null {
+  const candidates = ['cf-connecting-ip', 'true-client-ip', 'x-vercel-forwarded-for', 'x-real-ip', 'x-forwarded-for']
+    .flatMap(name => (req.headers.get(name) || '').split(','))
+    .map(s => s.trim())
+    .filter(Boolean);
+  const found = candidates.find(isPublicIp);
+  return found ? bareIp(found) : null;
+}
+
+/** Cheap shape check — rejects the arbitrary strings a spoofed header carries. */
+function isIpLike(value: string): boolean {
+  const bare = value.startsWith('[') ? value.slice(1, value.indexOf(']')) : value.split('%')[0];
+  if (parseIPv4(bare)) return true;
+  return /^[0-9a-f:]+$/i.test(bare) && bare.includes(':');
 }

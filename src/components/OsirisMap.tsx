@@ -7,6 +7,18 @@ import { buildGeometry, closeRing, drawReducer, initialDrawState, measure, type 
 import { installTerrainTileProtocol } from '@/lib/terrain-tiles';
 import { attachTerrain, type TerrainStatus } from '@/lib/map-terrain';
 import CctvPreviews, { type PreviewCamera } from '@/components/CctvPreviews';
+import LiveNewsPreviews, { type PreviewFeed } from '@/components/LiveNewsPreviews';
+import MapControls from '@/components/MapControls';
+import WindBar from '@/components/WindBar';
+import RainBar from '@/components/RainBar';
+import { DOCK } from '@/components/TimeBox';
+import { CLOUDS_ATTRIBUTION, CLOUDS_CREDIT, CLOUDS_LAYER, frameTime } from '@/lib/live-clouds';
+import { createCloudLayer } from '@/lib/live-clouds-layer';
+import { WIND_ATTRIBUTION } from '@/lib/wind-layer';
+import { attachOi, type OiGlobe, type OiHover } from '@/lib/oi/globe';
+import { attachHighlights, type Highlighter } from '@/lib/oi/highlights';
+import type { Highlight } from '@/lib/oi/assist/tools';
+import { attachTransit, type TransitStatus } from '@/lib/transit-layer';
 
 import { latLngToMGRS, latLngToUTM } from '@/lib/mgrs-converter';
 import { verifyEntitySpatialBoundary, getAllDemarcationGeoJSON } from '@/lib/demarcation-boundaries';
@@ -32,7 +44,7 @@ interface OsirisMapProps {
   userLocation?: any;
   followUser?: boolean;
   onFollowInterrupt?: () => void;
-  onMapCenter?: (coords: { lat: number; lng: number }) => void;
+  onMapCenter?: (coords: { lat: number; lng: number; bounds?: { west: number; south: number; east: number; north: number } }) => void;
   navigating?: boolean;
   aircraftAirports?: Record<string, any[]>;
   data: any;
@@ -41,13 +53,22 @@ interface OsirisMapProps {
   onMouseCoords?: (coords: { lat: number; lng: number }) => void;
   onRightClick?: (coords: { lat: number; lng: number }) => void;
   onViewStateChange?: (vs: { zoom: number; latitude: number; longitude?: number; bearing?: number; pitch?: number }) => void;
-  flyToLocation?: { lat: number; lng: number; zoom?: number; ts: number } | null;
+  flyToLocation?: { lat: number; lng: number; zoom?: number; alertId?: string; duration?: number; ts: number } | null;
   projection?: 'mercator' | 'globe';
   mapStyle?: string;
   sweepData?: any;
   scanTargets?: any[];
   demoMode?: boolean;
   theme?: 'core' | 'ghost';
+  onLayerOff?: (key: string) => void;
+  onTransitStatus?: (status: TransitStatus | null) => void;
+  alertPinIds?: string[] | null;
+  onReady?: () => void;
+  onOiGlobe?: (globe: OiGlobe | null) => void;
+  onOiSelect?: (key: string | null) => void;
+  onOiHover?: (hover: OiHover | null) => void;
+  onOiFollow?: (following: boolean) => void;
+  oiHighlight?: Highlight | null;
 }
 
 function computeSolarTerminator(): [number, number][] {
@@ -113,8 +134,18 @@ function OsirisMap({
   userLocation = null,
   followUser = false,
   onFollowInterrupt,
+  onMapCenter,
   navigating = false,
-  aircraftAirports = {}
+  aircraftAirports = {},
+  onLayerOff,
+  onTransitStatus,
+  alertPinIds,
+  onReady,
+  onOiGlobe,
+  onOiSelect,
+  onOiHover,
+  onOiFollow,
+  oiHighlight,
 }: OsirisMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -5810,6 +5841,125 @@ function getVideoAnalysisKeyframe(p: any): string {
     };
   }, [mapReady, drawMode]);
 
+  // ── LIVE CLOUDS ──
+  const cloudLayerRef = useRef<ReturnType<typeof createCloudLayer> | null>(null);
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) return;
+    const map = mapRef.current;
+    if (!activeLayers.live_clouds) {
+      if (map.getLayer(CLOUDS_LAYER)) map.removeLayer(CLOUDS_LAYER);
+      if (map.getLayer(CLOUDS_CREDIT)) map.removeLayer(CLOUDS_CREDIT);
+      cloudLayerRef.current = null;
+      return;
+    }
+    if (!cloudLayerRef.current || !map.getLayer(CLOUDS_LAYER)) {
+      cloudLayerRef.current = createCloudLayer(CLOUDS_LAYER);
+      map.addLayer(cloudLayerRef.current, 'day-night-fill');
+    }
+    const clouds = cloudLayerRef.current;
+    clouds.setFrame(frameTime());
+    if (!map.getSource(CLOUDS_CREDIT)) map.addSource(CLOUDS_CREDIT, { type: 'geojson', data: EMPTY_FC, attribution: CLOUDS_ATTRIBUTION });
+    if (!map.getLayer(CLOUDS_CREDIT)) map.addLayer({ id: CLOUDS_CREDIT, type: 'circle', source: CLOUDS_CREDIT });
+    const satellite = map.getLayer('satellite-layer') && map.getLayoutProperty('satellite-layer', 'visibility') !== 'none';
+    const firstLabel = map.getStyle().layers.find(layer => layer.type === 'symbol')?.id;
+    map.moveLayer(CLOUDS_LAYER, satellite || !firstLabel ? 'day-night-fill' : firstLabel);
+    const refresh = setInterval(() => clouds.setFrame(frameTime()), 5 * 60_000);
+    return () => clearInterval(refresh);
+  }, [mapReady, activeLayers.live_clouds, mapStyle]);
+
+  // ── WIND CREDIT ──
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) return;
+    const map = mapRef.current;
+    if (!activeLayers.wind) {
+      if (map.getLayer('wind-credit')) map.removeLayer('wind-credit');
+      if (map.getSource('wind-credit')) map.removeSource('wind-credit');
+      return;
+    }
+    if (!map.getSource('wind-credit')) map.addSource('wind-credit', { type: 'geojson', data: EMPTY_FC, attribution: WIND_ATTRIBUTION });
+    if (!map.getLayer('wind-credit')) map.addLayer({ id: 'wind-credit', type: 'circle', source: 'wind-credit' });
+  }, [mapReady, activeLayers.wind, mapStyle]);
+
+  // ── OSIRIS OI GLOBE ──
+  const oiGlobeRef = useRef<OiGlobe | null>(null);
+  const onOiSelectRef = useRef(onOiSelect);
+  const onOiHoverRef = useRef(onOiHover);
+  const onOiFollowRef = useRef(onOiFollow);
+  const onOiGlobeRef = useRef(onOiGlobe);
+  useEffect(() => { onOiSelectRef.current = onOiSelect; }, [onOiSelect]);
+  useEffect(() => { onOiHoverRef.current = onOiHover; }, [onOiHover]);
+  useEffect(() => { onOiFollowRef.current = onOiFollow; }, [onOiFollow]);
+  useEffect(() => { onOiGlobeRef.current = onOiGlobe; }, [onOiGlobe]);
+
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) return;
+    const globe = attachOi(mapRef.current, {
+      onSelect: key => onOiSelectRef.current?.(key),
+      onHover: hover => onOiHoverRef.current?.(hover),
+      onFollowChange: following => onOiFollowRef.current?.(following),
+    });
+    oiGlobeRef.current = globe;
+    onOiGlobeRef.current?.(globe);
+    return () => {
+      oiGlobeRef.current = null;
+      onOiGlobeRef.current?.(null);
+      globe.destroy();
+    };
+  }, [mapReady]);
+
+  // ── OI HIGHLIGHTS ──
+  const highlighterRef = useRef<Highlighter | null>(null);
+  const oiHighlightRef = useRef(oiHighlight);
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) return;
+    const h = attachHighlights(mapRef.current);
+    h.set(oiHighlightRef.current ?? null);
+    highlighterRef.current = h;
+    return () => { highlighterRef.current = null; h.destroy(); };
+  }, [mapReady]);
+  useEffect(() => {
+    oiHighlightRef.current = oiHighlight;
+    highlighterRef.current?.set(oiHighlight ?? null);
+  }, [oiHighlight]);
+
+  // ── LIVE TRANSIT ──
+  const onTransitStatusRef = useRef(onTransitStatus);
+  useEffect(() => { onTransitStatusRef.current = onTransitStatus; }, [onTransitStatus]);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapReady || !map || !activeLayers.transit) return;
+    const detach = attachTransit(map, {
+      openPopup: (lngLat, html, anchor) => {
+        popupRef.current?.remove();
+        popupRef.current = new maplibregl.Popup({ closeButton: true, maxWidth: '420px', offset: 14, ...(anchor ? { anchor } : {}) }).setLngLat(lngLat).setHTML(html).addTo(map);
+        return popupRef.current;
+      },
+      onStatus: status => onTransitStatusRef.current?.(status),
+      clickableLayers: new Set(['transit-coverage-dots']),
+    });
+    return () => {
+      detach();
+      onTransitStatusRef.current?.(null);
+    };
+  }, [mapReady, activeLayers.transit]);
+
+  // ── MAP CENTER REPORTING ──
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) return;
+    const map = mapRef.current;
+    const reportCenter = () => {
+      const c = map.getCenter();
+      const b = map.getBounds();
+      onMapCenter?.({
+        lat: c.lat,
+        lng: c.lng,
+        bounds: b ? { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() } : undefined,
+      });
+    };
+    reportCenter();
+    map.on('moveend', reportCenter);
+    return () => { map.off('moveend', reportCenter); };
+  }, [mapReady, onMapCenter]);
 
   return (
     <div className="relative w-full h-full overflow-hidden select-none">
@@ -5833,6 +5983,29 @@ function getVideoAnalysisKeyframe(p: any): string {
             onEntityClick?.({ ...cam, type: 'cctv' });
           }}
         />
+      )}
+      {mapReady && (
+        <LiveNewsPreviews
+          mapRef={mapRef}
+          active={!!activeLayers.live_news}
+          feeds={data.live_feeds}
+          onOpen={(feed: PreviewFeed) => onEntityClick?.({
+            type: 'live_news',
+            name: feed.name,
+            city: feed.city,
+            country: feed.country,
+            url: feed.url,
+            category: feed.category,
+            embed_allowed: true,
+          })}
+        />
+      )}
+      {mapReady && <MapControls mapRef={mapRef} onInteract={onFollowInterrupt} />}
+      {mapReady && (activeLayers.wind || activeLayers.rain) && (
+        <div className={DOCK}>
+          {activeLayers.wind && <WindBar mapRef={mapRef} controls={!!activeLayers.wind_controls} onOff={() => onLayerOff?.('wind')} />}
+          {activeLayers.rain && <RainBar mapRef={mapRef} mapStyle={mapStyle} controls={!!activeLayers.rain_controls} onOff={() => onLayerOff?.('rain')} />}
+        </div>
       )}
     </div>
   );

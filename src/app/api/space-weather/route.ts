@@ -1,4 +1,3 @@
-
 import { NextResponse } from 'next/server';
 
 /**
@@ -8,25 +7,7 @@ import { NextResponse } from 'next/server';
  * Data: Kp index (geomagnetic), solar flares, CME alerts
  */
 
-interface SpaceWeatherCache {
-  data: any;
-  timestamp: number;
-}
-let memorySpaceWeatherCache: SpaceWeatherCache | null = null;
-const SPACE_WEATHER_TTL_MS = 5 * 60 * 1000; // 5 minutes
-
 export async function GET() {
-  const now = Date.now();
-  if (memorySpaceWeatherCache && (now - memorySpaceWeatherCache.timestamp < SPACE_WEATHER_TTL_MS)) {
-    return NextResponse.json({
-      ...memorySpaceWeatherCache.data,
-      cached: true,
-      timestamp: new Date().toISOString(),
-    }, {
-      headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' }
-    });
-  }
-
   try {
     const [kpRes, alertsRes, flareRes] = await Promise.allSettled([
       fetch('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json', {
@@ -40,24 +21,35 @@ export async function GET() {
       }).then(r => r.json()),
     ]);
 
-    // Latest Kp index (geomagnetic storm indicator)
-    let kpIndex = 0;
+    /* Latest Kp index (geomagnetic storm indicator).
+       `null`, not 0, when NOAA did not answer. The three requests settle
+       independently, so a failed Kp fetch alongside a successful alerts fetch
+       used to leave the initial 0 in place and classify it as 'Quiet' — the
+       route reporting calm geomagnetic conditions on the strength of no data
+       at all. A missing reading is unknown, and says so. */
+    let kpIndex: number | null = null;
     let kpTimestamp = '';
     if (kpRes.status === 'fulfilled' && Array.isArray(kpRes.value) && kpRes.value.length > 0) {
       const latest = kpRes.value[kpRes.value.length - 1];
-      kpIndex = parseFloat(latest.kp_index || latest.Kp || 0);
-      kpTimestamp = latest.time_tag || '';
+      const parsed = parseFloat(latest.kp_index ?? latest.Kp);
+      if (Number.isFinite(parsed)) {
+        kpIndex = parsed;
+        kpTimestamp = latest.time_tag || '';
+      }
     }
 
-    // Storm level from Kp
-    let stormLevel = 'Quiet';
-    let stormColor = '#00E676';
-    if (kpIndex >= 8) { stormLevel = 'Extreme (G5)'; stormColor = '#FF1744'; }
-    else if (kpIndex >= 7) { stormLevel = 'Severe (G4)'; stormColor = '#FF3D3D'; }
-    else if (kpIndex >= 6) { stormLevel = 'Strong (G3)'; stormColor = '#FF9500'; }
-    else if (kpIndex >= 5) { stormLevel = 'Moderate (G2)'; stormColor = '#FFD700'; }
-    else if (kpIndex >= 4) { stormLevel = 'Minor (G1)'; stormColor = '#FFD700'; }
-    else if (kpIndex >= 3) { stormLevel = 'Unsettled'; stormColor = '#D4AF37'; }
+    // Storm level from Kp — only classified when there is a reading to classify.
+    let stormLevel = 'Unknown';
+    let stormColor = '#555555';
+    if (kpIndex !== null) {
+      if (kpIndex >= 8) { stormLevel = 'Extreme (G5)'; stormColor = '#FF1744'; }
+      else if (kpIndex >= 7) { stormLevel = 'Severe (G4)'; stormColor = '#FF3D3D'; }
+      else if (kpIndex >= 6) { stormLevel = 'Strong (G3)'; stormColor = '#FF9500'; }
+      else if (kpIndex >= 5) { stormLevel = 'Moderate (G2)'; stormColor = '#FFD700'; }
+      else if (kpIndex >= 4) { stormLevel = 'Minor (G1)'; stormColor = '#FFD700'; }
+      else if (kpIndex >= 3) { stormLevel = 'Unsettled'; stormColor = '#D4AF37'; }
+      else { stormLevel = 'Quiet'; stormColor = '#00E676'; }
+    }
 
     // Recent alerts
     const alerts: any[] = [];
@@ -85,37 +77,23 @@ export async function GET() {
       }
     }
 
-    const payload = {
+    return NextResponse.json({
       kp_index: kpIndex,
+      kp_available: kpIndex !== null,
       storm_level: stormLevel,
       storm_color: stormColor,
       kp_timestamp: kpTimestamp,
       alerts,
       solar_flares: flares,
       timestamp: new Date().toISOString(),
-    };
-
-    memorySpaceWeatherCache = {
-      data: payload,
-      timestamp: now,
-    };
-
-    return NextResponse.json(payload, {
+    }, {
       headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' }
     });
   } catch (error) {
     console.error('Space Weather API error:', error);
-    if (memorySpaceWeatherCache) {
-      return NextResponse.json({
-        ...memorySpaceWeatherCache.data,
-        stale: true,
-        timestamp: new Date().toISOString(),
-      });
-    }
     return NextResponse.json({
-      kp_index: 0, storm_level: 'Unknown', storm_color: '#555',
+      kp_index: null, kp_available: false, storm_level: 'Unknown', storm_color: '#555',
       alerts: [], solar_flares: [], error: 'Failed to fetch space weather data',
     }, { status: 500 });
   }
 }
-

@@ -115,6 +115,7 @@ export default function IntelFeed({ data, onLocate }: IntelFeedProps) {
                             onLocate?.(item.coords[0], item.coords[1]);
                           }}
                           className="text-[var(--text-muted)] hover:text-[var(--cyan-primary)] transition-colors"
+                          title={item.coords_anchor ? `Approximate: centroid for "${item.coords_anchor}", not the event location` : 'Approximate location'}
                         >
                           <MapPin className="w-2.5 h-2.5" />
                         </button>
@@ -129,12 +130,12 @@ export default function IntelFeed({ data, onLocate }: IntelFeedProps) {
                       {item.title}
                     </h4>
 
-                    {/* Machine Assessment — muted secondary, clamp (no sudden red brick) */}
-                    {safeMachineAssessment(item.machine_assessment) && (
-                      <div className="mt-1.5 flex items-start gap-1.5 rounded px-1.5 py-0.5">
-                        <Zap className="w-2.5 h-2.5 text-[var(--text-muted)] flex-shrink-0 mt-0.5" />
-                        <span className="intel-body text-[var(--text-muted)] line-clamp-2">
-                          {safeMachineAssessment(item.machine_assessment)}
+                    {/* 키워드 감지 근거 및 머신 분석 요약 */}
+                    {(item.keyword_assessment || safeMachineAssessment(item.machine_assessment)) && (
+                      <div className="mt-1.5 flex items-start gap-1.5 bg-red-950/20 border border-red-900/20 rounded px-2 py-1">
+                        <Zap className="w-2.5 h-2.5 text-red-400 flex-shrink-0 mt-0.5" />
+                        <span className="text-[10px] font-mono text-red-400/80 leading-relaxed">
+                          {item.keyword_assessment || safeMachineAssessment(item.machine_assessment)}
                         </span>
                       </div>
                     )}

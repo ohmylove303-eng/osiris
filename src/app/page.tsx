@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState, useRef, useCallback, useMemo, use } from 'react';
+import { useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo, use } from 'react';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Layers, BarChart3, Newspaper, Search, X, Globe, MapPinned, Route, Radar, Satellite, Moon, ExternalLink, AlertTriangle, Activity, Database, Wifi, Play, Network, Crosshair, Bluetooth, Pentagon, Radio, PenLine, Zap, Navigation, ChevronDown, Eye } from 'lucide-react';
+import { Layers, BarChart3, Newspaper, Search, X, Globe, MapPinned, Route, Radar, Satellite, Moon, ExternalLink, AlertTriangle, Activity, Database, Wifi, Play, Network, Crosshair, Bluetooth, Pentagon, Radio, PenLine, Zap, Navigation, ChevronDown, Eye, Orbit } from 'lucide-react';
 import { type TerrainStatus } from '@/lib/map-terrain';
 import { loadCameraCatalog, mergeCameraCatalog } from '@/lib/camera-catalog';
 import IntelFeed from '@/components/IntelFeed';
@@ -12,10 +12,11 @@ import MarketsPanel from '@/components/MarketsPanel';
 import ScmPanel from '@/components/ScmPanel';
 import SearchBar from '@/components/SearchBar';
 import HarnessAuditHud from '@/components/HarnessAuditHud';
-import DirectionsBar, { type RouteResult, type LiveLocation } from '@/components/DirectionsBar';
+import DirectionsBar, { type RouteResult, type LiveLocation, type TripPlan } from '@/components/DirectionsBar';
 import NavigationView from '@/components/NavigationView';
 import FlightWatchPanel, { type WatchedFlight, type FlightTelemetry, type AircraftDetail, type Airport } from '@/components/FlightWatchPanel';
-import type { NavProgress } from '@/lib/navigation';
+import { stopsAhead, type NavProgress } from '@/lib/navigation';
+import type { TransitStatus } from '@/lib/transit-layer';
 import type { LiveDetection } from '@/lib/malware-intel';
 import ScaleBar from '@/components/ScaleBar';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -45,6 +46,7 @@ const LayerPanel = dynamic(() => import('@/components/LayerPanel'));
 const SpaceCam = dynamic(() => import('@/components/SpaceCam'), { ssr: false });
 const CameraViewer = dynamic(() => import('@/components/CameraViewer'));
 const OsintPanel = dynamic(() => import('@/components/OsintPanel'));
+const OiPanel = dynamic(() => import('@/components/OiPanel'));
 const DrawingToolbar = dynamic(() => import('@/components/DrawingToolbar'), { ssr: false });
 const DrawHud = dynamic(() => import('@/components/DrawHud'), { ssr: false });
 const DprkReportDossierModal = dynamic(() => import('@/components/DprkReportDossierModal'), { ssr: false });
@@ -57,10 +59,23 @@ const GodsEyeReconModal = dynamic(() => import('@/components/GodsEyeReconModal')
 // not the toolbar has loaded yet.
 import { toShape, queryRing, type DrawMode, type DrawnShape, type DrawProgress, type DrawResult } from '@/lib/draw';
 import { selectInPolygon } from '@/lib/aoi';
+import { pickLandingCity } from '@/lib/landing-cities';
 import { diffSweep, appendEvents, type WatchBaseline, type WatchEvent } from '@/lib/watch';
 import { STORAGE_KEY, serializeShapes, deserializeShapes, shapesToGeoJSON, downloadFile } from '@/lib/aoi-export';
 import { watchdog } from '@/lib/staleness-watchdog';
 const TokenPanel = dynamic(() => import('@/components/TokenPanel'));
+import SupportMenu from '@/components/SupportMenu';
+import { useOi } from '@/lib/oi/client';
+import { useAssist } from '@/lib/oi/assist/client';
+import type { Highlight, Site } from '@/lib/oi/assist/tools';
+import { currentAnswer } from '@/lib/oi/state';
+import type { OiMode } from '@/components/OiPanel';
+import { OiMark } from '@/components/oi/atoms';
+import type { Stage } from '@/components/oi/Workspace';
+import { searchObjects, TYPE_LABEL, objectsOf } from '@/lib/oi/objects';
+import { workspaceInsets } from '@/lib/oi/layout';
+import type { OiGlobe, OiHover } from '@/lib/oi/globe';
+import { look } from '@/lib/vision/store';
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -171,7 +186,9 @@ export default function Dashboard(props?: {
 
   const [backendStatus, setBackendStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
   const [mapView, setMapView] = useState<{ zoom: number; latitude: number; longitude?: number; bearing?: number; pitch?: number }>({ zoom: 2.5, latitude: 20, longitude: 0, bearing: 0, pitch: 0 });
-  const [flyToLocation, setFlyToLocation] = useState<{ lat: number; lng: number; zoom?: number; ts: number } | null>(null);
+  const [flyToLocation, setFlyToLocation] = useState<{ lat: number; lng: number; zoom?: number; alertId?: string; duration?: number; ts: number } | null>(null);
+  /* The Live Alerts the feed's filters leave showing; the map pins those. */
+  const [pinnedAlertIds, setPinnedAlertIds] = useState<string[] | null>(null);
   const [globalStats, setGlobalStats] = useState<any>(null);
   const mouseCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
   const coordsDisplayRef = useRef<HTMLDivElement>(null);
@@ -179,12 +196,36 @@ export default function Dashboard(props?: {
   const [regionDossier, setRegionDossier] = useState<any>(null);
   const [dossierLoading, setDossierLoading] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
+  const [splashStage, setSplashStage] = useState(0);
+  const [mapReady, setMapReady] = useState(false);
+
+  const revealed = !showSplash;
+  /* True once the splash has finished fading out, not merely started to. */
+  const [splashGone, setSplashGone] = useState(false);
+  /* Where the viewer is, by IP. Asked for at once; the camera flies there
+     once the splash has gone. */
+  const [homeLocation, setHomeLocation] = useState<{ lat: number; lng: number } | null>(null);
   const autoLocateCancelled = useRef(false);
 
   const [activeCamera, setActiveCamera] = useState<any>(null);
   const [spaceWeather, setSpaceWeather] = useState<any>(null);
   const [showLayers, setShowLayers] = useState(true);
   const [showMarkets, setShowMarkets] = useState(false);
+  /* The Markets panel is pinned just below the header rather than centred on
+     its rail button. Centred, a tall panel (a chart open, a long list) rose
+     past the top of the window and took its own header and buttons with it. */
+  const marketsAnchor = useRef<HTMLDivElement>(null);
+  const [marketsTop, setMarketsTop] = useState(0);
+  useLayoutEffect(() => {
+    if (!showMarkets) return;
+    const place = () => {
+      const anchor = marketsAnchor.current?.getBoundingClientRect();
+      if (anchor) setMarketsTop(Math.round(64 - anchor.top));
+    };
+    place();
+    window.addEventListener('resize', place);
+    return () => window.removeEventListener('resize', place);
+  }, [showMarkets]);
   const [showAlerts, setShowAlerts] = useState(false);
   const [showSpaceCam, setShowSpaceCam] = useState(false);
   const [showScmPanel, setShowScmPanel] = useState(true);
@@ -205,9 +246,12 @@ export default function Dashboard(props?: {
   const [showDirections, setShowDirections] = useState(false);
   const [showIntelBridge, setShowIntelBridge] = useState(false);
   const [routeSeed, setRouteSeed] = useState<{ label: string; lat: number; lng: number; k: number } | null>(null);
+  // A destination Search hands to Directions ("Directions to here"); its stamp remounts the planner with it.
+  const [routeTarget, setRouteTarget] = useState<{ label: string; context?: string; lat: number; lng: number; kind?: string; ts: number } | null>(null);
 
-  const handleRouteTo = useCallback((place: { label: string; lat: number; lng: number }) => {
+  const handleRouteTo = useCallback((place: { label: string; lat: number; lng: number; kind?: string; context?: string }) => {
     setRouteSeed({ ...place, k: Date.now() });
+    setRouteTarget({ ...place, kind: place.kind || 'point', ts: Date.now() });
     setShowDirections(true);
   }, []);
 
@@ -227,7 +271,7 @@ export default function Dashboard(props?: {
   const [liveLocation, setLiveLocation] = useState<LiveLocation | null>(null);
   const [followUser, setFollowUser] = useState(false);
   const [navSession, setNavSession] = useState<
-    { route: RouteResult; label: string; key: number } | null
+    { route: RouteResult; label: string; key: number; plan: TripPlan } | null
   >(null);
   const [navProgress, setNavProgress] = useState<NavProgress | null>(null);
   const [watchedFlights, setWatchedFlights] = useState<WatchedFlight[]>([]);
@@ -331,9 +375,114 @@ export default function Dashboard(props?: {
   const [showRemote, setShowRemote] = useState(false);
   const [showArcGIS, setShowArcGIS] = useState(false);
   const [arcgisLayers, setArcgisLayers] = useState<Array<{ id: string; title: string; url: string; geojson: any; color: string; visible: boolean; opacity: number }>>([]);
+  /* What Live Transit can see right now, for its row in the layer panel. */
+  const [transitStatus, setTransitStatus] = useState<TransitStatus | null>(null);
+  const layerLiveStatus = useMemo(() => (transitStatus ? { transit: transitStatus.text } : undefined), [transitStatus]);
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number; bounds?: { west: number; south: number; east: number; north: number } } | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [mobilePanel, setMobilePanel] = useState<'layers'|'markets'|'intel'|'search'|'recon'|'remote'|null>(null);
+  const [mobilePanel, setMobilePanel] = useState<'layers'|'markets'|'intel'|'search'|'recon'|'remote'|'oi'|null>(null);
+
+  // ── OSIRIS OI ── the run lives here, not in the panel, so the globe keeps
+  // drawing it while the panel is closed. State goes to the map's OI layer
+  // directly rather than through a prop, so the map does not re-render per event.
+  const oi = useOi();
+  const [showOi, setShowOi] = useState(false);
+  const oiAnchor = useRef<HTMLDivElement>(null);
+  const [oiTop, setOiTop] = useState(0);
+  useLayoutEffect(() => {
+    if (!showOi) return;
+    const place = () => {
+      const anchor = oiAnchor.current?.getBoundingClientRect();
+      if (anchor) setOiTop(Math.round(64 - anchor.top));
+    };
+    place();
+    window.addEventListener('resize', place);
+    return () => window.removeEventListener('resize', place);
+  }, [showOi]);
+  /** What is selected on the globe or in the panel: a point's key, or "link:<id>" for an arc. */
+  const [oiSelected, setOiSelected] = useState<string | null>(null);
+  const [oiHover, setOiHover] = useState<OiHover | null>(null);
+  const [oiFollowing, setOiFollowing] = useState(true);
+  const [oiTheater, setOiTheater] = useState(false);
+  /** Assist (talk to OI, the default) or Forecast (the swarm). */
+  const [oiMode, setOiMode] = useState<OiMode>('assist');
+  /** What the full-screen workspace's stage shows. */
+  const [oiStage, setOiStage] = useState<Stage>('globe');
+  /** Whether the panel was opened from the keyboard, to type straight away. */
+  const [oiAutoFocus, setOiAutoFocus] = useState(false);
+  // A different run (or none) starts with nothing selected.
+  const [oiSelectionRun, setOiSelectionRun] = useState(oi.runId);
+  if (oiSelectionRun !== oi.runId) {
+    setOiSelectionRun(oi.runId);
+    setOiSelected(null);
+  }
+  const oiGlobe = useRef<OiGlobe | null>(null);
+  const oiState = useRef(oi.state);
+  const oiSelectedRef = useRef(oiSelected);
+  useEffect(() => {
+    oiState.current = oi.state;
+    oiGlobe.current?.update(oi.state);
+  }, [oi.state]);
+  useEffect(() => {
+    oiSelectedRef.current = oiSelected;
+    oiGlobe.current?.select(oiSelected);
+  }, [oiSelected]);
+  const handleOiGlobe = useCallback((globe: OiGlobe | null) => {
+    oiGlobe.current = globe;
+    globe?.update(oiState.current);
+    globe?.select(oiSelectedRef.current);
+  }, []);
+  // A click on the globe selects, and opens the panel to show what was clicked; empty map clears.
+  const handleOiSelect = useCallback((key: string | null) => {
+    setOiSelected(key);
+    if (!key) return;
+    setOiMode('forecast');
+    if (window.matchMedia('(max-width: 767px)').matches) setMobilePanel('oi');
+    else setShowOi(true);
+  }, []);
+  // Going somewhere on purpose takes the camera off the director.
+  const handleOiLocate = useCallback((lat: number, lng: number, zoom?: number) => {
+    oiGlobe.current?.follow(false);
+    setFlyToLocation({ lat, lng, zoom, ts: Date.now() });
+  }, []);
+  const followOi = useCallback(() => oiGlobe.current?.follow(true), []);
+  // Full screen: the workspace's columns sit either side, and the globe stays centred on the stage between.
+  const oiTheaterOn = oiTheater;
+  const oiHasRun = Boolean(oi.state);
+  // On a phone the drawer covers the lower half: the globe, and anywhere OI flies to, centre in the space above it.
+  const oiDrawerOpen = mobilePanel === 'oi';
+  useEffect(() => {
+    if (!oiDrawerOpen) return;
+    const drawer = Math.round(Math.min(window.innerHeight * 0.55, window.innerHeight - 100)) + 52;
+    oiGlobe.current?.setInsets({ top: 70, bottom: drawer, left: 0, right: 0 });
+    return () => oiGlobe.current?.setInsets(null);
+  }, [oiDrawerOpen]);
+  useEffect(() => {
+    const inset = () => oiGlobe.current?.setInsets(oiTheaterOn ? workspaceInsets(window.innerWidth, oiHasRun) : null);
+    inset();
+    // The app's own HUD (everything marked data-hud) steps back while the workspace has the screen.
+    document.documentElement.toggleAttribute('data-oi-theater', oiTheaterOn);
+    if (oiTheaterOn) window.addEventListener('resize', inset);
+    return () => {
+      window.removeEventListener('resize', inset);
+      document.documentElement.removeAttribute('data-oi-theater');
+    };
+  }, [oiTheaterOn, oiHasRun]);
+  // A shared link (?oi=<run>) opens the panel on that run, and the camera
+  // goes to the run rather than to the visitor's city.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('oi');
+    if (!id) return;
+    autoLocateCancelled.current = true;
+    setOiMode('forecast');
+    if (window.matchMedia('(max-width: 767px)').matches) setMobilePanel('oi');
+    else setShowOi(true);
+    void oi.watch(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // Once a run is under way the camera is the director's (lib/oi/camera): a late answer about the
+  // visitor's city must not fly it away.
+  useEffect(() => { if (oi.runId) autoLocateCancelled.current = true; }, [oi.runId]);
   const [mapProjection, setMapProjection] = useState<'globe'|'mercator'>('globe');
   const [terrainFocus, setTerrainFocus] = useState(0);
   const [terrainStatus, setTerrainStatus] = useState<TerrainStatus>('idle');
@@ -770,6 +919,7 @@ export default function Dashboard(props?: {
     jets: true,
     military: true,
     maritime: true,
+    transit: false,
     satellites: true,
     sat_comms: false,
     sat_military: true,
@@ -787,6 +937,7 @@ export default function Dashboard(props?: {
     radiation: false,
     infrastructure: false,
     global_incidents: false,
+    alert_pins: false,
     military_demarcation: true,
     dprk_sites: true,
     dprk_activity: true,
@@ -801,6 +952,11 @@ export default function Dashboard(props?: {
     sdk_sea: false,
     sdk_air: false,
     sdk_naval: false,
+    live_clouds: false,
+    wind: false,
+    rain: false,
+    wind_controls: true,
+    rain_controls: true,
     terrain_3d: false,
     terrain_elevation: false,
     malware: true,
@@ -818,6 +974,149 @@ export default function Dashboard(props?: {
     ransomware: true,
     temperature: true,
   });
+
+  // ── OI ASSIST ── the conversation, and the page it works: the camera, the
+  // layers, the panels, the live data, and what it marks on the map. It lives
+  // here, so closing the panel keeps the conversation and its marks.
+  const [oiHighlight, setOiHighlight] = useState<Highlight | null>(null);
+  const [oiVoice, setOiVoice] = useState(() => typeof window !== 'undefined' && localStorage.getItem('osiris.oi.voice') === '1');
+  const setOiVoicePersist = useCallback((on: boolean) => {
+    setOiVoice(on);
+    try { localStorage.setItem('osiris.oi.voice', on ? '1' : '0'); } catch { /* storage blocked */ }
+    if (!on && typeof window !== 'undefined') window.speechSynthesis?.cancel();
+  }, []);
+  const assistView = useRef<ReturnType<Site['view']>>({ lat: 20, lng: 0, zoom: 2.5, projection: 'globe', style: 'dark' });
+  const assistLayers = useRef<Record<string, boolean>>(activeLayers);
+  const assistVoice = useRef(oiVoice);
+  const assistOi = useRef(oi);
+  useEffect(() => { assistLayers.current = activeLayers; }, [activeLayers]);
+  useEffect(() => { assistVoice.current = oiVoice; }, [oiVoice]);
+  useEffect(() => { assistOi.current = oi; });
+  useEffect(() => {
+    assistView.current = { lat: mapCenter?.lat ?? 20, lng: mapCenter?.lng ?? 0, zoom: mapView.zoom, projection: mapProjection, style: mapStyle, bounds: mapCenter?.bounds };
+  }, [mapCenter, mapView.zoom, mapProjection, mapStyle]);
+  /** A panel the assistant asked for, opened the way its own button opens it. */
+  const openFromAssist = useCallback((panel: string) => {
+    const phone = window.matchMedia('(max-width: 767px)').matches;
+    const right = (show: () => void) => { setShowOi(false); setShowIntel(false); setShowMarkets(false); setShowAlerts(false); setShowSpaceCam(false); show(); };
+    if (panel === 'markets') { if (phone) setMobilePanel('markets'); else right(() => setShowMarkets(true)); }
+    else if (panel === 'alerts') right(() => setShowAlerts(true));
+    else if (panel === 'intel') { if (phone) setMobilePanel('recon'); else right(() => setShowIntel(true)); }
+    else if (panel === 'layers') { if (phone) setMobilePanel('layers'); else setShowLayers(true); }
+    else if (panel === 'directions') setShowDirections(true);
+    else if (panel === 'forecast' || panel === 'workspace') {
+      setOiMode('forecast');
+      if (phone) setMobilePanel('oi'); else setShowOi(true);
+      if (panel === 'workspace' && assistOi.current.state && !phone) setOiTheater(true);
+    }
+  }, []);
+  const assistTheater = useRef(oiTheater);
+  const assistStage = useRef<Stage>(oiStage);
+  useEffect(() => { assistTheater.current = oiTheater; }, [oiTheater]);
+  useEffect(() => { assistStage.current = oiStage; }, [oiStage]);
+  const assistSite = useMemo<Omit<Site, 'forecast'>>(() => ({
+    data: () => dataRef.current,
+    view: () => assistView.current,
+    layers: () => assistLayers.current,
+    flyTo: (lat, lng, zoom) => { oiGlobe.current?.follow(false); setFlyToLocation({ lat, lng, zoom, ts: Date.now() }); },
+    setLayers: (on, off) => setActiveLayers(prev => {
+      const next = { ...prev } as Record<string, boolean>;
+      for (const k of on) if (k in next) next[k] = true;
+      for (const k of off) if (k in next) next[k] = false;
+      return next as typeof prev;
+    }),
+    highlight: h => setOiHighlight(h),
+    openPanel: openFromAssist,
+    setView: ({ projection, style }) => {
+      if (projection) {
+        if (projection === 'mercator') setActiveLayers(prev => ({ ...prev, terrain_elevation: false, terrain_3d: false }));
+        setMapProjection(projection);
+      }
+      if (style) setMapStyle(style);
+    },
+    workspace: ({ open, view }) => {
+      if (window.matchMedia('(max-width: 767px)').matches) return { ok: false, error: '전체화면 워크스페이스는 대형 화면을 지원합니다.' };
+      const run = assistOi.current.state;
+      if (view && view !== 'globe' && !run) return { ok: false, error: `${view} 뷰는 예측 모델 실행이 먼저 필요합니다.` };
+      if (open === false) { setOiTheater(false); return { ok: true, summary: '워크스페이스를 닫았습니다.' }; }
+      setShowOi(true);
+      setOiTheater(true);
+      if (view) setOiStage(view);
+      return { ok: true, summary: `워크스페이스를 열었습니다 (${view || 'globe'})` };
+    },
+    select: name => {
+      const run = assistOi.current.state;
+      if (!run) return { ok: false, error: '선택할 수 있는 예측 실행 데이터가 없습니다.' };
+      const hit = searchObjects(run, name, 1)[0];
+      if (!hit) return { ok: false, error: `해당 예측 모델에서 "${name}" 객체를 찾을 수 없습니다.` };
+      setOiSelected(hit.key);
+      return { ok: true, summary: `${hit.title} (${TYPE_LABEL[hit.type] || hit.type}) 열림` };
+    },
+    geocode: async q => {
+      try {
+        const res = await fetch(`/api/geosearch?q=${encodeURIComponent(q)}`);
+        const hit = (await res.json())?.results?.[0];
+        return hit && Number.isFinite(hit.lat) && Number.isFinite(hit.lng) ? { name: hit.name, lat: hit.lat, lng: hit.lng, kind: hit.kind } : null;
+      } catch { return null; }
+    },
+    camera: async (cam, watch) => {
+      setActiveCamera({ ...cam, type: 'cctv' });
+      const out = await look(cam, { watch, by: 'oi' });
+      return { analysis: out.analysis, watch: out.watch };
+    },
+  }), [openFromAssist]);
+  const assist = useAssist({
+    site: assistSite,
+    startForecast: async (question, depth, auth) => {
+      const id = await assistOi.current.start({ question, seed: '', depth, useFeeds: true }, auth.engine, auth.key);
+      return id ? { ok: true, id } : { ok: false, error: '예측 엔진이 시작되지 않았습니다. API 키와 네트워크 연결을 확인해 주세요.' };
+    },
+    forecastSummary: () => {
+      const st = assistOi.current.state;
+      return st ? {
+        question: st.question, status: st.status === 'running' ? st.phaseLabel || 'running' : st.status, answer: currentAnswer(st),
+        objects: objectsOf(st).filter(o => o.type === 'actor' || o.type === 'world').map(o => o.title).slice(0, 40),
+      } : null;
+    },
+    ui: () => ({ fullscreen: assistTheater.current, stage: assistStage.current }),
+    onReply: text => {
+      if (!assistVoice.current || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text.replace(/^- /gm, '').replace(/\s+/g, ' ').trim());
+      u.rate = 1.03;
+      window.speechSynthesis.speak(u);
+    },
+  });
+
+  // OI focus: clear the globe of the other layers while a forecast draws,
+  // and put back exactly what was on when focus ends.
+  const [oiFocus, setOiFocus] = useState(false);
+  const focusSaved = useRef<typeof activeLayers | null>(null);
+  const toggleOiFocus = useCallback(() => {
+    const saved = focusSaved.current;
+    if (saved) {
+      focusSaved.current = null;
+      setActiveLayers(saved);
+      setOiFocus(false);
+      return;
+    }
+    const KEEP = new Set(['day_night', 'live_clouds', 'wind', 'wind_controls', 'rain', 'rain_controls', 'terrain_3d', 'terrain_elevation', 'military_demarcation']);
+    setActiveLayers(prev => {
+      focusSaved.current = prev;
+      return Object.fromEntries(Object.entries(prev).map(([k, v]) => [k, KEEP.has(k) ? v : false])) as typeof prev;
+    });
+    setOiFocus(true);
+  }, []);
+
+  /** From Search: open Directions with this place as the destination, and show where it is. */
+  const openDirectionsTo = useCallback((p: { label: string; context?: string; lat: number; lng: number; kind?: string }) => {
+    setRouteTarget({ ...p, ts: Date.now() });
+    setActiveRoute(null);
+    setShowDesktopSearch(false);
+    setMobilePanel(null);
+    setShowDirections(true);
+    setFlyToLocation({ lat: p.lat, lng: p.lng, zoom: 14, ts: Date.now() });
+  }, []);
 
   // Synchronize God's Eye state with activeLayers
   useEffect(() => {
@@ -845,6 +1144,10 @@ export default function Dashboard(props?: {
     elevationEnabled: activeLayers.terrain_elevation,
     dem3dEnabled: activeLayers.terrain_3d,
     projection: mapProjection,
+    terrainStatus,
+    on3DModeSelected: () => setMapProjection('globe'),
+    onTerrainRetry: () => setTerrainRetry(value => value + 1),
+    onTerrainFocus: () => setTerrainFocus(value => value + 1),
     onSelectElevation: () => {
       setActiveLayers(prev => ({ ...prev, terrain_elevation: true, terrain_3d: false }));
       setMapProjection('mercator');
@@ -854,7 +1157,16 @@ export default function Dashboard(props?: {
       setMapProjection('globe');
     },
     onSelectFlat: selectFlatMap,
-    onTerrainFocus: () => setTerrainFocus(value => value + 1),
+    sensorMode,
+    onSetSensorMode: (mode: SensorMode) => setSensorMode(mode),
+    cockpitMode,
+    onToggleCockpitMode: () => setCockpitMode(c => !c),
+    detectionOverlay: showDetectionOverlay,
+    onToggleDetectionOverlay: () => setShowDetectionOverlay(d => !d),
+    militaryHud: showMilitaryHud,
+    onToggleMilitaryHud: () => setShowMilitaryHud(h => !h),
+    contactsVisible: showContacts,
+    onToggleContacts: () => setShowContacts(t => !t),
   };
   const [capabilities, setCapabilities] = useState<Record<string, boolean>>({});
   const [liveFeedUrl, setLiveFeedUrl] = useState<string | null>(null);
@@ -867,6 +1179,12 @@ export default function Dashboard(props?: {
     return () => clearTimeout(splashTimer);
   }, []);
 
+  /* Fly from the globe down to the viewer's city once the splash has gone. */
+  useEffect(() => {
+    if (!splashGone || !homeLocation || autoLocateCancelled.current) return;
+    setFlyToLocation({ ...homeLocation, zoom: 8, duration: 3500, ts: Date.now() });
+  }, [splashGone, homeLocation]);
+
   // On mount: geolocate by IP and fly to user's city (after splash/map init)
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -876,9 +1194,11 @@ export default function Dashboard(props?: {
     const layers = p.get('layers');
     if (layers) {
       const active = layers.split(',');
+      const older = !active.some(a => a.endsWith('_controls'));
+      const boxOn = (k: string) => older && (k === 'wind_controls' || k === 'rain_controls');
       setActiveLayers(prev => {
         const next = { ...prev };
-        Object.keys(next).forEach(k => { (next as any)[k] = active.includes(k); });
+        Object.keys(next).forEach(k => { (next as any)[k] = active.includes(k) || boxOn(k); });
         // Core military & tactical intelligence layers must default to ON
         next.flights = true;
         next.military = true;
@@ -922,21 +1242,32 @@ export default function Dashboard(props?: {
     const cancelAutoLocate = () => { autoLocateCancelled.current = true; };
     window.addEventListener('pointerdown', cancelAutoLocate, { once: true });
     window.addEventListener('keydown', cancelAutoLocate, { once: true });
-    const geoTimer = setTimeout(() => {
-      if (autoLocateCancelled.current) return;
-      fetch('/api/geo', { signal: geoController.signal })
-        .then(r => r.json())
-        .then(geo => {
-          if (!autoLocateCancelled.current && !geoController.signal.aborted && geo.status === 'success' &&
-              Number.isFinite(geo.lat) && Number.isFinite(geo.lon) && Math.abs(geo.lat) <= 90 && Math.abs(geo.lon) <= 180) {
-            setFlyToLocation({ lat: geo.lat, lng: geo.lon, zoom: 8, ts: Date.now() });
-          }
-        })
-        .catch(() => { /* silent — keep default global view */ });
-    }, 3000);
+
+    let located = false;
+    const landSomewhere = () => {
+      if (located || geoController.signal.aborted) return;
+      located = true;
+      const city = pickLandingCity();
+      setHomeLocation({ lat: city.lat, lng: city.lng });
+    };
+    const geoGiveUp = setTimeout(landSomewhere, 6000);
+    fetch('/api/geo', { signal: geoController.signal })
+      .then(r => r.json())
+      .then(geo => {
+        if (located || geoController.signal.aborted) return;
+        if (geo.status === 'success' &&
+            Number.isFinite(geo.lat) && Number.isFinite(geo.lon) && Math.abs(geo.lat) <= 90 && Math.abs(geo.lon) <= 180) {
+          located = true;
+          setHomeLocation({ lat: geo.lat, lng: geo.lon });
+        } else {
+          landSomewhere();
+        }
+      })
+      .catch(landSomewhere);
 
     return () => {
-      clearTimeout(geoTimer); geoController.abort();
+      clearTimeout(geoGiveUp);
+      geoController.abort();
       window.removeEventListener('pointerdown', cancelAutoLocate);
       window.removeEventListener('keydown', cancelAutoLocate);
     };
@@ -949,7 +1280,8 @@ export default function Dashboard(props?: {
     if (urlTimer.current) clearTimeout(urlTimer.current);
     urlTimer.current = setTimeout(() => {
       const active = Object.entries(activeLayers).filter(([,v]) => v).map(([k]) => k).join(',');
-      const url = `${window.location.pathname}?layers=${active}`;
+      const oiRun = new URLSearchParams(window.location.search).get('oi');
+      const url = `${window.location.pathname}?layers=${active}${oiRun ? `&oi=${encodeURIComponent(oiRun)}` : ''}`;
       window.history.replaceState(null, '', url);
     }, 1500);
   }, [activeLayers]);
@@ -971,6 +1303,12 @@ export default function Dashboard(props?: {
       if (e.key === 'f' && !e.ctrlKey) {
         if (document.fullscreenElement) document.exitFullscreen();
         else document.documentElement.requestFullscreen();
+      }
+      if (e.key === 'o' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        setOiMode('assist');
+        setOiAutoFocus(true);
+        if (window.matchMedia('(max-width: 767px)').matches) setMobilePanel('oi');
+        else { setShowOi(true); setShowIntel(false); setShowMarkets(false); setShowAlerts(false); setShowSpaceCam(false); }
       }
       if (e.key === 'l') setShowLayers(p => !p);
       if (e.key === 'm') setShowMarkets(p => !p);
@@ -1795,18 +2133,22 @@ export default function Dashboard(props?: {
           terrainFocus={terrainFocus}
           terrainRetry={terrainRetry}
           onTerrainStatusChange={setTerrainStatus}
+          onLayerOff={key => setActiveLayers(prev => ({ ...prev, [key]: false }))}
           mapStyle={mapStyle === 'satellite' ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}' : 'dark'} 
           onEntityClick={handleEntityClick} 
           onMouseCoords={handleMouseCoords} 
           onRightClick={handleRightClick} 
-          onViewStateChange={setMapView} 
+          onViewStateChange={setMapView}
+          onReady={() => setMapReady(true)}
           flyToLocation={flyToLocation}
+          alertPinIds={pinnedAlertIds}
           sweepData={sweepData}
           scanTargets={scanTargets}
           demoMode={demoMode}
           theme={osirisTheme}
           arcgisLayers={arcgisLayers.filter(l => l.visible).map(l => ({ id: l.id, title: l.title, geojson: l.geojson, color: l.color, opacity: l.opacity }))}
           onMapCenter={setMapCenter}
+          onTransitStatus={setTransitStatus}
           route={activeRoute}
           userLocation={
             navSession && navProgress
@@ -1823,8 +2165,25 @@ export default function Dashboard(props?: {
           onDrawComplete={handleDrawComplete}
           drawnPolygons={drawnPolygons}
           aircraftAirports={aircraftAirports}
+          onOiGlobe={handleOiGlobe}
+          onOiSelect={handleOiSelect}
+          onOiHover={setOiHover}
+          onOiFollow={setOiFollowing}
+          oiHighlight={oiHighlight}
         />
       </ErrorBoundary>
+
+      {/* ── OI: what the pointer is over on the globe ── */}
+      {oiHover && !isMobile && (
+        <div
+          className="fixed z-[950] pointer-events-none max-w-[300px] rounded-lg border border-[var(--border-primary)] bg-[rgba(12,14,26,0.94)] backdrop-blur-xl px-3 py-2 shadow-[0_8px_32px_rgba(0,0,0,0.6)]"
+          style={{ left: Math.min(oiHover.x + 14, (typeof window !== 'undefined' ? window.innerWidth : 1920) - 314), top: oiHover.y + 16 }}
+        >
+          <div className="text-[11.5px] font-medium leading-snug text-[var(--text-heading)]">{oiHover.title}</div>
+          {oiHover.detail && <div className="mt-0.5 text-[10.5px] leading-snug text-[var(--text-secondary)]">{oiHover.detail}</div>}
+          <div className="mt-1 text-[8.5px] font-mono tracking-[0.18em] text-[var(--gold-primary)]">클릭하여 열기 (CLICK TO OPEN)</div>
+        </div>
+      )}
 
       {/* ── DIRECTIONS — opens beside the right-hand tool rail ── */}
       <div
@@ -1843,15 +2202,18 @@ export default function Dashboard(props?: {
               onRecenter={() => setFollowUser(true)}
               onExit={() => { setNavSession(null); setNavProgress(null); setFollowUser(false); }}
               onReroute={async (fromPt) => {
-                // Re-plan from where the driver actually is, to the same destination.
-                const dest = navSession.route.geometry.coordinates.at(-1)!;
+                const { route, plan } = navSession;
+                const dest = route.geometry.coordinates.at(-1)!;
+                const ahead = stopsAhead(route.geometry.coordinates, plan?.stops || [], fromPt);
+                const via = ahead.length ? `&via=${ahead.map((p) => `${p.lat},${p.lng}`).join('|')}` : '';
+                const avoid = plan?.avoid?.length ? `&avoid=${plan.avoid.join(',')}` : '';
                 try {
                   const res = await fetch(
-                    `/api/directions?from=${fromPt.lat},${fromPt.lng}&to=${dest[1]},${dest[0]}&mode=auto`,
+                    `/api/directions?from=${fromPt.lat},${fromPt.lng}&to=${dest[1]},${dest[0]}&mode=${encodeURIComponent(route.mode || 'auto')}${via}${avoid}`,
                   );
                   const data = await res.json();
                   if (res.ok && !data.error) {
-                    setNavSession((n) => (n ? { ...n, route: data, key: Date.now() } : n));
+                    setNavSession((n) => (n ? { ...n, route: data, key: Date.now(), plan: { ...(n.plan || { mode: 'auto', avoid: [], stops: [] }), stops: ahead } } : n));
                     setActiveRoute({ ...data, from: fromPt, to: { lat: dest[1], lng: dest[0] } });
                   }
                 } catch { /* keep the old route rather than dropping guidance */ }
@@ -1871,19 +2233,19 @@ export default function Dashboard(props?: {
             aria-hidden={Boolean(navSession)}
           >
             <DirectionsBar
-              key={routeSeed?.k ?? 'fresh'}
-              initialTo={routeSeed ? { label: routeSeed.label, lat: routeSeed.lat, lng: routeSeed.lng } : null}
+              key={routeTarget?.ts ?? routeSeed?.k ?? 'plan'}
+              initialTo={routeTarget || (routeSeed ? { label: routeSeed.label, lat: routeSeed.lat, lng: routeSeed.lng } : null)}
               center={mapCenter ? { lat: mapCenter.lat, lng: mapCenter.lng } : null}
               onRoute={(r) => setActiveRoute(r)}
               onLiveLocation={setLiveLocation}
               onFollowChange={setFollowUser}
               onActiveSegment={(seg) => setActiveRoute((r) => (r ? { ...r, activeSegment: seg } : r))}
-              onStartNavigation={(r, label) => {
-                setNavSession({ route: r, label, key: Date.now() });
+              onStartNavigation={(r, label, plan) => {
+                setNavSession({ route: r, label, key: Date.now(), plan });
                 setFollowUser(true);
               }}
               onLocate={(lat, lng, zoom) => setFlyToLocation({ lat, lng, zoom, ts: Date.now() })}
-              onClose={() => { setShowDirections(false); setActiveRoute(null); setRouteSeed(null); }}
+              onClose={() => { setShowDirections(false); setActiveRoute(null); setRouteTarget(null); }}
             />
           </motion.div>
         )}
@@ -2329,14 +2691,17 @@ export default function Dashboard(props?: {
         )}
 
         <span className="text-[11px] font-bold tracking-[0.2em] text-[var(--text-muted)] opacity-50">V.4.2</span>
+        <TokenPanel />
+        <SupportMenu />
       </motion.div>
 
       {/* ── MOBILE: Compact top status ── */}
       {/* The route planner claims the top of a phone screen; leaving this in
           place would put the support badge underneath the destination field. */}
       {isMobile && !showDirections && !navSession && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 2.5 }} className="absolute top-3 right-3 z-[200] pointer-events-auto flex items-center gap-2">
-          <span className="text-[10px] font-mono text-[var(--gold-primary)] font-bold">⚡ 번개의 눈동자</span>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: revealed ? 1 : 0 }} transition={{ delay: 2.5 }} className="absolute top-3 right-3 z-[200] pointer-events-auto flex items-center gap-2">
+          <TokenPanel />
+          <SupportMenu compact />
         </motion.div>
       )}
 
@@ -2346,12 +2711,14 @@ export default function Dashboard(props?: {
       {showLayers && !isMobile && (
         <LayerPanel
           {...terrainPanelProps}
+          revealed={revealed}
           data={data}
           activeLayers={activeLayers}
           setActiveLayers={setActiveLayers}
           theme={osirisTheme}
           setTheme={setOsirisTheme}
           capabilities={capabilities}
+          liveStatus={layerLiveStatus}
           sensorMode={sensorMode}
           onSetSensorMode={setSensorMode}
           cockpitMode={cockpitMode}
@@ -2417,9 +2784,9 @@ export default function Dashboard(props?: {
           </AnimatePresence>
         </div>
 
-        <div className="relative group">
+        <div ref={marketsAnchor} className="relative group">
           <FeynmanTooltip dictKey="tool_markets" position="left">
-            <button onClick={() => { setShowMarkets(!showMarkets); setShowIntel(false); setShowAlerts(false); setShowSpaceCam(false); }} className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showMarkets ? 'bg-[var(--gold-primary)]/20' : 'hover:bg-white/10'}`} aria-label="Markets" aria-expanded={showMarkets}>
+            <button onClick={() => { setShowMarkets(!showMarkets); setShowOi(false); setShowIntel(false); setShowAlerts(false); setShowSpaceCam(false); }} className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showMarkets ? 'bg-[var(--gold-primary)]/20' : 'hover:bg-white/10'}`} aria-label="Markets" aria-expanded={showMarkets}>
               <BarChart3 className={`w-4 h-4 ${showMarkets ? 'text-[var(--gold-primary)]' : 'text-white/60'}`} />
               {showMarkets && (
                 <span
@@ -2431,7 +2798,7 @@ export default function Dashboard(props?: {
           </FeynmanTooltip>
           <AnimatePresence>
             {showMarkets && (
-              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="absolute right-12 top-1/2 -translate-y-1/2 w-80">
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="absolute right-12 w-[380px]" style={{ top: marketsTop }}>
                 <MarketsPanel data={data} spaceWeather={spaceWeather} />
               </motion.div>
             )}
@@ -2440,7 +2807,7 @@ export default function Dashboard(props?: {
 
         <div className="relative group">
           <FeynmanTooltip dictKey="tool_alerts" position="left">
-            <button onClick={() => { setShowAlerts(!showAlerts); setShowIntel(false); setShowMarkets(false); setShowDrawing(false); }} className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showAlerts ? 'bg-[#FF3D3D]/20' : 'hover:bg-white/10'}`} aria-label="Live Alerts" aria-expanded={showAlerts}>
+            <button onClick={() => { setShowAlerts(!showAlerts); setShowOi(false); setShowIntel(false); setShowMarkets(false); setShowDrawing(false); }} className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showAlerts ? 'bg-[#FF3D3D]/20' : 'hover:bg-white/10'}`} aria-label="Live Alerts" aria-expanded={showAlerts}>
               <AlertTriangle className={`w-4 h-4 ${showAlerts ? 'text-[#FF3D3D]' : 'text-white/60'}`} />
               {showAlerts && (
                 <span
@@ -2453,7 +2820,7 @@ export default function Dashboard(props?: {
           <AnimatePresence>
             {showAlerts && (
               <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="absolute right-12 top-1/2 -translate-y-1/2 w-80">
-                <LiveAlerts data={data} onLocate={(lat, lng) => setFlyToLocation({ lat, lng, ts: Date.now() })} onWatchFeed={(url, name) => { setLiveFeedUrl(url); setLiveFeedName(name); }} />
+                <LiveAlerts data={data} onLocate={(lat, lng, options) => setFlyToLocation({ lat, lng, zoom: options?.zoom, alertId: options?.alertId, ts: Date.now() })} pinsOn={activeLayers.alert_pins} onTogglePins={on => setActiveLayers(prev => ({ ...prev, alert_pins: on }))} onPinnedChange={setPinnedAlertIds} onWatchFeed={(url, name) => { setLiveFeedUrl(url); setLiveFeedName(name); }} />
               </motion.div>
             )}
           </AnimatePresence>
@@ -2461,7 +2828,7 @@ export default function Dashboard(props?: {
 
         <div className="relative group">
           <FeynmanTooltip dictKey="tool_draw" position="left">
-            <button onClick={() => { setShowDrawing(!showDrawing); setShowIntel(false); setShowMarkets(false); setShowAlerts(false); setShowSpaceCam(false); }} className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showDrawing ? 'bg-[#00E5FF]/20' : 'hover:bg-white/10'}`} aria-label="전술 작전 드로잉" aria-expanded={showDrawing}>
+            <button onClick={() => { setShowDrawing(!showDrawing); setShowOi(false); setShowIntel(false); setShowMarkets(false); setShowAlerts(false); setShowSpaceCam(false); }} className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showDrawing ? 'bg-[#00E5FF]/20' : 'hover:bg-white/10'}`} aria-label="전술 작전 드로잉" aria-expanded={showDrawing}>
               <PenLine className={`w-4 h-4 ${showDrawing ? 'text-[#00E5FF]' : 'text-white/60'}`} />
               {showDrawing && (
                 <span
@@ -2471,6 +2838,35 @@ export default function Dashboard(props?: {
               )}
             </button>
           </FeynmanTooltip>
+        </div>
+
+        {/* ── 번개의 눈동자 OI: 전술 인텔리전스 AI & 예측 스웜 엔진 ── */}
+        <div ref={oiAnchor} className="relative group/oi">
+          <button onClick={() => { setShowOi(!showOi); setShowIntel(false); setShowMarkets(false); setShowAlerts(false); setShowSpaceCam(false); }}
+            className={`relative w-11 h-11 rounded-full flex flex-col items-center justify-center gap-[3px] border transition-all duration-200 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/50 ${showOi ? 'bg-[var(--gold-primary)]/20 border-[var(--gold-primary)]/70 shadow-[0_0_18px_rgba(var(--gold-rgb),0.35)]' : 'bg-[var(--gold-primary)]/[0.07] border-[var(--gold-primary)]/35 hover:bg-[var(--gold-primary)]/15 hover:border-[var(--gold-primary)]/60 hover:shadow-[0_0_14px_rgba(var(--gold-rgb),0.25)]'}`}
+            title="⚡ OI 전술 인텔리전스 AI — 대화형 지도 제어, 예측 시뮬레이션 및 다중 에이전트 인텔 분석 [단축키: O]" aria-label="OI 전술 인텔리전스 AI" aria-expanded={showOi}>
+            <OiMark size={18} live={oi.state?.status === 'running' || assist.busy} />
+            <span className={`text-[7.5px] font-mono font-semibold tracking-[0.2em] leading-none pl-[0.2em] ${showOi ? 'text-[var(--gold-light)]' : 'text-[var(--gold-primary)]'}`}>OI</span>
+            {showOi && (
+              <span
+                aria-hidden="true"
+                className="absolute -right-1 top-1/2 -translate-y-1/2 h-5 w-[2px] rounded-full bg-current text-[var(--gold-primary)]"
+              />
+            )}
+            {oi.state?.status === 'running' && <span aria-hidden="true" className="absolute top-0 right-0 w-2 h-2 rounded-full bg-[var(--gold-light)] border border-black/60 animate-pulse" />}
+          </button>
+          {!showOi && <span className="absolute right-14 top-1/2 -translate-y-1/2 px-2 py-1 text-[9px] font-mono tracking-wider text-white/80 bg-black/80 backdrop-blur-sm rounded whitespace-nowrap opacity-0 group-hover/oi:opacity-100 group-focus-within/oi:opacity-100 transition-opacity pointer-events-none">OI · 전술 어시스트 &amp; 예측</span>}
+          <AnimatePresence>
+            {showOi && (
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="absolute right-[60px] w-[412px]" style={{ top: oiTop }}>
+                <OiPanel oi={oi} selected={oiSelected} onSelect={setOiSelected} onClose={() => { setShowOi(false); setOiTheater(false); setOiAutoFocus(false); }}
+                  focus={oiFocus} onFocus={toggleOiFocus} onLocate={handleOiLocate}
+                  theater={oiTheater} onTheater={setOiTheater} following={oiFollowing} onFollow={followOi}
+                  assist={assist} mode={oiMode} onMode={setOiMode} speakOn={oiVoice} onSpeak={setOiVoicePersist} autoFocus={oiAutoFocus}
+                  stage={oiStage} onStage={setOiStage} />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* ── 인텔리전스 브릿지 (최신 정보 통합 허브) ── */}
@@ -2736,10 +3132,8 @@ export default function Dashboard(props?: {
                 { id: 'markets' as const, icon: BarChart3, label: 'MARKETS' },
                 { id: 'intel' as const, icon: Newspaper, label: 'INTEL' },
                 { id: 'recon' as const, icon: Radar, label: 'RECON' },
+                { id: 'oi' as const, icon: Orbit, label: 'OI' },
                 { id: 'search' as const, icon: Search, label: 'SEARCH' },
-                // Routing was reachable only from the desktop tool rail, so a
-                // phone could not open it at all. It sits next to SEARCH
-                // because both answer "take me somewhere".
                 { id: 'route' as const, icon: Route, label: 'ROUTE' },
                 { id: 'remote' as const, icon: Bluetooth, label: 'REMOTE' },
               ].map(tab => {
@@ -2753,10 +3147,6 @@ export default function Dashboard(props?: {
                     key={tab.id}
                     onClick={() => {
                       if (isRoute) {
-                        // Mid-drive this must not touch anything: closing the
-                        // planner clears the active route, which would take the
-                        // line off the map underneath a driver. Guidance is
-                        // ended from the navigation view's own exit.
                         if (navSession) return;
                         setMobilePanel(null);
                         setShowDirections((open) => {
@@ -2785,14 +3175,14 @@ export default function Dashboard(props?: {
               <motion.div
                 initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
                 transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                className="fixed bottom-[52px] left-0 right-0 z-[400] glass-panel rounded-b-none overflow-y-auto styled-scrollbar"
+                className={`fixed bottom-[52px] left-0 right-0 z-[400] glass-panel ${mobilePanel === 'oi' ? 'oi-glass' : ''} rounded-b-none overflow-y-auto styled-scrollbar`}
                 style={{ maxHeight: 'min(55vh, calc(100dvh - 100px))', paddingBottom: 'env(safe-area-inset-bottom, 4px)' }}
               >
                 <div className="mobile-drawer-handle" />
                 <div className="px-3 pb-3">
                   <div className="flex items-center justify-between mb-2">
                     <span className="hud-text text-[10px] text-[var(--text-primary)]">
-                      {mobilePanel === 'layers' ? 'LAYERS & STATS' : mobilePanel === 'markets' ? 'MARKETS & INTEL' : mobilePanel === 'intel' ? 'INTEL FEED' : mobilePanel === 'recon' ? '번개의 눈동자 RECON' : mobilePanel === 'remote' ? 'WORLD REMOTE' : 'SEARCH'}
+                      {mobilePanel === 'layers' ? 'LAYERS & STATS' : mobilePanel === 'markets' ? 'MARKETS & INTEL' : mobilePanel === 'intel' ? 'INTEL FEED' : mobilePanel === 'recon' ? '번개의 눈동자 RECON' : mobilePanel === 'remote' ? 'WORLD REMOTE' : mobilePanel === 'oi' ? '번개의 눈동자 OI (전술 인텔리전스 AI)' : 'SEARCH'}
                     </span>
                     <button onClick={() => setMobilePanel(null)} className="text-[var(--text-muted)] p-1"><X className="w-4 h-4" /></button>
                   </div>
@@ -2809,6 +3199,7 @@ export default function Dashboard(props?: {
                       </div>
                       <LayerPanel
                         {...terrainPanelProps}
+                        revealed={revealed}
                         data={data}
                         activeLayers={activeLayers}
                         setActiveLayers={setActiveLayers}
@@ -2816,6 +3207,7 @@ export default function Dashboard(props?: {
                         theme={osirisTheme}
                         setTheme={setOsirisTheme}
                         capabilities={capabilities}
+                        liveStatus={layerLiveStatus}
                         sensorMode={sensorMode}
                         onSetSensorMode={setSensorMode}
                         cockpitMode={cockpitMode}
@@ -2833,6 +3225,12 @@ export default function Dashboard(props?: {
                     </>
                   )}
                   {mobilePanel === 'markets' && <MarketsPanel data={data} spaceWeather={spaceWeather} />}
+                  {mobilePanel === 'oi' && (
+                    <OiPanel oi={oi} selected={oiSelected} onSelect={setOiSelected} embedded focus={oiFocus} onFocus={toggleOiFocus}
+                      onLocate={handleOiLocate} following={oiFollowing} onFollow={followOi}
+                      assist={assist} mode={oiMode} onMode={setOiMode} speakOn={oiVoice} onSpeak={setOiVoicePersist}
+                      stage={oiStage} onStage={setOiStage} />
+                  )}
                   {mobilePanel === 'intel' && <IntelFeed data={data} onLocate={(lat, lng) => { setFlyToLocation({ lat, lng, ts: Date.now() }); setMobilePanel(null); }} />}
                   {mobilePanel === 'search' && (
                     <div className="space-y-2">
@@ -2931,6 +3329,7 @@ export default function Dashboard(props?: {
         camera={activeCamera}
         onClose={() => setActiveCamera(null)}
         onLocate={(lat, lng) => setFlyToLocation({ lat, lng, ts: Date.now() })}
+        besideOi={showOi && !oiTheater}
       />
 
       {/* ── Entity Graph Panel ── */}
@@ -3124,7 +3523,7 @@ export default function Dashboard(props?: {
       <KeyboardShortcuts />
 
       {/* ── GLOBAL STATUS TICKER (bottom) ── */}
-      <GlobalStatusBar />
+      <div data-hud><GlobalStatusBar revealed={revealed} /></div>
 
       {/* ── KOREAN TACTICAL SHORTCUT BAR (전술 단축키 인터랙티브 바) ── */}
       <div className="desktop-only absolute bottom-[28px] right-4 z-[200] flex flex-row flex-nowrap whitespace-nowrap items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/85 backdrop-blur-md border border-[var(--gold-primary)]/40 text-[10px] font-mono shadow-2xl select-none pointer-events-auto">
@@ -3142,6 +3541,26 @@ export default function Dashboard(props?: {
             <kbd className="px-1 py-0.2 rounded bg-black/60 text-[9px] border border-[var(--gold-primary)]/40 font-mono text-[var(--gold-primary)]">?</kbd>
           </button>
         </FeynmanTooltip>
+
+        <span className="text-white/20">|</span>
+
+        {/* OI 전술 인텔리전스 AI */}
+        <button
+          type="button"
+          onClick={() => {
+            setShowOi(prev => !prev);
+            setOiAutoFocus(true);
+          }}
+          className={`flex items-center gap-1 px-2 py-0.5 rounded transition-all cursor-pointer ${
+            showOi 
+              ? 'bg-[var(--gold-primary)]/30 text-[var(--gold-light)] border border-[var(--gold-primary)]/60 font-bold shadow-[0_0_8px_rgba(var(--gold-rgb),0.5)]' 
+              : 'text-white/70 hover:text-white hover:bg-white/10'
+          }`}
+          title="OI 전술 인텔리전스 AI & 예측 스웜 엔진 패널 (O 키)"
+        >
+          <kbd className={`px-1 py-0.2 rounded text-[9px] font-bold ${showOi ? 'bg-[var(--gold-primary)] text-black' : 'bg-white/10 text-[var(--gold-primary)]'}`}>O</kbd>
+          <span>OI전술AI</span>
+        </button>
 
         <span className="text-white/20">|</span>
 

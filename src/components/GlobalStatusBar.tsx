@@ -72,7 +72,8 @@ const formatChange = (change: number | undefined) => {
   );
 };
 
-export default function GlobalStatusBar() {
+/** `revealed` is false while the splash is up; the bar rises when it turns true. */
+export default function GlobalStatusBar({ revealed = true }: { revealed?: boolean }) {
   const [crypto, setCrypto] = useState<CryptoPrice[]>([]);
   const [quakes, setQuakes] = useState<Earthquake[]>([]);
   const [hoveredQuake, setHoveredQuake] = useState<Earthquake | null>(null);
@@ -232,30 +233,36 @@ export default function GlobalStatusBar() {
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ delay: 3, duration: 0.8 }}
-      className="hidden md:block absolute bottom-0 left-0 right-0 z-[198] pointer-events-none"
+      initial={{ opacity: 0, y: 10 }}
+      animate={revealed ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+      transition={{ delay: 0.5, duration: 0.6 }}
+      className="hidden md:block absolute bottom-0 left-0 right-0 z-[210] pointer-events-none"
     >
       <div className="h-[24px] bg-black/90 backdrop-blur-md border-t border-white/[0.06] flex items-center justify-between text-[10px] font-mono tracking-wider text-white/70 overflow-hidden select-none">
         
-        {/* ── LEFT: 실시간 (LIVE) 뱃지 & Docs Link ── */}
+        {/* ── LEFT: 실시간 (LIVE) 뱃지 & Docs / Privacy Link ── */}
         <div className="flex-shrink-0 h-full flex items-center pointer-events-auto">
           <FeynmanTooltip dictKey="status_live" position="top" className="h-full">
-            <div className="h-full px-3 flex items-center gap-1.5 bg-[var(--cyan-primary)]/8 border-r border-white/[0.08] text-[var(--cyan-primary)] font-bold cursor-help">
+            <div className="h-full px-3 flex items-center gap-1.5 bg-[var(--cyan-primary)]/8 border-r border-white/[0.08] text-[var(--cyan-primary)] font-bold cursor-help" title="실시간 데이터 스트림 연결 상태">
               <div className="w-1.5 h-1.5 rounded-full bg-[var(--cyan-primary)] opacity-80" />
               <span>실시간 (LIVE)</span>
             </div>
           </FeynmanTooltip>
           {/* Documentation & API reference */}
           <FeynmanTooltip dictKey="status_docs" position="top" className="h-full">
-            <Link href="/docs" prefetch aria-label="전술 문서"
+            <Link href="/docs" prefetch title="전술 문서 및 API 참조" aria-label="전술 문서"
               className="h-full px-3 flex items-center gap-1.5 bg-[var(--gold-primary)]/10 text-[var(--gold-primary)] hover:bg-[var(--gold-primary)]/20 border-r border-white/[0.08] transition-all duration-200"
             >
               <DocsIcon />
               <span className="text-[9px] font-bold tracking-[0.15em] uppercase">전술 문서</span>
             </Link>
           </FeynmanTooltip>
+          {/* Data & privacy — what leaves this instance, and when */}
+          <Link href="/privacy" title="데이터 처리 및 개인정보 보호 정책" aria-label="개인정보 보호 정책"
+            className="h-full px-3 hidden sm:flex items-center text-white/50 hover:text-white hover:bg-white/[0.04] border-r border-white/[0.08] transition-all duration-200"
+          >
+            <span className="text-[9px] font-bold tracking-[0.15em] uppercase">개인정보 보호</span>
+          </Link>
         </div>
 
         {/* ── CENTER: Scrolling ticker ── */}

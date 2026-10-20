@@ -40,8 +40,8 @@ interface NavigationViewProps {
 
 function ManeuverIcon({ type, className }: { type: string; className?: string }) {
   const c = className ?? 'w-8 h-8';
-  if (type === 'arrive') return <Flag className={`${c} text-[var(--alert-green)]`} />;
-  if (type === 'depart') return <MapPin className={`${c} text-[var(--alert-green)]`} />;
+  if (type === 'arrive') return <Flag className={`${c} text-[var(--gold-light)]`} />;
+  if (type === 'depart') return <MapPin className={`${c} text-[var(--gold-light)]`} />;
   if (type === 'roundabout') return <RotateCw className={`${c} text-white`} />;
   if (type === 'merge') return <Merge className={`${c} text-white`} />;
   if (type.includes('right')) return <CornerUpRight className={`${c} text-white`} />;
@@ -171,21 +171,24 @@ export default function NavigationView({
     <div className="flex flex-col gap-1.5">
       {/* ── maneuver banner ── */}
       <div
-        className="glass-panel overflow-hidden !border-[var(--border-active)]"
+        className="glass-panel tool-glass overflow-hidden !border-[rgba(var(--gold-rgb),0.35)]"
         style={{ boxShadow: '0 18px 56px rgba(0,0,0,0.75)' }}
       >
-        <div className={`px-4 py-3 flex items-center gap-4 ${arrived ? 'bg-[rgba(0,230,118,0.10)]' : 'bg-[rgba(66,133,244,0.10)]'}`}>
-          {arrived
-            ? <Flag className="w-8 h-8 text-[var(--alert-green)] flex-shrink-0" />
-            : <ManeuverIcon type={step?.type ?? 'straight'} />}
+        <div className="px-4 py-3.5 flex items-center gap-4" style={{ background: 'linear-gradient(180deg, rgba(var(--gold-rgb),0.12), rgba(var(--gold-rgb),0.04))' }}>
+          {/* The turn, big enough to read at a glance from the road. */}
+          <span className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 border" style={{ borderColor: 'rgba(var(--gold-rgb),0.4)', background: 'rgba(0,0,0,0.35)' }}>
+            {arrived
+              ? <Flag className="w-8 h-8 text-[var(--gold-light)]" />
+              : <ManeuverIcon type={step?.type ?? 'straight'} />}
+          </span>
 
           <div className="flex-1 min-w-0">
             {!arrived && progress && (
-              <div className="text-[22px] leading-none text-[var(--gold-primary)] tabular-nums mb-1 font-bold">
+              <div className="text-[30px] leading-none font-mono font-light text-[var(--gold-light)] tabular-nums mb-1.5 font-bold">
                 {navDistance(progress.distanceToStep)}
               </div>
             )}
-            <div className={`text-[12px] leading-snug font-medium ${arrived ? 'text-[var(--alert-green)]' : 'text-[var(--text-primary)]'}`}>
+            <div className={`text-[14px] leading-snug font-medium ${arrived ? 'text-[var(--alert-green)]' : 'text-[var(--text-heading)]'}`}>
               {arrived ? `${destinationLabel}에 도착했습니다` : step?.instruction ?? '출발 준비 중…'}
             </div>
           </div>
@@ -196,9 +199,9 @@ export default function NavigationView({
             {onRecenter && !following && (
               <button
                 onClick={onRecenter}
-                title="내 위치로 지도 맞춤 및 추적"
-                aria-label="내 위치로 지도 맞춤 및 추적"
-                className="p-1.5 rounded-md text-[#4285F4] bg-[rgba(66,133,244,0.14)] hover:bg-[rgba(66,133,244,0.24)] transition-colors animate-pulse"
+                title="내 위치로 지도 맞춤 및 추적 재개"
+                aria-label="내 위치로 지도 맞춤 및 추적 재개"
+                className="p-1.5 rounded-md text-[var(--gold-light)] bg-[rgba(var(--gold-rgb),0.14)] hover:bg-[rgba(var(--gold-rgb),0.24)] transition-colors animate-pulse"
               >
                 <LocateFixed className="w-4 h-4" />
               </button>
@@ -225,7 +228,7 @@ export default function NavigationView({
         {/* progress along the route */}
         <div className="h-[3px] bg-[rgba(255,255,255,0.06)]">
           <div
-            className="h-full bg-[var(--gold-primary)] transition-[width] duration-700"
+            className="h-full bg-[var(--gold-primary)] transition-[width] duration-700 shadow-[0_0_8px_rgba(var(--gold-rgb),0.6)]"
             style={{ width: `${Math.round((progress?.fraction ?? 0) * 100)}%` }}
           />
         </div>
@@ -241,16 +244,16 @@ export default function NavigationView({
               <AlertTriangle className="w-3 h-3" /> 경로 이탈
             </span>
           ) : (
-            <span className="text-[11px] text-[var(--text-muted)] truncate font-medium">
+            <span className="text-[12px] text-[var(--text-secondary)] truncate font-medium">
               {destinationLabel} 방면
             </span>
           )}
 
           {progress && !arrived && (
             <span className="flex items-baseline gap-2.5 flex-shrink-0 tabular-nums">
-              <span className="text-[12px] text-[var(--text-primary)] font-bold">{navDuration(progress.durationRemaining)}</span>
-              <span className="text-[11px] text-[var(--text-secondary)]">{navDistance(progress.distanceRemaining)}</span>
-              <span className="text-[11px] text-[var(--text-muted)]">
+              <span className="text-[14px] font-mono text-[var(--text-heading)] font-bold">{navDuration(progress.durationRemaining)}</span>
+              <span className="text-[12px] font-mono text-[var(--text-secondary)]">{navDistance(progress.distanceRemaining)}</span>
+              <span className="text-[12px] font-mono text-[var(--text-muted)]">
                 {new Date(now + progress.durationRemaining * 1000)
                   .toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
@@ -261,18 +264,19 @@ export default function NavigationView({
 
       {/* ── the turn after this one ── */}
       {progress && !arrived && route.steps[progress.stepIndex + 1] && (
-        <div className="glass-panel px-4 py-2 flex items-center gap-3">
-          <span className="text-[10px] tracking-[0.1em] text-[var(--gold-primary)] font-bold flex-shrink-0">다음</span>
+        <div className="glass-panel tool-glass px-4 py-2.5 flex items-center gap-3">
+          <span className="text-[9.5px] font-mono uppercase tracking-[0.14em] text-[var(--gold-primary)] font-bold flex-shrink-0">다음</span>
           <ManeuverIcon type={route.steps[progress.stepIndex + 1].type} className="w-4 h-4" />
-          <span className="text-[11px] text-[var(--text-secondary)] truncate">
+          <span className="text-[12px] text-[var(--text-secondary)] truncate">
             {route.steps[progress.stepIndex + 1].instruction}
           </span>
         </div>
       )}
 
       {!fix && (
-        <div className="glass-panel px-4 py-2 text-[11px] text-[var(--alert-orange)]">
-          GPS 위치 신호 수신 대기 중… (HTTPS 또는 localhost 환경 필요)
+        <div className="glass-panel tool-glass px-4 py-2.5 flex items-center gap-2 text-[12px] text-[var(--gold-light)]">
+          <Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0" />
+          GPS 위치 신호 수신 대기 중… (내비게이션은 HTTPS 또는 localhost 환경이 필요합니다)
         </div>
       )}
     </div>

@@ -4,8 +4,8 @@ import { memo, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plane, Satellite, Sun, AlertTriangle, Camera,
-  CloudLightning, Ship, Network, Database, Ghost,
-  Flame, Tv, Radio, Mountain, Anchor, Megaphone, SlidersHorizontal, Crosshair, Sparkles
+  CloudLightning, CloudSun, Ship, Network, Database, Ghost,
+  Flame, Tv, Radio, Mountain, Anchor, Megaphone, SlidersHorizontal, Crosshair, Sparkles, Bus
 } from 'lucide-react';
 import StyleStudio from './StyleStudio';
 import FeynmanTooltip from './FeynmanTooltip';
@@ -36,6 +36,10 @@ interface LayerPanelProps {
   onToggleMilitaryHud?: () => void;
   contactsVisible?: boolean;
   onToggleContacts?: () => void;
+  /** False while the splash is up; the rail slides in when it turns true. */
+  revealed?: boolean;
+  /** A layer's live state in a line, shown under its name in place of its description. */
+  liveStatus?: Record<string, string>;
 }
 
 interface LayerDef {
@@ -78,6 +82,26 @@ export const PRESET_MODES: PresetMode[] = [
 
 const LAYER_GROUPS: LayerGroupDef[] = [
   {
+    label: 'WEATHER',
+    fullLabel: '기상 및 위성 구름 관측 (WEATHER)',
+    icon: CloudSun,
+    layers: [
+      { key: 'live_clouds', label: '실시간 3D 위성 구름 (Live Clouds)', description: 'NOAA 위성 실측 · 3D 입체 투영 · 매시간 갱신', dataKey: '' },
+      { key: 'wind', label: '전 지구 풍향/풍속장 (Wind)', description: 'NOAA GFS 기상 모델 · 표면 풍속장 · 6시간 주기', dataKey: '' },
+      { key: 'wind_controls', label: '풍향 시계열 제어 (Time Controls)', description: '과거 3일 ~ 미래 5일 풍향 예측 슬라이더', dataKey: '', parent: 'wind' },
+      { key: 'rain', label: '실시간 강수/레이더 (Rain)', description: 'RainViewer 기상 레이더 강수량 · 10분 주기', dataKey: '' },
+      { key: 'rain_controls', label: '강수 시계열 루프 (Time Controls)', description: '최근 2시간 강수 레이더 루프 재생', dataKey: '', parent: 'rain' },
+    ],
+  },
+  {
+    label: 'TRANSIT',
+    fullLabel: '실시간 대중교통 및 버스 관제 (GROUND TRANSIT)',
+    icon: Bus,
+    layers: [
+      { key: 'transit', label: '실시간 버스 및 대중교통 (Live Buses & Transit)', description: '실시간 GTFS-RT 운행 GPS 피드 · 20초 주기', dataKey: '' },
+    ],
+  },
+  {
     label: 'AVIATION',
     fullLabel: '공중 전술 항공 관제 (AVIATION)',
     icon: Plane,
@@ -97,16 +121,15 @@ const LAYER_GROUPS: LayerGroupDef[] = [
     layers: [
       { key: 'maritime', label: '해군 군함 및 상선 (Naval Warships / AIS)', description: '한국 영해 및 국제 주요 항로 군함/상선 위치', dataKey: 'maritime_ships,maritime_ports,maritime_chokepoints' },
       { key: 'dark_fleet', label: '🟠 AIS 암흑 선박 키네틱 버블 (Dark Fleet Kinetic Bubble)', description: '위치 신호(AIS) 끄고 잠적한 의심 선박 탐지', dataKey: 'dark_fleet' },
+      { key: 'sdk_sea', label: '해상 수송로 항로선 (Maritime Lines)', description: '주요 해상 국제 항로선 및 통항로', dataKey: 'sdk_entities' },
     ],
   },
   {
     label: 'SPACE',
-    fullLabel: '저위도 실시간 위성 (SPACE)',
+    fullLabel: '위성 궤도 및 우주 감시 (SATELLITES)',
     icon: Satellite,
     layers: [
-      { key: 'satellites', label: '전체 저위도 위성 (All Low-Lat Satellites)', description: '위도 60도 이하 저위도 상공 실시간 운용 위성', dataKey: 'satellites' },
-      { key: 'sat_high_lat', label: '고위도 / 극궤도 위성 (High-Lat / Polar)', description: '극궤도 및 위도 60도 이상 관측 위성 (필요시 표시)', dataKey: '' },
-      { key: 'sat_comms', label: '스타링크 통신위성 (Starlink / Comms)', description: '스페이스X 초고속 저궤도 통신망', dataKey: 'satellites', catKey: 'comms' },
+      { key: 'satellites', label: '궤도 추적 전체 (All Satellites)', description: '우주 궤도 선회 중인 모든 인공위성 군', dataKey: 'satellites' },
       { key: 'sat_military', label: '정찰 / 군사위성 (Military / Intel)', description: '미·중·러 군사 첩보/정찰 및 조기경보 위성', dataKey: 'satellites', catKey: 'military' },
       { key: 'sat_navigation', label: 'GPS / 항법위성 (GPS / Navigation)', description: 'GPS, GLONASS, Galileo 전 세계 항법위성', dataKey: 'satellites', catKey: 'navigation' },
       { key: 'sat_earth', label: '지구관측위성 (Earth Observation)', description: '기상청·환경부 등 지표/대기 관측 위성', dataKey: 'satellites', catKey: 'earth_obs' },
@@ -125,6 +148,7 @@ const LAYER_GROUPS: LayerGroupDef[] = [
       { key: 'seismic_watch', label: '🟣 지진/충격파 핵실험 감시 (Seismic Nuclear Watch)', description: '풍계리 등 핵실험 및 인공 충격파 자동 판독', dataKey: 'seismic_events' },
       { key: 'infrastructure', label: '원자력 발전소 및 주요 에너지 인프라', description: '국내외 원전, 변전소, 주요 국가 중요 시설', dataKey: 'infrastructure' },
       { key: 'global_incidents', label: '글로벌 분쟁 / 사건 (GDELT Live Incidents)', description: '전 세계 100개국 실시간 물리적 충돌 및 시위', dataKey: 'gdelt' },
+      { key: 'alert_pins', label: '실시간 주요 경보 핀 (Live Alert Pins)', description: '지도 상 실시간 긴급 경보 및 중요 핀 표시', dataKey: 'alert_pins' },
       { key: 'gdelt_events', label: 'GDELT 상세 이벤트', description: '글로벌 뉴스 미디어 교차 검증 이벤트', dataKey: 'gdelt_events' },
     ],
   },
@@ -187,11 +211,6 @@ const LAYER_GROUPS: LayerGroupDef[] = [
 ];
 
 /* ── Minimal Toggle Switch ── */
-/**
- * Presentational only. The row around it is the button, and a button inside a
- * button is invalid HTML — the browser reparents it, which breaks hydration and
- * silently drops the click handler on the inner control.
- */
 function ToggleSwitch({ active }: { active: boolean }) {
   return (
     <span
@@ -222,10 +241,6 @@ function ToggleSwitch({ active }: { active: boolean }) {
   );
 }
 
-/**
- * The elbow that ties a sub-layer row to the layer above it. Indentation alone
- * reads as a typo at this size; the line is what says "this belongs to that".
- */
 function SubLayerStem() {
   return (
     <span
@@ -257,32 +272,22 @@ function LayerPanel({
   onToggleMilitaryHud,
   contactsVisible,
   onToggleContacts,
+  revealed = true,
+  liveStatus,
 }: LayerPanelProps) {
   const [hoveredGroup, setHoveredGroup] = useState<string | null>(null);
-  /**
-   * A pinned group stays open when the pointer leaves. Hover-only flyouts are
-   * fine to glance at and impossible to work in — reaching for a toggle at the
-   * far edge closes the thing you were reaching for.
-   */
   const [pinnedGroup, setPinnedGroup] = useState<string | null>(null);
   const [studioOpen, setStudioOpen] = useState(false);
-  const [selectedPresetId, setSelectedPresetId] = useState<string>('standard');
   const [presetFlyoutOpen, setPresetFlyoutOpen] = useState(false);
+  const [selectedPresetId, setSelectedPresetId] = useState<string>('standard');
 
   const applyPreset = (preset: PresetMode) => {
     setSelectedPresetId(preset.id);
-    if (!preset.layers) {
-      setPresetFlyoutOpen(false);
-      return;
-    }
+    if (!preset.layers) return;
     setActiveLayers((prev: any) => {
       const next: Record<string, boolean> = {};
-      for (const k of Object.keys(prev)) {
-        next[k] = false;
-      }
-      for (const k of preset.layers!) {
-        next[k] = true;
-      }
+      Object.keys(prev).forEach((k) => { next[k] = false; });
+      preset.layers!.forEach((k) => { next[k] = true; });
       return next;
     });
     setPresetFlyoutOpen(false);
@@ -290,7 +295,9 @@ function LayerPanel({
 
   useEffect(() => {
     if (!pinnedGroup) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setPinnedGroup(null); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPinnedGroup(null);
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [pinnedGroup]);
@@ -311,22 +318,22 @@ function LayerPanel({
     if ((key === 'terrain_elevation' || key === 'terrain_3d') && !activeLayers[key]) on3DModeSelected?.();
     setActiveLayers((prev: any) => ({ ...prev, [key]: !prev[key] }));
   };
+
   const terrainDetails = activeLayers.terrain_elevation ? (
     <div className="mt-2 rounded-lg border border-white/10 bg-white/[0.03] p-2.5 text-[10px] text-white/60">
-      <p role="status">{terrainStatus === 'idle' ? `Terrain at zoom ${TERRAIN_MIN_ZOOM}+ · zoom in` : terrainStatus === 'waiting' ? 'Terrain starts when you stop moving' : terrainStatus === 'loading' ? 'Loading nearby terrain…' : terrainStatus === 'error' ? 'Terrain unavailable; the map is still usable.' : 'Terrain on'}</p>
-      {terrainStatus === 'idle' && <button type="button" onClick={onTerrainFocus} className="mt-2 min-h-8 rounded border border-white/15 px-2 text-[var(--gold-primary)] hover:bg-white/10">Zoom to terrain</button>}
-      {terrainStatus === 'error' && <button type="button" onClick={onTerrainRetry} className="mt-2 min-h-8 rounded border border-white/15 px-2 text-[var(--gold-primary)] hover:bg-white/10">Retry terrain</button>}
-      <p className="mt-2 text-white/35">Nearby detail only · cached tiles</p>
-      <a className="mt-1 inline-block underline underline-offset-2" href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md" target="_blank" rel="noopener noreferrer">Terrain credits</a>
+      <p role="status">{terrainStatus === 'idle' ? `지형 고도 줌 ${TERRAIN_MIN_ZOOM}+ · 확대 필요` : terrainStatus === 'waiting' ? '이동 정지 시 지형 데이터 렌더링' : terrainStatus === 'loading' ? '주변 지형 고도 로딩 중…' : terrainStatus === 'error' ? '지형 데이터 일시 사용 불가' : '지형 3D DEM 활성화됨'}</p>
+      {terrainStatus === 'idle' && <button type="button" onClick={onTerrainFocus} className="mt-2 min-h-8 rounded border border-white/15 px-2 text-[var(--gold-primary)] hover:bg-white/10">지형 줌 레벨로 이동</button>}
+      {terrainStatus === 'error' && <button type="button" onClick={onTerrainRetry} className="mt-2 min-h-8 rounded border border-white/15 px-2 text-[var(--gold-primary)] hover:bg-white/10">지형 다시 시도</button>}
+      <p className="mt-2 text-white/35">주변 고도 상세 지형 · 캐시 타일</p>
     </div>
   ) : null;
 
-  /** Switch a whole group at once — off if any are on, otherwise all on. */
   const toggleGroup = (layers: LayerDef[]) => {
-    const anyOn = layers.some(l => checkLayerActive(l.key));
-    if (!anyOn && layers.some(l => l.key === 'terrain_elevation' || l.key === 'terrain_3d')) on3DModeSelected?.();
+    const top = layers.filter(l => !l.parent);
+    const anyOn = top.some(l => checkLayerActive(l.key));
+    if (!anyOn && top.some(l => l.key === 'terrain_elevation' || l.key === 'terrain_3d')) on3DModeSelected?.();
 
-    for (const l of layers) {
+    for (const l of top) {
       if (l.key === 'cockpit_view' && ((anyOn && cockpitMode) || (!anyOn && !cockpitMode))) onToggleCockpitMode?.();
       if (l.key === 'detection_overlay' && ((anyOn && detectionOverlay) || (!anyOn && !detectionOverlay))) onToggleDetectionOverlay?.();
       if (l.key === 'military_hud' && ((anyOn && militaryHud) || (!anyOn && !militaryHud))) onToggleMilitaryHud?.();
@@ -335,7 +342,7 @@ function LayerPanel({
 
     setActiveLayers((prev: any) => {
       const next = { ...prev };
-      for (const l of layers) {
+      for (const l of top) {
         if (!['cockpit_view', 'detection_overlay', 'military_hud', 'contacts_roster'].includes(l.key)) {
           next[l.key] = !anyOn;
         }
@@ -344,8 +351,6 @@ function LayerPanel({
     });
   };
 
-  /* Drop layers whose backing capability is not configured, then drop any group
-     left with nothing to show. */
   const visibleGroups = LAYER_GROUPS.map(g => ({
     ...g,
     layers: g.layers.filter(l => !l.requires || capabilities[l.requires]),
@@ -419,7 +424,7 @@ function LayerPanel({
                     <ToggleSwitch active={!!isLayerActive} />
                     <span className={`text-[11px] font-mono uppercase tracking-wider flex-1 transition-colors ${isLayerActive ? 'text-white/80' : 'text-white/40'}`}>
                       {layer.label}
-                      {layer.description && <span className="block mt-0.5 text-[9px] normal-case tracking-normal text-white/35">{layer.description}</span>}
+                      {(liveStatus?.[layer.key] ?? layer.description) && <span className={`block mt-0.5 text-[9px] normal-case tracking-normal ${liveStatus?.[layer.key] ? 'text-white/55' : 'text-white/35'}`}>{liveStatus?.[layer.key] ?? layer.description}</span>}
                     </span>
                     {count !== null && (
                       <span className="text-[10px] font-mono tabular-nums text-white/25">
@@ -460,7 +465,7 @@ function LayerPanel({
 
         {/* MOBILE STYLE STUDIO */}
         <div className="flex items-center justify-between mt-2 pt-3 border-t border-white/[0.06] px-1">
-          <span className="text-[10px] font-mono tracking-[0.2em] text-white/25 uppercase">Style Studio</span>
+          <span className="text-[10px] font-mono tracking-[0.2em] text-white/25 uppercase">스타일 스튜디오 (Style Studio)</span>
           <button
             onClick={() => setStudioOpen(o => !o)}
             aria-pressed={studioOpen}
@@ -480,7 +485,7 @@ function LayerPanel({
         {/* MOBILE GHOST TOGGLE */}
         {setTheme && (
           <div className="flex items-center justify-between pt-3 border-t border-white/[0.06] px-1">
-            <span className="text-[10px] font-mono tracking-[0.2em] text-white/25 uppercase">Ghost Protocol</span>
+            <span className="text-[10px] font-mono tracking-[0.2em] text-white/25 uppercase">고스트 테마 (Ghost Protocol)</span>
             <button
               onClick={() => setTheme(theme === 'core' ? 'ghost' : 'core')}
               className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
@@ -501,8 +506,8 @@ function LayerPanel({
   return (
     <motion.div
       initial={{ x: -60, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      transition={{ type: 'spring', damping: 30, stiffness: 200, delay: 2.8 }}
+      animate={revealed ? { x: 0, opacity: 1 } : { x: -60, opacity: 0 }}
+      transition={{ type: 'spring', damping: 30, stiffness: 200, delay: 0.25 }}
       className="absolute top-0 left-0 h-full w-[48px] flex flex-col items-center pt-24 pb-6 z-50 pointer-events-auto"
       style={{
         background: 'rgba(0,0,0,0.15)',
@@ -593,9 +598,7 @@ function LayerPanel({
           </AnimatePresence>
         </div>
 
-        {visibleGroups.map((group) => {
-          /* Sub-layers modify a parent rather than draw anything of their own,
-             so they do not count towards the rail's reading. */
+        {visibleGroups.map((group, index) => {
           const counted = group.layers.filter(l => !l.parent);
           const groupActive = counted.some(l => checkLayerActive(l.key));
           const isHovered = hoveredGroup === group.label;
@@ -612,9 +615,6 @@ function LayerPanel({
               onMouseEnter={() => setHoveredGroup(group.label)}
               onMouseLeave={() => setHoveredGroup(null)}
             >
-              {/* A real button, not a div: this is keyboard reachable, focusable
-                  and announced. Clicking pins the flyout open so it can be
-                  worked in rather than only glanced at. */}
               <button
                 onClick={() => setPinnedGroup(isPinned ? null : group.label)}
                 aria-expanded={isOpen}
@@ -641,8 +641,6 @@ function LayerPanel({
                   }}
                 />
 
-                {/* How many layers in this group are live. Without it the rail
-                    gives no reading at all until each icon is hovered in turn. */}
                 {activeCount > 0 && (
                   <span
                     className="absolute top-1 right-1 min-w-[13px] h-[13px] px-[3px] rounded-full flex items-center justify-center text-[9px] font-mono tabular-nums leading-none"
@@ -665,31 +663,29 @@ function LayerPanel({
                     animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
                     exit={{ opacity: 0, x: -4, filter: 'blur(2px)' }}
                     transition={{ duration: 0.18, ease: 'easeOut' }}
-                    className="absolute left-[52px] top-1/2 -translate-y-1/2 min-w-[220px] rounded-xl p-3 z-[100] pointer-events-auto"
+                    className={`absolute left-[52px] ${index === 0 ? 'top-0' : 'top-1/2 -translate-y-1/2'} min-w-[240px] rounded-xl p-3 z-[100] pointer-events-auto`}
                     style={{
-                      background: 'rgba(0,0,0,0.6)',
+                      background: 'rgba(0,0,0,0.7)',
                       backdropFilter: 'blur(40px) saturate(1.5)',
                       WebkitBackdropFilter: 'blur(40px) saturate(1.5)',
-                      border: '1px solid rgba(255,255,255,0.06)',
-                      boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
                     }}
                   >
-                    <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-white/[0.04]">
-                      <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-white/40 flex-1">
+                    <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-white/[0.06]">
+                      <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-white/50 flex-1">
                         {group.fullLabel}
                       </span>
-                      {/* Switching eight satellite layers one at a time is the
-                          kind of thing that makes a panel feel unfinished. */}
                       <button
                         onClick={(e) => { e.stopPropagation(); toggleGroup(group.layers); }}
                         className="px-1.5 py-0.5 rounded text-[10px] font-mono tracking-wider text-white/40 hover:text-white hover:bg-white/10 transition-colors"
                       >
-                        {activeCount > 0 ? 'NONE' : 'ALL'}
+                        {activeCount > 0 ? '해제 (NONE)' : '전체 (ALL)'}
                       </button>
                       {isPinned && (
                         <button
                           onClick={(e) => { e.stopPropagation(); setPinnedGroup(null); }}
-                          aria-label="Close"
+                          aria-label="닫기"
                           className="px-1.5 py-0.5 rounded text-[10px] font-mono text-white/40 hover:text-white hover:bg-white/10 transition-colors"
                         >
                           ✕
@@ -697,7 +693,7 @@ function LayerPanel({
                       )}
                     </div>
 
-                    {/* ⚡ 파인만 기법 직관 해설 배너 */}
+                    {/* 파인만 기법 직관 해설 배너 */}
                     {(() => {
                       const feynman = getFeynmanExplanation(`group_${group.label}`, group.fullLabel);
                       return (
@@ -725,14 +721,14 @@ function LayerPanel({
                             onClick={() => toggle(layer.key)}
                             aria-pressed={!!isLayerActive}
                             aria-label={layer.label}
-                            title={dormant ? 'Turn the layer above on to use this' : undefined}
+                            title={dormant ? '상위 레이어가 켜져야 작동합니다' : undefined}
                             className={`relative w-full flex items-center gap-3 py-1.5 rounded-md hover:bg-white/[0.05] transition-colors cursor-pointer text-left focus:outline-none focus-visible:ring-1 focus-visible:ring-white/30 ${layer.parent ? 'pl-[22px] pr-1' : 'px-1'} ${dormant ? 'opacity-40' : ''}`}
                           >
                             {layer.parent && <SubLayerStem />}
                             <ToggleSwitch active={!!isLayerActive} />
-                            <span className={`text-[11px] font-mono uppercase tracking-wider flex-1 transition-colors duration-200 ${isLayerActive ? 'text-white/70' : 'text-white/35'}`}>
+                            <span className={`text-[11px] font-mono uppercase tracking-wider flex-1 transition-colors duration-200 ${isLayerActive ? 'text-white/80' : 'text-white/40'}`}>
                               {layer.label}
-                              {layer.description && <span className="block mt-0.5 text-[9px] normal-case tracking-normal text-white/35">{layer.description}</span>}
+                              {(liveStatus?.[layer.key] ?? layer.description) && <span className={`block mt-0.5 text-[9px] normal-case tracking-normal ${liveStatus?.[layer.key] ? 'text-white/55' : 'text-white/35'}`}>{liveStatus?.[layer.key] ?? layer.description}</span>}
                             </span>
                             {count !== null && (
                               <span className={`text-[10px] font-mono tabular-nums transition-colors ${isLayerActive ? 'text-white/45' : 'text-white/20'}`}>
@@ -786,6 +782,7 @@ function LayerPanel({
           aria-pressed={studioOpen}
           className="w-10 h-10 flex items-center justify-center rounded-lg transition-all duration-500 cursor-pointer"
           style={{ background: studioOpen ? 'var(--hover-accent)' : 'transparent' }}
+          title="스타일 스튜디오 (팔레트 & 필터)"
           aria-label="Style Studio"
         >
           <SlidersHorizontal
@@ -812,6 +809,7 @@ function LayerPanel({
             style={{
               background: theme === 'ghost' ? 'rgba(179, 136, 255, 0.1)' : 'transparent',
             }}
+            title="고스트 프로토콜 테마 전환"
             aria-label="Ghost Protocol"
           >
             <Ghost

@@ -7,12 +7,16 @@ import {
   LocateFixed,
   Search, Radar, Globe, Shield, FileText, Radio,
   ChevronDown, ChevronUp, Loader2, AlertTriangle, Server,
-  Wifi, Lock, MapPin, Bug, Code, Layers, Network, Fingerprint,
+  Lock, MapPin, Bug, Code, Layers, Network, Fingerprint,
   CheckCircle, XCircle, Clock, ExternalLink, Crosshair,
-  Maximize2, Minimize2, Gavel, Bitcoin, Phone, Terminal, ShieldAlert, User, Skull, Monitor, KeyRound
+  Maximize2, Minimize2, Gavel, Bitcoin, Phone, Terminal, ShieldAlert, User,
+  Skull, KeyRound, Monitor
 } from 'lucide-react';
 import { ipToNumber, numberToIp, calculateSubnetStart, classifyDevice, assessRisk, batchFetch, ShodanInternetDBResponse, SweepDevice } from '@/lib/osint-utils';
 import ChainBrief from '@/components/ChainBrief';
+import FingerprintSearch, { useFingerprintSearch } from '@/components/FingerprintSearch';
+import DonBotScan from '@/components/DonBotScan';
+import DigitalDonMark from '@/components/DigitalDonMark';
 
 /**
  * Tool groups. At 19 modules a flat grid forces 8px truncated labels
@@ -24,7 +28,7 @@ const GROUPS = [
   { id: 'domain', label: 'DOMAIN & WEB', hint: 'DNS, certificates, site fingerprinting' },
   { id: 'identity', label: 'IDENTITY', hint: 'People, handles, accounts' },
   { id: 'threat', label: 'THREAT & EXPOSURE', hint: 'Reputation and breach data' },
-  { id: 'chain', label: 'BLOCKCHAIN', hint: 'Wallets and on-chain incidents' },
+  { id: 'chain', label: 'BLOCKCHAIN', hint: 'Wallets, tokens and on-chain incidents' },
 ] as const;
 
 type GroupId = (typeof GROUPS)[number]['id'];
@@ -41,7 +45,7 @@ interface ToolDef {
 }
 
 const TABS: ToolDef[] = [
-  { id: 'scanner', label: 'PORT SCAN', icon: Radar, placeholder: 'IP or hostname', color: '#00E5FF', group: 'network', blurb: 'Open ports and running services' },
+  { id: 'scanner', label: 'PORT SCAN', icon: Radar, placeholder: 'IP address to sweep (e.g. 8.8.8.8)', color: '#00E5FF', group: 'network', blurb: 'Shodan network sweep — same as GLOBAL SWEEP' },
   { id: 'vuln', label: 'VULN SWEEP', icon: Bug, placeholder: 'IP or hostname', color: '#FF3D3D', group: 'network', blurb: 'Known CVEs affecting the host' },
   { id: 'shodan', label: 'SHODAN IOT', icon: Network, placeholder: 'IP address', color: '#FF3D3D', group: 'network', blurb: 'Internet-exposed device record' },
   { id: 'bgp', label: 'BGP ROUTE', icon: Globe, placeholder: 'IP or ASN', color: '#00E5FF', group: 'network', blurb: 'Autonomous system and prefixes' },
@@ -59,16 +63,50 @@ const TABS: ToolDef[] = [
   { id: 'username', label: 'USERNAME', icon: User, placeholder: 'Username / handle to hunt', color: '#00E676', group: 'identity', blurb: 'Hunt a handle across platforms' },
   { id: 'github', label: 'GITHUB RECON', icon: Terminal, placeholder: 'GitHub username', color: '#87CEEB', group: 'identity', blurb: 'Profile, repos and contacts' },
   { id: 'phone', label: 'PHONE INTEL', icon: Phone, placeholder: 'Phone number (e.g. +1...)', color: '#FF9500', group: 'identity', blurb: 'Carrier, region and line type' },
+  { id: 'fingerprint', label: 'FINGERPRINT', icon: Fingerprint, placeholder: 'Username, email or phone', color: '#3B82F6', group: 'identity', blurb: 'Public profile search, streamed live' },
 
   { id: 'threats', label: 'THREATS', icon: AlertTriangle, placeholder: 'IP, domain, or hash', color: '#FF9500', group: 'threat', blurb: 'Reputation across feeds' },
   { id: 'leaks', label: 'DATA LEAKS', icon: ShieldAlert, placeholder: 'Email address', color: '#E040FB', group: 'threat', blurb: 'Breach exposure for an address' },
-  { id: 'infostealer', label: 'INFOSTEALER', icon: Skull, placeholder: 'Email, domain, username or phone', color: '#FF1744', group: 'threat', blurb: 'Hudson Rock malware-compromised assets' },
-  { id: 'ransomware', label: 'RANSOM LIVE', icon: Skull, placeholder: 'Filter group or company (leave blank for all)...', color: '#FF1744', group: 'threat', blurb: 'Ransomware.live active groups & disclosure feed' },
+  { id: 'infostealer', label: 'INFOSTEALER', icon: Skull, placeholder: 'Email, domain, username or phone', color: '#FF1744', group: 'threat', blurb: 'Hudson Rock 악성코드 침해 자산 및 유출 계정 조회' },
+  { id: 'ransomware', label: 'RANSOM LIVE', icon: Skull, placeholder: '조직명 또는 갱단 필터링 (비워두면 전체)...', color: '#FF1744', group: 'threat', blurb: 'Ransomware.live 실시간 피해 기업 및 활동 랜섬웨어 갱단' },
 
   { id: 'crypto', label: 'CHAIN INTEL', icon: Bitcoin, placeholder: 'BTC, ETH or SOL wallet address', color: '#F7931A', group: 'chain', blurb: 'Wallet forensics and daily brief' },
+  // DigitalDon's own mark, kept monochrome by their brand rule.
+  { id: 'donbot', label: 'DONBOT', icon: DigitalDonMark, placeholder: 'Ticker, name or contract address', color: '#E8E6E0', group: 'chain', blurb: 'Token signal and holder clusters' },
 ];
 
 interface OsintPanelProps { isOpen?: boolean; onClose?: () => void; isMobile?: boolean; onSweepVisualize?: (data: any) => void; onScanGeolocate?: (target: string, data: any) => void; }
+
+/** A recon result as a flat, readable report for a .txt export. */
+function resultsToText(tool: string, query: string, data: unknown): string {
+  const lines: string[] = [
+    `OSIRIS RECON — ${tool.toUpperCase()}`,
+    `Target: ${query || '(none)'}`,
+    `Exported: ${new Date().toISOString()}`,
+    '',
+  ];
+  const walk = (v: unknown, indent: string) => {
+    if (v === null || v === undefined || v === '') { lines.push(`${indent}(none)`); return; }
+    if (Array.isArray(v)) {
+      if (!v.length) { lines.push(`${indent}(empty)`); return; }
+      v.forEach((item, i) => {
+        if (item && typeof item === 'object') { lines.push(`${indent}- [${i}]`); walk(item, `${indent}  `); }
+        else lines.push(`${indent}- ${item}`);
+      });
+      return;
+    }
+    if (typeof v === 'object') {
+      for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+        if (val && typeof val === 'object') { lines.push(`${indent}${k}:`); walk(val, `${indent}  `); }
+        else lines.push(`${indent}${k}: ${val}`);
+      }
+      return;
+    }
+    lines.push(`${indent}${v}`);
+  };
+  walk(data, '');
+  return lines.join('\n');
+}
 
 function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintPanelProps) {
   const [activeTab, setActiveTab] = useState('scanner');
@@ -77,7 +115,6 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
   const [results, setResults] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [scanType, setScanType] = useState('quick');
   const [expanded, setExpanded] = useState(true);
   const [history, setHistory] = useState<{tab:string;query:string;time:string}[]>([]);
   const [sweepResult, setSweepResult] = useState<any>(null);
@@ -89,6 +126,10 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
   const [chainView, setChainView] = useState<'brief' | 'wallet'>('brief');
   /** Free-text filter over the toolkit — 19 modules is too many to scan. */
   const [toolFilter, setToolFilter] = useState('');
+  // Owned here, not by the view: toggling the expanded view remounts it.
+  const fingerprint = useFingerprintSearch();
+  /** DonBot's open token, kept for the same reason; its frame reloads on the remount, on the same token. */
+  const [donbotQuery, setDonbotQuery] = useState<string | null>(null);
 
   const selectTool = useCallback((id: string) => {
     setActiveTab(id);
@@ -178,8 +219,11 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
     if ((!query.trim() && activeTab !== 'ransomware') || loading) return;
     setLoading(true); setError(''); setResults(null);
 
-    // IP Sweep — separate flow (only for the sweep tab)
-    if (activeTab === 'sweep') {
+    // Shodan subnet sweep. The sweep tab and the first scanner (PORT SCAN) both
+    // run it: the stand-alone /api/scanner backend needs a key and is off here,
+    // so the first scanner does what GLOBAL SWEEP does — a keyless InternetDB
+    // sweep of the target's subnet.
+    if (activeTab === 'sweep' || activeTab === 'scanner') {
       setSweepResult(null);
       const cidr = sweepCidr;
       const totalHosts = Math.pow(2, 32 - cidr);
@@ -266,7 +310,6 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
         case 'username': url = `/api/osint/username?username=${encodeURIComponent(query)}`; break;
         case 'github': url = `/api/osint/github?user=${encodeURIComponent(query)}`; break;
         case 'vuln': url = `/api/scanner?target=${encodeURIComponent(query)}&type=vuln`; break;
-        case 'scanner': url = `/api/scanner?target=${encodeURIComponent(query)}&type=${scanType}`; break;
         case 'headers': url = `/api/scanner?target=${encodeURIComponent(query)}&type=headers`; break;
         case 'ssl': url = `/api/scanner?target=${encodeURIComponent(query)}&type=ssl`; break;
         case 'subdomains': url = `/api/scanner?target=${encodeURIComponent(query)}&type=subdomains`; break;
@@ -317,7 +360,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
           if (data.lat && data.lng && onScanGeolocate) {
              onScanGeolocate(query, { lat: data.lat, lng: data.lng, type: 'phone', region: data.region });
           }
-        } else if (activeTab !== 'sweep' && activeTab !== 'vuln' && activeTab !== 'crypto' && activeTab !== 'username' && activeTab !== 'mac' && activeTab !== 'bgp' && activeTab !== 'github' && activeTab !== 'leaks' && activeTab !== 'phone' && activeTab !== 'infostealer') {
+        } else if (activeTab !== 'sweep' && activeTab !== 'vuln' && activeTab !== 'crypto' && activeTab !== 'username' && activeTab !== 'mac' && activeTab !== 'bgp' && activeTab !== 'github' && activeTab !== 'leaks' && activeTab !== 'phone') {
           fetch(`/api/osint/ip?ip=${encodeURIComponent(query)}`)
             .then(r => r.json())
             .then(locData => {
@@ -333,7 +376,24 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
       }
     } catch { setError('Network error'); }
     finally { setLoading(false); }
-  }, [query, activeTab, scanType, loading, sweepCidr]);
+  }, [query, activeTab, loading, sweepCidr]);
+
+  // Save the current result (a sweep or a single lookup) as a file the reader keeps.
+  const exportResults = useCallback((format: 'json' | 'txt') => {
+    const payload = sweepResult ?? results;
+    if (!payload) return;
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const slug = (query || activeTab).replace(/[^a-z0-9._-]+/gi, '_').slice(0, 40);
+    const base = `osiris-${activeTab}-${slug}-${stamp}`;
+    const [body, type, ext] = format === 'json'
+      ? [JSON.stringify({ tool: activeTab, query, exported_at: new Date().toISOString(), results: payload }, null, 2), 'application/json', 'json']
+      : [resultsToText(activeTab, query, payload), 'text/plain', 'txt'];
+    const url = URL.createObjectURL(new Blob([body], { type }));
+    const a = document.createElement('a');
+    a.href = url; a.download = `${base}.${ext}`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }, [sweepResult, results, query, activeTab]);
 
   const currentTab = TABS.find(t => t.id === activeTab);
 
@@ -380,21 +440,6 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
     );
   };
 
-  // Cavalier's data is complimentary; the terms ask that it be credited.
-  const HudsonRockCredit = () => (
-    <a
-      href="https://www.hudsonrock.com/free-tools"
-      target="_blank"
-      rel="noreferrer"
-      className="mt-2 flex items-center justify-between px-2 py-1.5 rounded bg-[#1A1A18] border border-[var(--border-secondary)]/30 hover:border-[#FF1744]/40 transition-colors"
-    >
-      <span className="text-[9px] font-mono text-[var(--text-muted)]">
-        Data by Hudson Rock Cavalier · free infostealer intelligence
-      </span>
-      <ExternalLink className="w-2.5 h-2.5 text-[var(--text-muted)]" />
-    </a>
-  );
-
   const SectionHeader = ({ title, icon: Icon, color }: { title: string; icon: any; color: string }) => (
     <div className="flex items-center gap-2 mt-3 mb-1.5 first:mt-0">
       <Icon className="w-3.5 h-3.5" style={{ color }} />
@@ -403,14 +448,6 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
     </div>
   );
 
-  const PortRow = ({ port, state, service, version }: { port: number; state: string; service?: string; version?: string }) => (
-    <div className="flex items-center gap-2 py-1 px-2 rounded hover:bg-[var(--hover-accent)] transition-colors">
-      <span className="text-[10px] font-mono font-bold text-[var(--cyan-primary)] w-[60px]">{port}</span>
-      <StatusBadge ok={state === 'open'} label={state.toUpperCase()} />
-      <span className="text-[11px] font-mono text-[var(--text-secondary)] flex-1">{service || 'unknown'}</span>
-      {version && <span className="text-[10px] font-mono text-[var(--text-muted)]">{version}</span>}
-    </div>
-  );
 
   const renderStructuredResults = () => {
     // The daily brief is self-loading and needs no query, so it renders
@@ -425,31 +462,6 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
     }
     if (!results) return null;
     const r = results;
-
-    // ── PORT SCAN ──
-    if (activeTab === 'scanner') {
-      const ports = r.ports || r.open_ports || r.results || [];
-      const host = r.host || r.target || query;
-      return (
-        <div>
-          <SectionHeader title="HOST INFO" icon={Server} color="#00E5FF" />
-          <ResultRow label="Target" value={host} color="#00E5FF" />
-          <ResultRow label="Scan Type" value={r.scan_type || scanType} />
-          <ResultRow label="Duration" value={r.duration || r.scan_time} />
-          {Array.isArray(ports) && ports.length > 0 && (
-            <>
-              <SectionHeader title={`OPEN PORTS (${ports.length})`} icon={Wifi} color="#00E676" />
-              <div className="space-y-0.5">
-                {ports.map((p: any, i: number) => (
-                  <PortRow key={i} port={p.port || p} state={p.state || 'open'} service={p.service || p.name} version={p.version} />
-                ))}
-              </div>
-            </>
-          )}
-          {(!Array.isArray(ports) || ports.length === 0) && renderFallback()}
-        </div>
-      );
-    }
 
     // ── VULN SCAN ──
     if (activeTab === 'vuln') {
@@ -986,6 +998,14 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
       );
     }
 
+function HudsonRockCredit() {
+  return (
+    <div className="mt-3 text-[9px] font-mono text-[var(--text-muted)] text-right">
+      데이터 제공: Hudson Rock Cavalier OSINT API (악성코드 감염 침해 데이터)
+    </div>
+  );
+}
+
     // ── INFOSTEALER (Hudson Rock) ──
     if (activeTab === 'infostealer') {
       const hit = r.compromised;
@@ -1204,6 +1224,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
         </div>
       );
     }
+
 
     // ── CERTS ──
     if (activeTab === 'certs') {
@@ -1463,7 +1484,14 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
       </div>
       )}
 
+      {/* FINGERPRINT brings its own search bar, results and history. */}
+      {activeTab === 'fingerprint' && <FingerprintSearch fp={fingerprint} isFullScreen={isFullScreen} />}
+
+      {/* So does DONBOT — the same scan as Markets → Crypto, sealed in its own frame. */}
+      {activeTab === 'donbot' && <DonBotScan initial={donbotQuery} onScan={setDonbotQuery} />}
+
       {/* Input Area */}
+      {activeTab !== 'fingerprint' && activeTab !== 'donbot' && (
       <div className="flex flex-col gap-1.5">
         {/* CHAIN INTEL view switch — the brief takes no target. */}
         {activeTab === 'crypto' && (
@@ -1502,14 +1530,9 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
         </div>
         )}
 
-        {/* Secondary Controls */}
-        {activeTab === 'scanner' && (
-          <select value={scanType} onChange={e => setScanType(e.target.value)}
-            className="bg-[var(--bg-primary)]/60 border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[11px] font-mono text-[var(--text-muted)] outline-none w-full">
-            <option value="quick">QUICK SCAN</option><option value="deep">DEEP SCAN</option><option value="ports">TOP 1000 PORTS</option>
-          </select>
-        )}
-        {activeTab === 'sweep' && (
+        {/* Secondary Controls — the first scanner sweeps like GLOBAL SWEEP, so
+            both carry the subnet-mask control. */}
+        {(activeTab === 'sweep' || activeTab === 'scanner') && (
           <div className="flex items-center justify-between bg-[var(--bg-primary)]/60 border border-[var(--border-primary)] rounded-lg p-1">
             <span className="text-[10px] font-mono text-[var(--text-muted)] pl-2">SUBNET MASK:</span>
             <div className="flex items-center gap-0.5">
@@ -1524,10 +1547,26 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
           </div>
         )}
       </div>
+      )}
 
       {error && (
         <div className="p-2.5 rounded-lg border border-red-500/30 bg-red-500/10 text-[10px] font-mono text-red-400 flex items-center gap-2">
           <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />{error}
+        </div>
+      )}
+
+      {/* Export — save the current scan result as a file. */}
+      {!loading && (results || sweepResult) && (
+        <div className="flex items-center gap-1.5">
+          <FileText className="w-3 h-3 text-[var(--text-muted)]" />
+          <span className="text-[9px] font-mono tracking-[0.18em] text-[var(--text-muted)] mr-auto">EXPORT</span>
+          {(['json', 'txt'] as const).map(fmt => (
+            <button key={fmt} onClick={() => exportResults(fmt)}
+              className="px-2.5 py-1 rounded-md text-[10px] font-mono font-bold tracking-wider border transition-all hover:bg-[var(--hover-accent)]"
+              style={{ borderColor: `${currentTab?.color ?? '#00E5FF'}40`, color: currentTab?.color ?? '#00E5FF' }}
+              title={`Download results as .${fmt}`}
+            >.{fmt.toUpperCase()}</button>
+          ))}
         </div>
       )}
 
@@ -1545,7 +1584,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
       )}
 
       {/* Sweep Results */}
-      {sweepResult && !loading && activeTab === 'sweep' && (
+      {sweepResult && !loading && (activeTab === 'sweep' || activeTab === 'scanner') && (
         <div className="bg-[var(--bg-primary)]/40 border border-[var(--border-primary)] rounded-lg overflow-hidden max-h-[55vh] overflow-y-auto styled-scrollbar">
           {/* Summary */}
           <div className="p-3 border-b border-[#2A2A28]">
@@ -1763,7 +1802,7 @@ function OsintPanelInner({ isMobile, onSweepVisualize, onScanGeolocate }: OsintP
         </div>
       )}
 
-      {history.length > 0 && !results && (
+      {history.length > 0 && !results && activeTab !== 'fingerprint' && activeTab !== 'donbot' && (
         <div className="space-y-1">
           <span className="text-[10px] font-mono tracking-widest text-[var(--text-muted)]">RECENT SCANS</span>
           {history.slice(0, 5).map((h, i) => (
