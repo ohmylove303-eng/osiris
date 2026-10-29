@@ -13,7 +13,11 @@ const PORTS = [
   { name: 'Ningbo-Zhoushan', country: 'CN', lat: 29.87, lng: 121.55, type: 'container', volume: '33.3M TEU', rank: 3 },
   { name: 'Shenzhen', country: 'CN', lat: 22.54, lng: 114.05, type: 'container', volume: '30.0M TEU', rank: 4 },
   { name: 'Guangzhou', country: 'CN', lat: 23.08, lng: 113.32, type: 'container', volume: '24.2M TEU', rank: 5 },
-  { name: 'Busan', country: 'KR', lat: 35.1, lng: 130.296, type: 'container', volume: '22.7M TEU', rank: 6 },
+  { name: 'Busan (부산항/신항)', country: 'KR', lat: 35.105, lng: 129.065, type: 'container', volume: '22.7M TEU', rank: 6 },
+  { name: 'Incheon (인천항)', country: 'KR', lat: 37.452, lng: 126.598, type: 'container', volume: '3.4M TEU' },
+  { name: 'Pyeongtaek (평택·당진항)', country: 'KR', lat: 36.985, lng: 126.825, type: 'container', volume: 'Automotive & Steel' },
+  { name: 'Gwangyang (여수·광양항)', country: 'KR', lat: 34.905, lng: 127.755, type: 'container', volume: 'Steel & Chemical' },
+  { name: 'Ulsan (울산항)', country: 'KR', lat: 35.505, lng: 129.385, type: 'energy', volume: 'Petroleum & Auto' },
   { name: 'Qingdao', country: 'CN', lat: 36.07, lng: 120.38, type: 'container', volume: '22.0M TEU', rank: 7 },
   { name: 'Rotterdam', country: 'NL', lat: 51.9, lng: 4.5, type: 'container', volume: '14.5M TEU', rank: 8 },
   { name: 'Tokyo', country: 'JP', lat: 35.61, lng: 139.79, type: 'container', volume: '4.5M TEU' },
@@ -64,6 +68,11 @@ const PORTS = [
   { name: 'Changi Naval Base', country: 'SG', lat: 1.33, lng: 104.01, type: 'naval', fleet: 'Republic of Singapore Navy' },
   { name: 'Visakhapatnam', country: 'IN', lat: 17.69, lng: 83.3, type: 'naval', fleet: 'Indian Navy Eastern Command' },
   { name: 'Mumbai Naval', country: 'IN', lat: 18.93, lng: 72.84, type: 'naval', fleet: 'Indian Navy Western Command' },
+  { name: 'Pyeongtaek 2nd Fleet (평택 해군 제2함대)', country: 'KR', lat: 36.945, lng: 126.835, type: 'naval', fleet: '대한민국 해군 제2함대 (서해 NLL 수호)' },
+  { name: 'Busan Naval Base (해군작전사령부 부산기지)', country: 'KR', lat: 35.105, lng: 129.088, type: 'naval', fleet: '해군작전사령부 & 미 해군 7함대 모항' },
+  { name: 'Jinhae Naval Base (진해 해군기지)', country: 'KR', lat: 35.14, lng: 128.67, type: 'naval', fleet: '해군 잠수함사령부 & 교육사령부' },
+  { name: 'Donghae 1st Fleet (동해 해군 제1함대)', country: 'KR', lat: 37.50, lng: 129.13, type: 'naval', fleet: '대한민국 해군 제1함대 (동해/독도 수호)' },
+  { name: 'Jeju Naval Base (제주민군복합항)', country: 'KR', lat: 33.235, lng: 126.505, type: 'naval', fleet: '대한민국 해군 제7기동전단' },
 ];
 
 const CHOKEPOINTS = [
@@ -308,10 +317,11 @@ function buildSnapshot(now: number): string {
   }
 
   // Real physical ships from aisstream.io + Digitraffic Multi-Tier AIS
-  // Apply Dead-Reckoning (추측 항법) to interpolate vessel position between packets
+  // Apply Dead-Reckoning (추측 항법) to interpolate vessel position between packets (max 180s to prevent land intrusion)
   const rawShips = Array.from(shipsCache.values()).filter(s => s.lat && s.lng).map(s => {
     const elapsedSec = (now - (s.timestamp || now)) / 1000;
-    if (elapsedSec > 5 && elapsedSec < 1800 && s.speed && s.speed > 1 && s.heading !== undefined) {
+    const validHeading = typeof s.heading === 'number' && s.heading >= 0 && s.heading < 360;
+    if (elapsedSec > 5 && elapsedSec <= 180 && s.speed && s.speed > 1 && validHeading) {
       const distKm = (s.speed * 1.852 * (elapsedSec / 3600));
       const rad = (s.heading * Math.PI) / 180;
       const latDiff = (distKm * Math.cos(rad)) / 111.32;

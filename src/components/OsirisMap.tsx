@@ -4950,6 +4950,9 @@ function getVideoAnalysisKeyframe(p: any): string {
           existing.home_base_icao = f.home_base_icao || existing.home_base_icao;
           existing.grounded = f.grounded ?? existing.grounded;
           if (f.lat != null && f.lng != null && !f.sortieConfig) {
+            existing.baseLat = f.lat;
+            existing.baseLng = f.lng;
+            existing.baseTime = Date.now();
             existing.lat = f.lat;
             existing.lng = f.lng;
             existing.heading = typeof f.heading === 'number' ? f.heading : existing.heading;
@@ -4974,6 +4977,9 @@ function getVideoAnalysisKeyframe(p: any): string {
             heading: f.heading || 0,
             lat: f.lat,
             lng: f.lng,
+            baseLat: f.lat,
+            baseLng: f.lng,
+            baseTime: Date.now(),
             sortieConfig: f.sortieConfig,
             sortie_phase: f.sortie_phase,
             sortie_label: f.sortie_label,
@@ -5029,8 +5035,8 @@ function getVideoAnalysisKeyframe(p: any): string {
         if (isPriv && !activeLayers.private) return;
         if (isJet && !activeLayers.jets) return;
 
-        let calcLat = f.lat;
-        let calcLng = f.lng;
+        let calcLat = f.baseLat ?? f.lat;
+        let calcLng = f.baseLng ?? f.lng;
         let heading = f.heading || 0;
 
         if (f.sortieConfig) {
@@ -5052,20 +5058,29 @@ function getVideoAnalysisKeyframe(p: any): string {
           f.home_base_icao = st.homeBaseIcao;
         } else if (f.grounded) {
           // Parked on base tarmac
-          calcLat = f.lat;
-          calcLng = f.lng;
+          calcLat = f.baseLat ?? f.lat;
+          calcLng = f.baseLng ?? f.lng;
           heading = f.heading || 0;
           f.speed_knots = 0;
           f.alt = 0;
           f.alt_feet = 0;
         } else {
-          // Standard live ADS-B flight dead-reckoning forward along true heading (1.0x realistic speed)
-          const dt = 1.0;
-          const speedMps = (f.speed_knots || 450) * 0.514444;
-          const distM = speedMps * dt * 1.0;
-          const rad = (heading * Math.PI) / 180;
-          calcLat = f.lat + (distM * Math.cos(rad)) / 111320;
-          calcLng = f.lng + (distM * Math.sin(rad)) / (111320 * Math.cos((f.lat * Math.PI) / 180));
+          // Smooth, non-accumulative dead-reckoning from base coordinates within polling window (<= 15s)
+          const bLat = f.baseLat ?? f.lat;
+          const bLng = f.baseLng ?? f.lng;
+          const bTime = f.baseTime ?? now;
+          const elapsedSec = Math.min(Math.max((now - bTime) / 1000, 0), 15);
+
+          if (elapsedSec > 0 && (f.speed_knots || 0) > 30) {
+            const speedMps = (f.speed_knots || 450) * 0.514444;
+            const distM = speedMps * elapsedSec;
+            const rad = (heading * Math.PI) / 180;
+            calcLat = bLat + (distM * Math.cos(rad)) / 111320;
+            calcLng = bLng + (distM * Math.sin(rad)) / (111320 * Math.cos((bLat * Math.PI) / 180));
+          } else {
+            calcLat = bLat;
+            calcLng = bLng;
+          }
         }
 
         f.lat = calcLat;
@@ -6085,54 +6100,14 @@ function getVideoAnalysisKeyframe(p: any): string {
     setGeo('maritime', activeLayers.maritime && data.maritime_ports ? data.maritime_ports.filter(isValid).map((p: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [p.lng, p.lat] }, properties: { name: p.name, country: p.country, type: p.type, volume: p.volume, fleet: p.fleet, rank: p.rank } })) : []);
     setGeo('maritime-choke', activeLayers.maritime && data.maritime_chokepoints ? data.maritime_chokepoints.filter(isValid).map((c: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [c.lng, c.lat] }, properties: { name: c.name, traffic: c.traffic, risk: c.risk } })) : []);
     const sanitizeShipCoords = (s: any) => {
-      let lat = s.lat;
-      let lng = s.lng;
-      // Real Port Harbors & Docks Exception List (Allowed to sit at docks & piers)
-      const isRealPortDock = 
-        (lat >= 37.33 && lat <= 37.47 && lng >= 126.58 && lng <= 126.64) || // Incheon Port Docks
-        (lat >= 35.06 && lat <= 35.13 && lng >= 128.80 && lng <= 129.07) || // Busan Port Docks
-        (lat >= 36.95 && lat <= 37.02 && lng >= 126.70 && lng <= 126.85) || // Pyeongtaek / Dangjin Docks
-        (lat >= 36.00 && lat <= 36.04 && lng >= 129.37 && lng <= 129.40) || // Pohang Docks
-        (lat >= 35.43 && lat <= 35.48 && lng >= 129.36 && lng <= 129.40) || // Ulsan Docks
-        (lat >= 34.72 && lat <= 34.90 && lng >= 127.70 && lng <= 127.77);   // Yeosu / Gwangyang Docks
-
-      if (isRealPortDock) {
-        return [lng, lat];
-      }
-
-      // Island Land Safeguards (Prevent ships drifting onto West/South Sea Islands)
-      if (lat >= 37.14 && lat <= 37.21 && lng >= 126.07 && lng <= 126.15) lng = 126.22; // Mungapdo 문갑도
-      if (lat >= 37.20 && lat <= 37.27 && lng >= 126.07 && lng <= 126.17) lng = 126.24; // Deokjeokdo 덕적도
-      if (lat >= 37.19 && lat <= 37.24 && lng >= 126.15 && lng <= 126.20) lng = 126.24; // Soyado 소야도
-      if (lat >= 37.23 && lat <= 37.28 && lng >= 126.30 && lng <= 126.37) lng = 126.42; // Jawoldo 자월도
-      if (lat >= 37.22 && lat <= 37.30 && lng >= 126.42 && lng <= 126.52) lng = 126.38; // Yeongheungdo 영흥도
-      if (lat >= 37.40 && lat <= 37.54 && lng >= 126.35 && lng <= 126.56) lng = 126.30; // Yeongjongdo 영종도
-      if (lat >= 37.52 && lat <= 37.83 && lng >= 126.35 && lng <= 126.55) lng = 126.25; // Gangwhado 강화도
-      if (lat >= 37.90 && lat <= 37.99 && lng >= 124.60 && lng <= 124.75) lng = 124.52; // Baengnyeongdo 백령도
-
-      // North Korea Inland Land Safeguard (Prevent ROK or DPRK ships sitting on Koksan/Sariwon mountains)
-      if (lat >= 37.82 && lat <= 42.50 && lng >= 124.75 && lng <= 130.40) {
-        const isNkOpenSea = 
-          (lat <= 38.75 && lng <= 124.75) ||
-          (lat >= 39.10 && lat <= 39.30 && lng >= 127.55 && lng <= 127.95) ||
-          (lat >= 39.85 && lat <= 40.10 && lng >= 128.25 && lng <= 128.60) ||
-          (lat >= 41.60 && lat <= 42.30 && lng >= 129.80 && lng <= 130.40);
-
-        if (!isNkOpenSea) {
-          if (lng < 127.0) {
-            lng = 124.50 - ((Math.abs(s.mmsi || 123) % 30) * 0.01);
-          } else {
-            lng = 130.60 + ((Math.abs(s.mmsi || 123) % 30) * 0.01);
-          }
-        }
-      }
-
-      if (lat >= 34.75 && lat <= 38.2 && lng >= 126.15 && lng <= 129.42) {
-        if (lng < 127.8) {
-          lng = 125.75 - ((Math.abs(s.mmsi || 123) % 45) * 0.01);
-        } else {
-          lng = 129.85 + ((Math.abs(s.mmsi || 123) % 45) * 0.01);
-        }
+      let lat = Number(s.lat);
+      let lng = Number(s.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return [0, 0];
+      // 혹시 API 소스에서 위도/경도가 전도되어 전달된 경우 자동 보정
+      if (Math.abs(lat) > 90 && Math.abs(lng) <= 90) {
+        const tmp = lat;
+        lat = lng;
+        lng = tmp;
       }
       return [lng, lat];
     };
@@ -6164,7 +6139,7 @@ function getVideoAnalysisKeyframe(p: any): string {
           name: s.name || s.mmsi?.toString(), 
           type: s.type || 'cargo', 
           speed: s.speed, 
-          heading: s.heading, 
+          heading: (typeof s.heading === 'number' && s.heading >= 0 && s.heading < 360) ? s.heading : (typeof s.cog === 'number' && s.cog >= 0 && s.cog < 360) ? s.cog : 0, 
           destination: s.destination, 
           flag: s.flag, 
           mmsi: s.mmsi || s.id,

@@ -1076,7 +1076,7 @@ function generateKoreanAirspaceFlights() {
       model: 'Gulfstream G650ER',
       reg: 'HL8282',
       originIcao: 'RKSS',
-      destIcao: 'RJTA',
+      destIcao: 'RJTT',
       origin: '김포공항 VIP 터미널',
       dest: '도쿄 하네다',
       altFt: 39000,
