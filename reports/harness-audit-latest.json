@@ -1,109 +1,65 @@
 {
-  "timestamp": "2026-10-15T15:01:49.255Z",
+  "timestamp": "2026-10-22T16:48:20.448Z",
   "trigger_type": "SCHEDULED_10MIN",
   "trigger_reason": "10분 주기 정기 순환 감사 — 무료 공공 API 세션 만료, 레이트 리밋(429), 침묵의 빈 데이터 감시",
-  "next_scheduled_time": "2026-10-15T15:11:49.255Z",
+  "next_scheduled_time": "2026-10-22T16:58:20.448Z",
   "model": "qwen3:14b",
   "overall_verdict": "PASS",
-  "confidence": 0.99,
-  "health_score": 98,
+  "confidence": 0.98,
+  "health_score": 100,
   "findings": [
-    "🔄 자가 치유(Self-Healing) 엔진 가동: 공인 2차 출처 교차 검증으로 무결성 100% 복원",
-    "10개 엔드포인트 정상 수신 및 검증 완료",
-    "실시간 공역 항공편(180+대), 해상 선박(18,000+척), 위성 궤도 전 영역 무결성 확보"
+    "모든 엔드포인트가 정상적으로 응답하며, 공인 실시간 소스를 통해 데이터의 무결성이 확인됨.",
+    "자가 치유 기능이 활성화되지 않았음에도 불구하고 모든 API 호출이 성공적으로 수행되어 시스템 연속성을 보장함."
   ],
   "anomalies": [],
-  "remediation_applied": true,
-  "remediation_records": [
-    {
-      "endpoint": "/api/cctv",
-      "name": "국토부 CCTV 실시간 영상",
-      "original_anomaly": "The operation was aborted due to timeout",
-      "authoritative_fallback_source": "국토교통부 국가교통정보센터(ITS) 표준 시뮬레이터 및 아시아 검증 캐시 피드",
-      "remediation_status": "RECOVERED_PASS",
-      "recovered_items": 439,
-      "recovered_latency_ms": 1344,
-      "timestamp": "2026-10-15T15:01:16.234Z"
-    },
-    {
-      "endpoint": "/api/satellites",
-      "name": "군사/정찰 위성 궤도",
-      "original_anomaly": "The operation was aborted due to timeout",
-      "authoritative_fallback_source": "미 우주군 CSpOC Space-Track 궤도 카탈로그 안전 캐시 미러",
-      "remediation_status": "RECOVERED_PASS",
-      "recovered_items": 18800,
-      "recovered_latency_ms": 0,
-      "timestamp": "2026-10-15T15:01:16.234Z"
-    },
-    {
-      "endpoint": "/api/earthquakes",
-      "name": "USGS 실시간 지진 감시",
-      "original_anomaly": "The operation was aborted due to timeout",
-      "authoritative_fallback_source": "기상청(KMA) 국가 지진화산센터 및 USGS 실시간 지진 네트워크 미러",
-      "remediation_status": "RECOVERED_PASS",
-      "recovered_items": 50,
-      "recovered_latency_ms": 0,
-      "timestamp": "2026-10-15T15:01:16.234Z"
-    },
-    {
-      "endpoint": "/api/fires",
-      "name": "NASA FIRMS 열화상/산불",
-      "original_anomaly": "The operation was aborted due to timeout",
-      "authoritative_fallback_source": "대한민국 산림청 산불상황관제 및 재난안전포털 공인 안전 캐시 미러",
-      "remediation_status": "RECOVERED_PASS",
-      "recovered_items": 14,
-      "recovered_latency_ms": 3001,
-      "timestamp": "2026-10-15T15:01:19.235Z"
-    }
-  ],
-  "tactical_assessment": "일시적 외부망 지연이 감지되었으나 하네스 자가 치유 엔진이 공인 대체 출처(국토부 ITS/산림청)로 즉각 교차 검증하여 전술적 무결성을 100% 복원하였습니다.",
-  "action_recommendation": "자가 치유 완료 — 전 시스템 무결성 확보 상태에서 정상 전술 경계 관제 지속",
-  "probe_duration_ms": 6006,
-  "remediation_duration_ms": 4346,
-  "ai_duration_ms": 30020,
-  "total_duration_ms": 40396,
+  "remediation_applied": false,
+  "tactical_assessment": "군사 및 작전 데이터의 실시간 유입과 처리가 정상적으로 이루어져 전술적 판단에 영향을 주는 요소가 없으며, 모든 감시 항목이 무결하게 유지됨. 자원 배분이나 위협 탐지에서 이상이 발생하지 않았음.",
+  "action_recommendation": "현재 시스템 상태는 완전히 정상적이므로 추가 조치는 필요하지 않으나, 주기적인 점검을 통해 지속적인 안정성을 유지하는 것이 권장됨.",
+  "probe_duration_ms": 4828,
+  "ai_duration_ms": 26646,
+  "total_duration_ms": 31509,
   "probeResults": [
     {
       "endpoint": "/api/flights",
       "name": "공역 항공편 (OpenSky / Mil ADS-B)",
       "httpStatus": 200,
-      "latencyMs": 1021,
+      "latencyMs": 1043,
       "ok": true,
-      "itemCount": 106,
+      "itemCount": 61,
       "anomalyDetected": false,
       "sampleSummary": {
-        "count": 106
+        "count": 61
       }
     },
     {
       "endpoint": "/api/maritime",
       "name": "해상 선박 & AIS 암흑 선박 (West/East Sea AIS & Dark Fleet)",
       "httpStatus": 200,
-      "latencyMs": 550,
+      "latencyMs": 80,
       "ok": true,
-      "itemCount": 19434,
+      "itemCount": 2703,
       "anomalyDetected": false,
       "sampleSummary": {
-        "count": 19434
+        "count": 2703
       }
     },
     {
       "endpoint": "/api/cctv",
       "name": "국토부 CCTV 실시간 영상",
-      "httpStatus": 0,
-      "latencyMs": 6002,
+      "httpStatus": 200,
+      "latencyMs": 353,
       "ok": true,
-      "itemCount": 439,
+      "itemCount": 39410,
       "anomalyDetected": false,
-      "sampleSummary": {},
-      "remediated": true,
-      "authoritative_source": "국토교통부 국가교통정보센터(ITS) 표준 시뮬레이터 및 아시아 검증 캐시 피드"
+      "sampleSummary": {
+        "count": 39410
+      }
     },
     {
       "endpoint": "/api/infrastructure",
       "name": "핵심 방공·원전·군사 인프라",
       "httpStatus": 200,
-      "latencyMs": 5067,
+      "latencyMs": 487,
       "ok": true,
       "itemCount": 64,
       "anomalyDetected": false,
@@ -114,20 +70,20 @@
     {
       "endpoint": "/api/satellites",
       "name": "군사/정찰 위성 궤도",
-      "httpStatus": 0,
-      "latencyMs": 6002,
+      "httpStatus": 200,
+      "latencyMs": 1570,
       "ok": true,
-      "itemCount": 18800,
+      "itemCount": 873,
       "anomalyDetected": false,
-      "sampleSummary": {},
-      "remediated": true,
-      "authoritative_source": "미 우주군 CSpOC Space-Track 궤도 카탈로그 안전 캐시 미러"
+      "sampleSummary": {
+        "count": 873
+      }
     },
     {
       "endpoint": "/api/tactical/session",
       "name": "화력유도 AR 전술 세션 (교관/교육생)",
       "httpStatus": 200,
-      "latencyMs": 110,
+      "latencyMs": 142,
       "ok": true,
       "itemCount": 1,
       "anomalyDetected": false,
@@ -138,32 +94,32 @@
     {
       "endpoint": "/api/earthquakes",
       "name": "USGS 실시간 지진 감시",
-      "httpStatus": 0,
-      "latencyMs": 6002,
+      "httpStatus": 200,
+      "latencyMs": 2455,
       "ok": true,
-      "itemCount": 50,
+      "itemCount": 165,
       "anomalyDetected": false,
-      "sampleSummary": {},
-      "remediated": true,
-      "authoritative_source": "기상청(KMA) 국가 지진화산센터 및 USGS 실시간 지진 네트워크 미러"
+      "sampleSummary": {
+        "count": 165
+      }
     },
     {
       "endpoint": "/api/fires",
       "name": "NASA FIRMS 열화상/산불",
-      "httpStatus": 0,
-      "latencyMs": 6003,
+      "httpStatus": 200,
+      "latencyMs": 4812,
       "ok": true,
-      "itemCount": 14,
+      "itemCount": 2259,
       "anomalyDetected": false,
-      "sampleSummary": {},
-      "remediated": true,
-      "authoritative_source": "대한민국 산림청 산불상황관제 및 재난안전포털 공인 안전 캐시 미러"
+      "sampleSummary": {
+        "count": 2259
+      }
     },
     {
       "endpoint": "/api/notam",
       "name": "NOTAM 미사일/발사체 위험 공역 (ICAO/MoLIT)",
       "httpStatus": 200,
-      "latencyMs": 164,
+      "latencyMs": 184,
       "ok": true,
       "itemCount": 3,
       "anomalyDetected": false,
@@ -175,7 +131,7 @@
       "endpoint": "/api/cables",
       "name": "해저 광케이블 & 닻 투하 사보타주 감시",
       "httpStatus": 200,
-      "latencyMs": 163,
+      "latencyMs": 210,
       "ok": true,
       "itemCount": 717,
       "anomalyDetected": false,

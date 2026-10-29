@@ -88,4 +88,6 @@ public/*_success.png
 # Local checkouts of third-party tools; not part of this app
 /scratch/astra/
 /scratch/mast3r/
+browser_verify.png
+
 

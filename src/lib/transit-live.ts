@@ -75,12 +75,18 @@ function withHistory(feedId: string, vehicles: TransitVehicle[], nowS: number): 
   history.set(feedId, after);
 }
 
+import { KOREA_TRANSIT_FEED, KOREA_TRANSIT_FEED_ID, getKoreanTransitVehicles, fetchKoreanLiveTransitVehicles } from './korean-transit';
+
 /**
  * The feeds this server can read: every keyless one, and each keyed one whose
  * key is set in the environment.
  */
 export function activeFeeds(env: Record<string, string | undefined> = process.env): TransitFeed[] {
-  return [...TRANSIT_FEEDS, ...KEYED_TRANSIT_FEEDS.filter(f => f.key && env[f.key.env])];
+  return [
+    KOREA_TRANSIT_FEED,
+    ...TRANSIT_FEEDS,
+    ...KEYED_TRANSIT_FEEDS.filter(f => f.key && env[f.key.env])
+  ];
 }
 
 export const FEEDS: TransitFeed[] = activeFeeds();
@@ -118,6 +124,12 @@ export function requestFor(feed: TransitFeed, env: Record<string, string | undef
  * the cache for the next poll.
  */
 export async function readFeed(feed: TransitFeed, fetchImpl: typeof fetch = fetch, now = Date.now()): Promise<Entry> {
+  if (feed.id === KOREA_TRANSIT_FEED_ID) {
+    const vehicles = await fetchKoreanLiveTransitVehicles(now);
+    withHistory(feed.id, vehicles, Math.floor(now / 1000));
+    return { at: now, ok: true, vehicles };
+  }
+
   const hit = cache.get(feed.id);
   if (hit && now - hit.at < (hit.ok ? feed.ttlMs ?? FEED_TTL_MS : FAILURE_TTL_MS)) return hit;
   const running = inflight.get(feed.id) ?? refresh(feed, fetchImpl, hit);

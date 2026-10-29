@@ -26,6 +26,7 @@ import { CHINA_ENCROACHMENT_SITES } from '@/lib/china-encroachment';
 import { applyJudgmentBadgeEl, renderVerifyTargetContentHtml } from '@/lib/judgment-ui';
 import { computeSortieState } from '@/lib/sortie-physics-engine';
 import { ROAD_CORRIDORS, findNearestRoadCorridor, type RoadCorridor } from '@/lib/road-cctv-corridors';
+import { ROK_MILITARY_SITES } from '@/lib/rok-military-sites';
 
 interface OsirisMapProps {
   arcgisLayers?: any[];
@@ -69,6 +70,7 @@ interface OsirisMapProps {
   onOiHover?: (hover: OiHover | null) => void;
   onOiFollow?: (following: boolean) => void;
   oiHighlight?: Highlight | null;
+  godsEyeReconActive?: boolean;
 }
 
 function computeSolarTerminator(): [number, number][] {
@@ -146,6 +148,7 @@ function OsirisMap({
   onOiHover,
   onOiFollow,
   oiHighlight,
+  godsEyeReconActive = false,
 }: OsirisMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -332,6 +335,18 @@ function OsirisMap({
         (window as any).__map = map;
         (window as any).map = map;
       }
+
+      // ── 스마트폰 모바일 GPS 내 위치 실시간 추적 컨트롤 ──
+      try {
+        const geolocate = new maplibregl.GeolocateControl({
+          positionOptions: { enableHighAccuracy: true },
+          trackUserLocation: true,
+          showAccuracyCircle: true,
+        });
+        map.addControl(geolocate, 'top-right');
+      } catch (e) {
+        console.warn('[OSIRIS] GeolocateControl setup warning:', e);
+      }
       
       // Auto-localize vector map labels to Korean
       try {
@@ -390,7 +405,7 @@ function OsirisMap({
       createDot(map, 'dot-cctv', cameraColor, 10);
 
       const sources = [
-        'flights','military','jets','private-fl','flight-vectors','flight-trails','satellites','earthquakes','gdelt','gps-jamming','gps-jam-zones','gps-jam-arrows','gps-jam-sources','day-night','cctv','fires','weather','infrastructure','maritime','maritime-choke','maritime-ships','live-news','sigint-news','conflict-zones', 'war-alerts-targets', 'war-alerts-lines', 'balloons', 'radiation', 'ip-sweep-devices', 'ip-sweep-pulse', 'ip-sweep-connections', 'scan-targets', 'sdk-entities', 'sdk-links', 'malware-nodes', 'ransomware', 'temperature', 'network-mesh', 'cyber-arcs', 'cyber-heads', 'cyber-impacts', 'dprk-sites-src', 'dprk-activity-src', 'seismic-nuclear-src', 'demarcation-lines', 'drones', 'cuas-gcs-emitters', 'cuas-vector-lines', 'china-encroachment', 'notam-hazards', 'submarine-cables', 'cable-landings', 'dark-fleet', 'radio-stations', 'alpr-checkpoints', 'road-corridors', 'its-incidents', 'nav-route', 'nav-route-alternates'
+        'flights','military','jets','private-fl','flight-vectors','flight-trails','satellites','earthquakes','gdelt','gps-jamming','gps-jam-zones','gps-jam-arrows','gps-jam-sources','day-night','cctv','fires','weather','infrastructure','maritime','maritime-choke','maritime-ships','live-news','sigint-news','conflict-zones', 'war-alerts-targets', 'war-alerts-lines', 'balloons', 'radiation', 'ip-sweep-devices', 'ip-sweep-pulse', 'ip-sweep-connections', 'scan-targets', 'sdk-entities', 'sdk-links', 'malware-nodes', 'ransomware', 'temperature', 'network-mesh', 'cyber-arcs', 'cyber-heads', 'cyber-impacts', 'dprk-sites-src', 'dprk-activity-src', 'seismic-nuclear-src', 'dmz-tunnels-sites-src', 'dmz-tunnels-axes-src', 'dmz-tunnels-claims-src', 'dmz-tunnels-cones-src', 'dmz-tunnels-intel-nodes-src', 'russia-incursions-hubs-src', 'russia-incursions-vectors-src', 'russia-incursions-events-src', 'demarcation-lines', 'drones', 'cuas-gcs-emitters', 'cuas-vector-lines', 'china-encroachment', 'notam-hazards', 'submarine-cables', 'cable-landings', 'dark-fleet', 'radio-stations', 'alpr-checkpoints', 'road-corridors', 'its-incidents', 'nav-route', 'nav-route-alternates', 'godseye-satellites-src', 'godseye-firms-src', 'rok-military-src'
       ];
       sources.forEach(s => {
         if (!map.getSource(s)) {
@@ -1050,6 +1065,54 @@ function OsirisMap({
         'text-offset': [0, 2.0], 'text-max-width': 16, 'text-allow-overlap': false,
       }, paint: { 'text-color': '#FFFFFF', 'text-halo-color': '#000000', 'text-halo-width': 2, 'text-opacity': 0.95 }});
 
+      // ══ ROK ARMED FORCES STRATEGIC BASES & CORPS / DIVISIONS ONTOLOGY ══
+      map.addLayer({ id: 'rok-military-glow', type: 'circle', source: 'rok-military-src', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,4, 6,8, 11,12],
+        'circle-color': ['match', ['get','branch'],
+          '해병대','#FF1744',
+          '공군','#00E5FF',
+          '해군','#2979FF',
+          '국방부/합참','#E040FB',
+          '#00E676'
+        ],
+        'circle-opacity': 0.15, 'circle-blur': 0.8,
+      }});
+      map.addLayer({ id: 'rok-military-dots', type: 'circle', source: 'rok-military-src', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 4,3.5, 9,5, 13,6.5],
+        'circle-color': ['match', ['get','branch'],
+          '해병대','#E53935',
+          '공군','#00B0FF',
+          '해군','#1E88E5',
+          '국방부/합참','#8E24AA',
+          '#43A047'
+        ],
+        'circle-opacity': 1.0,
+        'circle-stroke-width': 1.5,
+        'circle-stroke-color': '#FFFFFF',
+        'circle-stroke-opacity': 1.0,
+      }});
+      // 네이버 지도 UI 스타일: 위성 지도 위 상호명(가게 이름) 형태 정갈한 텍스트 라벨
+      map.addLayer({ id: 'rok-military-labels', type: 'symbol', source: 'rok-military-src', minzoom: 4, layout: {
+        'text-field': [
+          'step',
+          ['zoom'],
+          ['get', 'name'],
+          10,
+          ['concat', ['get', 'name'], ' (', ['get', 'unit'], ')']
+        ],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 4, 10, 8, 11, 13, 12.5],
+        'text-font': ['Open Sans Bold'],
+        'text-offset': [0, 1.2],
+        'text-max-width': 14,
+        'text-allow-overlap': false,
+        'text-ignore-placement': false,
+      }, paint: {
+        'text-color': '#FFFFFF',
+        'text-halo-color': '#0f172a',
+        'text-halo-width': 2.0,
+        'text-opacity': 0.95,
+      }});
+
       // ══ BRIDGE 1: DPRK MILITARY ACTIVITY EVENTS ══
       map.addLayer({ id: 'dprk-activity-glow', type: 'circle', source: 'dprk-activity-src', paint: {
         'circle-radius': ['interpolate',['linear'],['zoom'], 1,10, 5,20, 10,35],
@@ -1092,9 +1155,20 @@ function OsirisMap({
         source: 'demarcation-lines',
         paint: {
           'line-color': ['get', 'color'],
-          'line-width': ['interpolate', ['linear'], ['zoom'], 1, 2.2, 5, 3.8, 10, 5.5],
-          'line-opacity': 0.95,
-          'line-dasharray': [4, 2],
+          'line-width': [
+            'interpolate', ['linear'], ['zoom'],
+            1, ['match', ['get', 'category'], 'CADIZ_AIR', 0.9, 'KADIZ_AIR', 0.9, 'CHINA_ROK_EEZ', 0.8, 1.5],
+            6, ['match', ['get', 'category'], 'CADIZ_AIR', 1.4, 'KADIZ_AIR', 1.4, 'CHINA_ROK_EEZ', 1.2, 2.2],
+            10, ['match', ['get', 'category'], 'CADIZ_AIR', 1.8, 'KADIZ_AIR', 1.8, 'CHINA_ROK_EEZ', 1.4, 3.0]
+          ],
+          'line-opacity': [
+            'match', ['get', 'category'],
+            'CADIZ_AIR', 0.45,
+            'KADIZ_AIR', 0.55,
+            'CHINA_ROK_EEZ', 0.35,
+            0.85
+          ],
+          'line-dasharray': [4, 3],
         }
       });
       map.addLayer({
@@ -1117,6 +1191,433 @@ function OsirisMap({
           'text-halo-color': '#000000',
           'text-halo-width': 2.5,
           'text-opacity': 0.98,
+        }
+      });
+
+      // ══ DMZ INFILTRATION TUNNELS, THREAT CONES & 6 STRATEGIC AXES ══
+      map.addLayer({
+        id: 'dmz-tunnels-cones-fill',
+        type: 'fill',
+        source: 'dmz-tunnels-cones-src',
+        paint: {
+          'fill-color': ['match', ['get', 'threat_level'], 'CRITICAL', '#FF1744', '#FF9100'],
+          'fill-opacity': 0.18
+        }
+      });
+      map.addLayer({
+        id: 'dmz-tunnels-cones-line',
+        type: 'line',
+        source: 'dmz-tunnels-cones-src',
+        paint: {
+          'line-color': ['match', ['get', 'threat_level'], 'CRITICAL', '#FF5252', '#FFB74D'],
+          'line-width': 1.5,
+          'line-dasharray': [4, 2],
+          'line-opacity': 0.85
+        }
+      });
+
+      map.addLayer({
+        id: 'dmz-tunnels-axes-glow',
+        type: 'line',
+        source: 'dmz-tunnels-axes-src',
+        paint: {
+          'line-color': ['match', ['get', 'status'], 'HIGH_RISK_AXIS', '#FF1744', '#FF9100'],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 4, 3, 8, 6, 12, 10],
+          'line-opacity': 0.35,
+          'line-blur': 3
+        }
+      });
+      map.addLayer({
+        id: 'dmz-tunnels-axes-line',
+        type: 'line',
+        source: 'dmz-tunnels-axes-src',
+        paint: {
+          'line-color': ['match', ['get', 'status'], 'HIGH_RISK_AXIS', '#FF1744', '#FF9100'],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 4, 1.8, 8, 3.2, 12, 4.5],
+          'line-dasharray': [3, 2],
+          'line-opacity': 0.95
+        }
+      });
+      map.addLayer({
+        id: 'dmz-tunnels-axes-labels',
+        type: 'symbol',
+        source: 'dmz-tunnels-axes-src',
+        minzoom: 6,
+        layout: {
+          'text-field': ['concat', '⚠️ ', ['get', 'name']],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 6, 10, 10, 12],
+          'text-font': ['Open Sans Bold'],
+          'symbol-placement': 'line',
+          'symbol-spacing': 280,
+          'text-allow-overlap': false
+        },
+        paint: {
+          'text-color': '#FFD700',
+          'text-halo-color': '#000000',
+          'text-halo-width': 2.2,
+          'text-opacity': 0.95
+        }
+      });
+      map.addLayer({
+        id: 'dmz-tunnels-sites-glow',
+        type: 'circle',
+        source: 'dmz-tunnels-sites-src',
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 10, 8, 22, 12, 36],
+          'circle-color': '#FF1744',
+          'circle-opacity': 0.25,
+          'circle-blur': 1
+        }
+      });
+      map.addLayer({
+        id: 'dmz-tunnels-sites-dots',
+        type: 'circle',
+        source: 'dmz-tunnels-sites-src',
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 5, 8, 8, 12, 12],
+          'circle-color': '#FF1744',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#FFD700',
+          'circle-opacity': 0.95
+        }
+      });
+      map.addLayer({
+        id: 'dmz-tunnels-sites-labels',
+        type: 'symbol',
+        source: 'dmz-tunnels-sites-src',
+        minzoom: 5,
+        layout: {
+          'text-field': ['concat', '🕳️ ', ['get', 'name'], '\n[심도 ', ['to-string', ['get', 'depth_m']], 'm / 침투 ', ['to-string', ['get', 'mdl_penetration_m']], 'm]'],
+          'text-size': 10,
+          'text-font': ['Open Sans Bold'],
+          'text-offset': [0, 2.2],
+          'text-max-width': 18,
+          'text-allow-overlap': false
+        },
+        paint: {
+          'text-color': '#FFFFFF',
+          'text-halo-color': '#000000',
+          'text-halo-width': 2,
+          'text-opacity': 0.95
+        }
+      });
+
+      // ── DMZ Suspected Tunnel Claims & Geological Refutation Sites ──
+      map.addLayer({
+        id: 'dmz-tunnels-claims-pulse',
+        type: 'circle',
+        source: 'dmz-tunnels-claims-src',
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 12, 8, 22, 12, 38],
+          'circle-color': ['match', ['get', 'socratic_verdict'], 'DISPROVEN_NATURAL_GEOLOGY', '#AB47BC', '#FF7043'],
+          'circle-opacity': 0.18,
+          'circle-stroke-width': 1.5,
+          'circle-stroke-color': ['match', ['get', 'socratic_verdict'], 'DISPROVEN_NATURAL_GEOLOGY', '#E040FB', '#FFAB91'],
+          'circle-stroke-opacity': 0.7
+        }
+      });
+      map.addLayer({
+        id: 'dmz-tunnels-claims-dots',
+        type: 'circle',
+        source: 'dmz-tunnels-claims-src',
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 5, 8, 8, 12, 12],
+          'circle-color': [
+            'match',
+            ['get', 'socratic_verdict'],
+            'DISPROVEN_NATURAL_GEOLOGY', '#AB47BC', // 과학적 반증 (보라색)
+            'MONITORED_BORDER_ZONE', '#FF7043',     // 접경 감시구역 (주황빛 적색)
+            '#FFCA28'
+          ],
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#FFFFFF',
+          'circle-opacity': 0.95
+        }
+      });
+      map.addLayer({
+        id: 'dmz-tunnels-claims-labels',
+        type: 'symbol',
+        source: 'dmz-tunnels-claims-src',
+        minzoom: 6,
+        layout: {
+          'text-field': ['concat', '🔍 ', ['get', 'name'], '\n[', ['get', 'socratic_verdict'], ']'],
+          'text-size': 9.5,
+          'text-font': ['Open Sans Bold'],
+          'text-offset': [0, 2.0],
+          'text-max-width': 18,
+          'text-allow-overlap': false
+        },
+        paint: {
+          'text-color': '#E0E0E0',
+          'text-halo-color': '#111111',
+          'text-halo-width': 2,
+          'text-opacity': 0.95
+        }
+      });
+
+      // ── 6-Nation Global Subterranean Intelligence Nodes ──
+      map.addLayer({
+        id: 'dmz-tunnels-intel-nodes-glow',
+        type: 'circle',
+        source: 'dmz-tunnels-intel-nodes-src',
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 10, 8, 18, 12, 28],
+          'circle-color': '#00E5FF',
+          'circle-opacity': 0.25,
+          'circle-blur': 1
+        }
+      });
+      map.addLayer({
+        id: 'dmz-tunnels-intel-nodes-dots',
+        type: 'circle',
+        source: 'dmz-tunnels-intel-nodes-src',
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 5, 8, 7, 12, 10],
+          'circle-color': '#00E5FF',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#FFFFFF',
+          'circle-opacity': 0.95
+        }
+      });
+
+      // ── 👁️ Gods Eye (신의 눈) Satellites Orbit & Recon Footprint Layers ──
+      map.addLayer({
+        id: 'godseye-satellites-orbit-lines',
+        type: 'line',
+        source: 'godseye-satellites-src',
+        filter: ['==', ['get', 'type'], 'godseye-sat-orbit'],
+        paint: {
+          'line-color': ['get', 'color'],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 2, 1.2, 6, 2.2, 12, 3.5],
+          'line-opacity': 0.85,
+          'line-dasharray': [4, 2]
+        }
+      });
+      map.addLayer({
+        id: 'godseye-satellites-footprints',
+        type: 'fill',
+        source: 'godseye-satellites-src',
+        filter: ['==', ['get', 'type'], 'godseye-sat-footprint'],
+        paint: {
+          'fill-color': ['get', 'color'],
+          'fill-opacity': 0.12
+        }
+      });
+      map.addLayer({
+        id: 'godseye-satellites-points',
+        type: 'circle',
+        source: 'godseye-satellites-src',
+        filter: ['==', ['get', 'type'], 'godseye-sat-point'],
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 2, 5, 6, 8, 12, 12],
+          'circle-color': ['get', 'color'],
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#FFFFFF',
+          'circle-opacity': 0.95
+        }
+      });
+      map.addLayer({
+        id: 'godseye-satellites-labels',
+        type: 'symbol',
+        source: 'godseye-satellites-src',
+        filter: ['==', ['get', 'type'], 'godseye-sat-point'],
+        layout: {
+          'text-field': ['concat', '🛰️ ', ['get', 'name'], '\n[고도: ', ['get', 'altKm'], 'km]'],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 2, 8.5, 6, 10.5, 12, 12],
+          'text-font': ['Open Sans Bold'],
+          'text-offset': [0, 2.0],
+          'text-max-width': 18,
+          'text-allow-overlap': true
+        },
+        paint: {
+          'text-color': '#FFFFFF',
+          'text-halo-color': '#000000',
+          'text-halo-width': 2,
+          'text-opacity': 0.95
+        }
+      });
+
+      // ── 👁️ Gods Eye (신의 눈) NASA FIRMS Real-time Thermal Hotspots ──
+      map.addLayer({
+        id: 'godseye-firms-heatspots',
+        type: 'circle',
+        source: 'godseye-firms-src',
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 2, 6, 6, 10, 12, 18],
+          'circle-color': '#FF1744',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#FFEA00',
+          'circle-opacity': 0.85
+        }
+      });
+      map.addLayer({
+        id: 'godseye-firms-labels',
+        type: 'symbol',
+        source: 'godseye-firms-src',
+        minzoom: 4,
+        layout: {
+          'text-field': ['concat', '🔥 ', ['get', 'regionName'], ' (', ['get', 'frp'], ' MW)'],
+          'text-size': 9.5,
+          'text-font': ['Open Sans Bold'],
+          'text-offset': [0, 1.8],
+          'text-max-width': 18,
+          'text-allow-overlap': false
+        },
+        paint: {
+          'text-color': '#FF8A80',
+          'text-halo-color': '#000000',
+          'text-halo-width': 2,
+          'text-opacity': 0.95
+        }
+      });
+      map.addLayer({
+        id: 'dmz-tunnels-intel-nodes-labels',
+        type: 'symbol',
+        source: 'dmz-tunnels-intel-nodes-src',
+        minzoom: 5,
+        layout: {
+          'text-field': ['concat', ['get', 'flag'], ' ', ['get', 'name'], '\n(', ['get', 'role'], ')'],
+          'text-size': 9,
+          'text-font': ['Open Sans Bold'],
+          'text-offset': [0, 2.0],
+          'text-max-width': 20,
+          'text-allow-overlap': false
+        },
+        paint: {
+          'text-color': '#80D8FF',
+          'text-halo-color': '#000000',
+          'text-halo-width': 2,
+          'text-opacity': 0.95
+        }
+      });
+
+      // ══ RUSSIAN MILITARY INCURSIONS & PACIFIC PATROL OSINT LAYERS ══
+      map.addLayer({
+        id: 'russia-incursions-vectors-glow',
+        type: 'line',
+        source: 'russia-incursions-vectors-src',
+        paint: {
+          'line-color': ['match', ['get', 'type'], 'SMUGGLING_LIFELINE', '#FF1744', 'AIR_CORRIDOR', '#FF9100', '#00E5FF'],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 2, 3, 6, 7, 10, 12],
+          'line-opacity': 0.35,
+          'line-blur': 3
+        }
+      });
+      map.addLayer({
+        id: 'russia-incursions-vectors-line',
+        type: 'line',
+        source: 'russia-incursions-vectors-src',
+        paint: {
+          'line-color': ['match', ['get', 'type'], 'SMUGGLING_LIFELINE', '#FF1744', 'AIR_CORRIDOR', '#FF9100', '#00E5FF'],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 2, 1.8, 6, 3.2, 10, 4.5],
+          'line-dasharray': [4, 2],
+          'line-opacity': 0.95
+        }
+      });
+      map.addLayer({
+        id: 'russia-incursions-vectors-labels',
+        type: 'symbol',
+        source: 'russia-incursions-vectors-src',
+        minzoom: 4,
+        layout: {
+          'text-field': ['concat', '🐻 ', ['get', 'name']],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 4, 10, 8, 12],
+          'text-font': ['Open Sans Bold'],
+          'symbol-placement': 'line',
+          'symbol-spacing': 350,
+          'text-allow-overlap': false
+        },
+        paint: {
+          'text-color': '#FF9100',
+          'text-halo-color': '#000000',
+          'text-halo-width': 2.2,
+          'text-opacity': 0.95
+        }
+      });
+      map.addLayer({
+        id: 'russia-incursions-hubs-glow',
+        type: 'circle',
+        source: 'russia-incursions-hubs-src',
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 2, 8, 6, 18, 10, 28],
+          'circle-color': '#FF9100',
+          'circle-opacity': 0.25,
+          'circle-blur': 1
+        }
+      });
+      map.addLayer({
+        id: 'russia-incursions-hubs-dots',
+        type: 'circle',
+        source: 'russia-incursions-hubs-src',
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 2, 4.5, 6, 8, 10, 11],
+          'circle-color': '#FF9100',
+          'circle-stroke-width': 1.8,
+          'circle-stroke-color': '#FFFFFF',
+          'circle-opacity': 0.95
+        }
+      });
+      map.addLayer({
+        id: 'russia-incursions-hubs-labels',
+        type: 'symbol',
+        source: 'russia-incursions-hubs-src',
+        minzoom: 3,
+        layout: {
+          'text-field': ['concat', '⚓ ', ['get', 'name']],
+          'text-size': 10,
+          'text-font': ['Open Sans Bold'],
+          'text-offset': [0, 2.0],
+          'text-max-width': 16,
+          'text-allow-overlap': false
+        },
+        paint: {
+          'text-color': '#FFFFFF',
+          'text-halo-color': '#000000',
+          'text-halo-width': 2,
+          'text-opacity': 0.95
+        }
+      });
+      map.addLayer({
+        id: 'russia-incursions-events-glow',
+        type: 'circle',
+        source: 'russia-incursions-events-src',
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 2, 10, 6, 22, 10, 36],
+          'circle-color': '#FF1744',
+          'circle-opacity': 0.3,
+          'circle-blur': 1
+        }
+      });
+      map.addLayer({
+        id: 'russia-incursions-events-dots',
+        type: 'circle',
+        source: 'russia-incursions-events-src',
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 2, 5, 6, 8.5, 10, 12],
+          'circle-color': '#FF1744',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#FFD700',
+          'circle-opacity': 0.95
+        }
+      });
+      map.addLayer({
+        id: 'russia-incursions-events-labels',
+        type: 'symbol',
+        source: 'russia-incursions-events-src',
+        minzoom: 4,
+        layout: {
+          'text-field': ['concat', '🚨 ', ['get', 'title'], '\n[', ['get', 'date'], ']'],
+          'text-size': 9.5,
+          'text-font': ['Open Sans Bold'],
+          'text-offset': [0, 2.2],
+          'text-max-width': 18,
+          'text-allow-overlap': false
+        },
+        paint: {
+          'text-color': '#FFD700',
+          'text-halo-color': '#000000',
+          'text-halo-width': 2,
+          'text-opacity': 0.95
         }
       });
 
@@ -1803,6 +2304,11 @@ function OsirisMap({
       }});
 
       setMapReady(true);
+      (window as any).osirisMapFlyTo = (coords: [number, number], zoom = 12) => {
+        try {
+          map.flyTo({ center: coords, zoom, duration: 1500 });
+        } catch {}
+      };
 
     // Add draw preview & polygons sources
     if (!map.getSource('draw-preview')) {
@@ -2247,9 +2753,6 @@ function OsirisMap({
             <div style="position:relative;">
               <img src="${card.photoUrl}?v=real_v4" alt="${htmlEsc(card.korTitle)}" style="width:100%;height:155px;object-fit:cover;display:block;"
                 onerror="this.onerror=null;this.src='${card.isHostile ? '/intel/aircraft/mi24_kpaf.png' : '/intel/aircraft/b777_kal.png'}';" />
-              <div style="position:absolute;top:6px;left:6px;background:rgba(0,0,0,0.85);border:1px solid ${card.themeColor};color:${card.themeColor};padding:2px 6px;border-radius:3px;font-size:8px;font-weight:bold;">
-                📷 공인 실사 사진 및 전술 프로필
-              </div>
               <div style="position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,0.88);border:1px solid ${card.iffBadgeColor};color:${card.iffBadgeColor};padding:2px 6px;border-radius:3px;font-size:7.5px;font-family:monospace;font-weight:bold;">
                 ${card.iffBadgeText}
               </div>
@@ -3007,7 +3510,7 @@ function OsirisMap({
     });
 
     // ── Generic hover for clickables ──
-    ['conflict-icons','cctv-dots','cctv-label','cctv-glow','road-corridors-line','road-corridors-glow','eq-circles','sat-dots','fires-heat','gdelt-dots','weather-dots','infra-dots','maritime-dots','choke-dots','news-dots','sigint-news-dots','balloon-dots','rad-dots','ship-icons','ship-dots','ship-glow','sweep-device-dots','scan-targets-dots','sdk-sea','sdk-sea-glow','sdk-sea-atmo','sdk-air','sdk-air-glow','sdk-air-atmo','sdk-intel','sdk-intel-glow','sdk-intel-atmo','malware-dots','ransomware-dots','temperature-dots','cyber-heads','dprk-sites-dots','dprk-activity-dots','seismic-nuclear-dots','cable-landing-dots','jam-fill','jam-source-dot','jam-zone-fill'].forEach((layer: string) => {
+    ['conflict-icons','cctv-dots','cctv-label','cctv-glow','road-corridors-line','road-corridors-glow','eq-circles','sat-dots','fires-heat','gdelt-dots','weather-dots','infra-dots','maritime-dots','choke-dots','news-dots','sigint-news-dots','balloon-dots','rad-dots','ship-icons','ship-dots','ship-glow','sweep-device-dots','scan-targets-dots','sdk-sea','sdk-sea-glow','sdk-sea-atmo','sdk-air','sdk-air-glow','sdk-air-atmo','sdk-intel','sdk-intel-glow','sdk-intel-atmo','malware-dots','ransomware-dots','temperature-dots','cyber-heads','dprk-sites-dots','dprk-activity-dots','seismic-nuclear-dots','cable-landing-dots','jam-fill','jam-source-dot','jam-zone-fill','rok-military-dots'].forEach((layer: string) => {
       map.on('mouseenter', layer, () => { map.getCanvas().style.cursor = 'pointer'; });
       map.on('mouseleave', layer, () => { map.getCanvas().style.cursor = ''; });
     });
@@ -3056,7 +3559,15 @@ function getHighResAnalysisPhoto(p: any): string {
     localImg = '/intel/dprk/sohae_sat.png'; localLabel = 'CSIS Beyond Parallel 서해 동창리 위성 발사장 위성 판독'; borderColor = '#00E5FF';
   } else if (title.includes('방현') || title.includes('샛별') || title.includes('무인기') || id.includes('panghyon') || id.includes('uav')) {
     localImg = '/intel/dprk/panghyon_sat.png'; localLabel = '38 North 평북 방현 무인기(UAV) 비행장 위성 판독'; borderColor = '#00E5FF';
-  } else if (title.includes('화성-18') || title.includes('icbm') || title.includes('산음동') || title.includes('순안') || title.includes('삼석') || id.includes('sanumdong')) {
+  } else if (title.includes('쿠르스크') || title.includes('폭풍군단') || id.includes('kursk') || title.includes('파병')) {
+    localImg = '/intel/dprk/kursk_action.png'; localLabel = 'ROK NIS / US DoD 러시아 쿠르스크 전선 북한군 제11군단(폭풍군단) 배치 판독'; borderColor = '#FF1744';
+  } else if (title.includes('경의선') || title.includes('동해선') || title.includes('폭파') || id.includes('gyeongui') || title.includes('요새화')) {
+    localImg = '/intel/dprk/gyeongui_action.png'; localLabel = 'ROK JCS 합참 전방 감시: 경의선·동해선 연결도로 폭파 및 대전차 방벽 요새화 판독'; borderColor = '#FF9100';
+  } else if (title.includes('헤즈볼라') || title.includes('터널') || title.includes('komid') || title.includes('레바논')) {
+    localImg = '/intel/dprk/komid_action.png'; localLabel = 'IDF / Alma Research 북한 조선창광무역(KOMID) 레바논 남부 전략 터널망 기술 협력 판독'; borderColor = '#E040FB';
+  } else if (title.includes('화성-18') || id.includes('act-001') || (title.includes('icbm') && (title.includes('발사') || title.includes('시험')))) {
+    localImg = '/intel/dprk/sanumdong_action.png'; localLabel = 'US DoD / INDOPACOM 화성-18형 고체연료 ICBM 이동식 TEL 발사 진지 판독'; borderColor = '#FF1744';
+  } else if (title.includes('산음동') || id.includes('sanumdong')) {
     localImg = '/intel/dprk/sanumdong_sat.png'; localLabel = 'CSIS Beyond Parallel 평양 산음동 ICBM 연구소 위성 판독'; borderColor = '#FF1744';
   } else if (title.includes('상남리') || id.includes('sangnam')) {
     localImg = '/intel/dprk/sangnamri_sat.png'; localLabel = 'CSIS Beyond Parallel 상남리 IRBM 기지 위성 판독'; borderColor = '#FF9500';
@@ -3100,18 +3611,19 @@ function getHighResAnalysisPhoto(p: any): string {
     borderColor = '#FFD700';
   }
 
-    const imgSrc = validHttpUrls.length > 0
+  const imgSrc = validHttpUrls.length > 0
     ? `/api/proxy-image?url=${encodeURIComponent(validHttpUrls[0])}&fallback=${encodeURIComponent(localImg)}`
     : (localUrls.length > 0 ? localUrls[0] : localImg);
 
   const fallbackSrc = localImg;
 
   return `<div style="position:relative;background:#000;">
-    <div style="position:absolute;top:6px;left:6px;background:rgba(0,0,0,0.85);border:1px solid ${borderColor};color:${borderColor};padding:3px 6px;border-radius:3px;font-size:8px;font-weight:bold;z-index:2;">
-      🏛️ ${localLabel}
-    </div>
     <img src="${imgSrc}" alt="${localLabel}" style="width:100%;max-height:220px;object-fit:cover;display:block;border-bottom:1px solid rgba(255,255,255,0.1);"
       onerror="this.onerror=null;this.src='${fallbackSrc}';" />
+    <div style="padding:4px 8px;background:rgba(10,12,18,0.92);border-top:1px solid ${borderColor}40;display:flex;align-items:center;justify-content:space-between;gap:6px;">
+      <span style="color:${borderColor};font-size:8.5px;font-weight:bold;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;">🏛️ ${localLabel}</span>
+      <span style="color:#8A8880;font-size:7.5px;font-family:monospace;flex-shrink:0;">PROFILED</span>
+    </div>
     ${callout}
   </div>`;
 }
@@ -3126,6 +3638,14 @@ function getVideoAnalysisKeyframe(p: any): string {
 
   if (title.includes('송악산') || id.includes('songak')) {
     actionImg = '/intel/dprk/songaksan_action.png'; actionTitle = 'CSIS / NGA 판독: 송악산 240mm 방사포 HARTS 사격 패드 및 갱도 출구 0.3m 위성 분석';
+  } else if (title.includes('쿠르스크') || title.includes('폭풍군단') || id.includes('kursk') || title.includes('파병')) {
+    actionImg = '/intel/dprk/sanumdong_action.png'; actionTitle = 'NIS / DoD 판독: 러시아 쿠르스크 전선 파병 북한군 특수작전군(11군단) 지휘통제소';
+  } else if (title.includes('경의선') || title.includes('동해선') || title.includes('폭파') || id.includes('gyeongui') || title.includes('요새화')) {
+    actionImg = '/intel/dprk/songaksan_action.png'; actionTitle = 'JCS 정찰 판독: 경의선·동해선 철도·도로 단절 폭파 진지 및 전차방벽 갱도 거점';
+  } else if (title.includes('헤즈볼라') || title.includes('터널') || title.includes('komid') || title.includes('레바논')) {
+    actionImg = '/intel/dprk/rimjin_action.png'; actionTitle = 'IDF / Alma 판독: 북한 KOMID 엔지니어링 지하 터널 방호 갱도 및 무기 집하 거점';
+  } else if (title.includes('화성-18') || id.includes('act-001') || (title.includes('icbm') && (title.includes('발사') || title.includes('시험')))) {
+    actionImg = '/intel/dprk/sanumdong_action.png'; actionTitle = 'US DoD / INDOPACOM 판독: 화성-18형 고체연료 ICBM 이동식 TEL 발사 진지 0.3m 정밀 분석';
   } else if (title.includes('장풍') || id.includes('jangpung')) {
     actionImg = '/intel/dprk/jangpung_action.png'; actionTitle = 'CSIS / Janes 판독: 장풍 240mm 일제사격 사격 패드 8조 및 엄체 도로 0.5m 위성 분석';
   } else if (id.includes('rimjin') || (title.includes('임진강') && title.includes('170mm'))) {
@@ -3170,20 +3690,15 @@ function getVideoAnalysisKeyframe(p: any): string {
     actionImg = '/intel/dprk/naval_warship_action.png'; actionTitle = 'US Naval Intel / CSIS 판독: 마양도 절벽 관통 수중 동굴 펜 3개소 및 잠수함 계류장 0.5m 분석';
   }
 
-  const reportUrl = p.report_url || 'https://beyondparallel.csis.org/';
-
   return `<div style="position:relative;background:#000;border:1px solid rgba(255,23,68,0.4);border-radius:4px;overflow:hidden;">
     <div style="position:relative;">
       <img src="${actionImg}" alt="${htmlEsc(actionTitle)}" style="width:100%;max-height:220px;object-fit:cover;display:block;" />
-      <div style="position:absolute;top:6px;left:6px;background:rgba(0,0,0,0.85);border:1px solid #FF1744;color:#FF5252;padding:2px 6px;border-radius:3px;font-size:8px;font-weight:bold;">
-        🎯 3단계: 공식 보고서 수록 사격진지 / 갱도 / 핵심 거점 정밀 분석
-      </div>
       <div style="position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,0.85);border:1px solid #00E5FF;color:#00E5FF;padding:2px 6px;border-radius:3px;font-size:7.5px;font-family:monospace;">
         TACTICAL RECON (FACT)
       </div>
     </div>
     <div style="padding:6px 8px;background:rgba(20,5,5,0.92);border-top:1px solid rgba(255,23,68,0.3);">
-      <div style="color:#FFD700;font-size:9px;font-weight:bold;margin-bottom:3px;">${htmlEsc(actionTitle)}</div>
+      <div style="color:#FFD700;font-size:9px;font-weight:bold;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${htmlEsc(actionTitle)}</div>
       <button onclick="if (window.openDprkReportDossier && window._dprkSitesRegistry && window._dprkSitesRegistry['${idSafe(p.id)}']) { window.openDprkReportDossier(window._dprkSitesRegistry['${idSafe(p.id)}']); } else if (window.openDprkReportDossier) { window.openDprkReportDossier({ id: '${idSafe(p.id)}', title: '${htmlEsc(p.title || '')}', source_org: '${htmlEsc(org)}' }); }" style="width:100%;margin-top:4px;padding:7px;background:rgba(0,229,255,0.2);border:1.5px solid #00E5FF;color:#00E5FF;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;">
         <span>🔍 [ 3단계 위성·실물 장비·사격진지 검증 도판 전면 확대 ⛶ ]</span>
       </button>
@@ -3276,27 +3791,27 @@ function getVideoAnalysisKeyframe(p: any): string {
         <div style="margin-bottom:8px;border:1px solid ${tierColor}80;border-radius:6px;overflow:hidden;background:#0d1117;">
           <!-- 1. 실시간 위성 광학 판독 사진 (ESRI Live 0.3m Satellite) -->
           <div style="position:relative;border-bottom:1px solid rgba(255,255,255,0.1);">
-            <div style="background:rgba(0,229,255,0.15);padding:3px 8px;font-size:9px;color:#00E5FF;font-weight:bold;display:flex;justify-content:space-between;align-items:center;">
-              <span>📡 1. 실시간 위성 정밀 판독 (ESRI 0.3m Satellite)</span>
-              <span style="font-size:8px;color:#8A8880;">📐 0.3m Optical Tile</span>
+            <div style="background:rgba(0,229,255,0.15);padding:3px 8px;font-size:9px;color:#00E5FF;font-weight:bold;display:flex;justify-content:space-between;align-items:center;gap:6px;">
+              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;">📡 1. 실시간 위성 정밀 판독 (ESRI 0.3m Satellite)</span>
+              <span style="font-size:8px;color:#8A8880;flex-shrink:0;white-space:nowrap;">📐 0.3m Tile</span>
             </div>
             <img src="${esriSatUrl}" alt="ESRI 실시간 위성 사진" style="width:100%;height:130px;object-fit:cover;display:block;background:#1a1d24;" />
           </div>
 
           <!-- 2. 실제 배치 무기/핵시설 정밀 프로필 사진 -->
           <div style="position:relative;border-bottom:1px solid rgba(255,255,255,0.1);">
-            <div style="background:rgba(255,215,0,0.15);padding:3px 8px;font-size:9px;color:#FFD700;font-weight:bold;display:flex;justify-content:space-between;align-items:center;">
-              <span>📷 2. 실제 배치 무기 / 시설 정밀 프로필 사진</span>
-              <span style="font-size:8px;color:#8A8880;">🏛️ ${htmlEsc(srcOrg)} 정밀 채증</span>
+            <div style="background:rgba(255,215,0,0.15);padding:3px 8px;font-size:9px;color:#FFD700;font-weight:bold;display:flex;justify-content:space-between;align-items:center;gap:6px;">
+              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;">📷 2. 실제 배치 무기 / 시설 정밀 프로필 사진</span>
+              <span style="font-size:8px;color:#8A8880;flex-shrink:0;white-space:nowrap;">🏛️ ${htmlEsc(srcOrg)}</span>
             </div>
             ${stage2AnalysisPhoto}
           </div>
 
           <!-- 3. 공식 보고서 수록 사격진지 / 갱도 / 핵심 거점 정밀 판독 -->
           <div style="position:relative;">
-            <div style="background:rgba(255,23,68,0.15);padding:3px 8px;font-size:9px;color:#FF5252;font-weight:bold;display:flex;justify-content:space-between;align-items:center;">
-              <span>🎯 3. 공식 보고서 수록 사격진지 / 갱도 / 핵심 거점 정밀 판독</span>
-              <span style="font-size:8px;color:#8A8880;">📐 0.3m Tactical Recon (FACT)</span>
+            <div style="background:rgba(255,23,68,0.15);padding:3px 8px;font-size:9px;color:#FF5252;font-weight:bold;display:flex;justify-content:space-between;align-items:center;gap:6px;">
+              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;">🎯 3. 공식 보고서 수록 사격진지 / 갱도 정밀 판독</span>
+              <span style="font-size:8px;color:#8A8880;flex-shrink:0;white-space:nowrap;">📐 RECON (FACT)</span>
             </div>
             ${getVideoAnalysisKeyframe(p)}
           </div>
@@ -3463,6 +3978,39 @@ function getVideoAnalysisKeyframe(p: any): string {
       </div>`);
     });
 
+    // ── 대한민국 국군(ROK Armed Forces) 오픈소스 검증 위치 클릭 팝업 핸들러 (네이버 지도 POI 스타일) ──
+    const handleRokMilitaryClick = (e: any) => {
+      if (!e.features?.length) return;
+      const p = e.features[0].properties as any;
+      const coords = (e.features[0].geometry as any).coordinates;
+      
+      const branchColor = p.branch === '해병대' ? '#E53935' : p.branch === '공군' ? '#00B0FF' : p.branch === '해군' ? '#1E88E5' : p.branch === '국방부/합참' ? '#8E24AA' : '#43A047';
+
+      popup(coords, `<div style="background:rgba(15,23,42,0.96);border:1.5px solid ${branchColor};border-radius:12px;padding:12px 14px;color:#fff;font-family:'Pretendard',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;min-width:270px;box-shadow:0 8px 28px rgba(0,0,0,0.85);backdrop-filter:blur(12px);">
+        <div style="display:flex;align-items:center;justify-content:between;gap:8px;border-bottom:1px solid rgba(255,255,255,0.12);padding-bottom:8px;margin-bottom:8px;">
+          <div>
+            <div style="font-size:14px;font-weight:800;color:#FFFFFF;letter-spacing:-0.02em;">${htmlEsc(p.name)}</div>
+            <div style="font-size:11px;color:${branchColor};font-weight:700;margin-top:1px;">${htmlEsc(p.unit)} <span style="font-size:10px;color:#94A3B8;font-weight:normal;">[${htmlEsc(p.branch)}]</span></div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:#E2E8F0;margin-bottom:6px;line-height:1.4;">
+          <span style="color:#94A3B8;">📍 도로명 주소:</span> <strong style="color:#F8FAFC;">${htmlEsc(p.address)}</strong>
+        </div>
+        <div style="font-size:10.5px;color:#94A3B8;margin-bottom:8px;line-height:1.4;background:rgba(255,255,255,0.05);padding:6px 8px;border-radius:6px;border-left:3px solid ${branchColor};">
+          <strong style="color:${branchColor};">임무:</strong> ${htmlEsc(p.role)}
+        </div>
+        <div style="font-size:10px;color:#38BDF8;background:rgba(0,176,255,0.08);padding:6px 8px;border-radius:6px;border:1px solid rgba(0,176,255,0.2);margin-bottom:6px;">
+          <strong style="color:#7DD3FC;">🛡️ 주요 배속:</strong> ${htmlEsc(p.primaryAssets)}
+        </div>
+        <div style="font-size:9.5px;color:#A7F3D0;display:flex;align-items:center;justify-content:space-between;padding-top:4px;">
+          <span>✓ ${htmlEsc(p.verifiedSource)}</span>
+          <span style="color:#64748B;font-family:monospace;">${coords[1].toFixed(4)}°N, ${coords[0].toFixed(4)}°E</span>
+        </div>
+      </div>`);
+    };
+    map.on('click', 'rok-military-dots', handleRokMilitaryClick);
+    map.on('click', 'rok-military-labels', handleRokMilitaryClick);
+
     // ── DPRK Strategic Sites Click Handler (100% Korean Popup matching user layout specification) ──
     map.on('click', 'dprk-sites-dots', (e: any) => {
       if (!e.features?.length) return;
@@ -3526,29 +4074,27 @@ function getVideoAnalysisKeyframe(p: any): string {
         <div style="margin-bottom:10px;border:1px solid ${threatColor}60;border-radius:6px;overflow:hidden;background:#0d1117;">
           <!-- 1. 위성 사진 (ESRI Live Satellite) -->
           <div style="position:relative;border-bottom:1px solid rgba(255,255,255,0.1);">
-            <div style="background:rgba(0,229,255,0.15);padding:4px 8px;font-size:9px;color:#00E5FF;font-weight:bold;display:flex;justify-content:space-between;align-items:center;">
-              <span>📡 1. 실시간 위성 사진 (ESRI ArcGIS World Imagery)</span>
-              <span style="font-size:8px;color:#8A8880;">📐 ${htmlEsc(p.spatial_resolution || '0.3m Real Satellite Tile')}</span>
+            <div style="background:rgba(0,229,255,0.15);padding:4px 8px;font-size:9px;color:#00E5FF;font-weight:bold;display:flex;justify-content:space-between;align-items:center;gap:6px;">
+              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;">📡 1. 실시간 위성 사진 (ESRI World Imagery)</span>
+              <span style="font-size:8px;color:#8A8880;flex-shrink:0;white-space:nowrap;">📐 ${htmlEsc(p.spatial_resolution || '0.3m Tile')}</span>
             </div>
             <img src="${esriSatUrl}" alt="ESRI 실시간 위성 사진" style="width:100%;height:150px;object-fit:cover;display:block;background:#1a1d24;" />
           </div>
 
           <!-- 2. 실제 건물 / 현장 촬영 및 판독 분석 사진 -->
           <div style="position:relative;border-bottom:1px solid rgba(255,255,255,0.1);">
-            <div style="background:rgba(255,215,0,0.15);padding:4px 8px;font-size:9px;color:#FFD700;font-weight:bold;display:flex;justify-content:space-between;align-items:center;">
-              <span>📷 2. 실제 건물 / 현장 촬영 및 판독 분석 사진</span>
-              <span style="font-size:8px;color:#8A8880;">🏛️ ${htmlEsc(p.source_org || 'CSIS')} 채증</span>
+            <div style="background:rgba(255,215,0,0.15);padding:4px 8px;font-size:9px;color:#FFD700;font-weight:bold;display:flex;justify-content:space-between;align-items:center;gap:6px;">
+              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;">📷 2. 실제 현장 판독 분석 사진</span>
+              <span style="font-size:8px;color:#8A8880;flex-shrink:0;white-space:nowrap;">🏛️ ${htmlEsc(p.source_org || 'CSIS')}</span>
             </div>
             ${getHighResAnalysisPhoto(p)}
           </div>
 
-
-
           <!-- 3. 공식 보고서 수록 사격진지 / 갱도 / 핵심 거점 정밀 판독 -->
           <div style="position:relative;">
-            <div style="background:rgba(255,23,68,0.15);padding:4px 8px;font-size:9px;color:#FF5252;font-weight:bold;display:flex;justify-content:space-between;align-items:center;">
-              <span>🎯 3. 공식 보고서 수록 사격진지 / 갱도 / 핵심 거점 정밀 판독</span>
-              <span style="font-size:8px;color:#8A8880;">📐 0.3m Tactical Recon (FACT)</span>
+            <div style="background:rgba(255,23,68,0.15);padding:4px 8px;font-size:9px;color:#FF5252;font-weight:bold;display:flex;justify-content:space-between;align-items:center;gap:6px;">
+              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;">🎯 3. 공식 보고서 수록 사격진지 / 갱도 정밀 판독</span>
+              <span style="font-size:8px;color:#8A8880;flex-shrink:0;white-space:nowrap;">📐 RECON (FACT)</span>
             </div>
             ${getVideoAnalysisKeyframe(p)}
           </div>
@@ -3686,6 +4232,256 @@ function getVideoAnalysisKeyframe(p: any): string {
           </button>
         </div>
         <button onclick="window.openOsirisIntel({ type: 'country', country: 'North Korea' })" style="width:100%;margin-top:6px;padding:7px 12px;background:rgba(255,23,68,0.25);border:1px solid rgba(255,23,68,0.7);color:#FF1744;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:0.1em;border-radius:4px;cursor:pointer;">[ 🛡️ Palantir Foundry 전술 지능 그래프 심층 검증 ]</button>
+      </div>`);
+    });
+
+    // ── DMZ Infiltration Tunnels (Sites) Click Handler ──
+    map.on('click', 'dmz-tunnels-sites-dots', (e: any) => {
+      if (!e.features?.length) return;
+      const p = e.features[0].properties as any;
+      const coords = (e.features[0].geometry as any).coordinates;
+      let pirList: string[] = [];
+      try { pirList = JSON.parse(p.pir_indicators || '[]'); } catch {}
+
+      popup(coords, `<div style="${pStyle}border:1.5px solid #FF1744;max-width:340px;background:rgba(15,17,23,0.96);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;border-bottom:1px solid rgba(255,23,68,0.4);padding-bottom:5px;">
+          <span style="color:#FF1744;font-size:12px;font-weight:bold;display:flex;align-items:center;gap:4px;">
+            🕳️ ${htmlEsc(p.name)}
+          </span>
+          <span style="color:#00E5FF;font-size:8.5px;font-family:monospace;background:rgba(0,229,255,0.15);padding:1px 5px;border-radius:3px;">
+            ${htmlEsc(p.status)}
+          </span>
+        </div>
+        <div style="color:#8A8880;font-size:9px;margin-bottom:6px;">
+          ${htmlEsc(p.name_en)} | <strong>발견일:</strong> <span style="color:#FFD700;">${htmlEsc(p.discovery_date || 'N/A')}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;font-size:9.5px;background:rgba(255,255,255,0.04);padding:6px;border-radius:4px;margin-bottom:6px;">
+          <div><span style="color:#8A8880;">지하 심도:</span> <strong style="color:#00E5FF;">${p.depth_m}m</strong></div>
+          <div><span style="color:#8A8880;">총 연장:</span> <strong style="color:#FFF;">${p.length_total_m}m</strong></div>
+          <div><span style="color:#8A8880;">MDL 침투:</span> <strong style="color:#FF1744;">남방 ${p.mdl_penetration_m}m</strong></div>
+          <div><span style="color:#8A8880;">단면 규격:</span> <strong style="color:#76FF03;">${htmlEsc(p.dimension || '')}</strong></div>
+        </div>
+        <div style="font-size:9px;color:#E8E6E0;margin-bottom:5px;">
+          <span style="color:#FF9500;font-weight:bold;">⚡ 시간당 통과 능력:</span> ${htmlEsc(p.capacity_per_hour || '')}
+        </div>
+        <div style="font-size:9px;color:#E8E6E0;margin-bottom:5px;">
+          <span style="color:#00E5FF;font-weight:bold;">🪨 지질 구조:</span> ${htmlEsc(p.geology || '')}
+        </div>
+        <div style="font-size:9px;color:#E8E6E0;margin-bottom:6px;background:rgba(255,23,68,0.08);padding:5px;border-left:2.5px solid #FF1744;border-radius:2px;">
+          <span style="color:#FF1744;font-weight:bold;">🎯 주요 위협 축선:</span> ${htmlEsc(p.threat_axis || '')}
+        </div>
+        <div style="font-size:8.5px;color:#8A8880;margin-bottom:6px;">
+          <strong>출처:</strong> ${htmlEsc(p.intelligence_source || '')}
+        </div>
+        ${pirList.length > 0 ? `
+          <div style="border-top:1px dashed rgba(255,255,255,0.15);padding-top:5px;margin-top:5px;">
+            <div style="color:#FFD700;font-size:9px;font-weight:bold;margin-bottom:3px;">🔍 정보기관 핵심 추적 지표 (PIR):</div>
+            ${pirList.map((pi: string) => `<div style="font-size:8.5px;color:#CFCBC2;margin-bottom:2px;">• ${htmlEsc(pi)}</div>`).join('')}
+          </div>
+        ` : ''}
+        <div style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.1);">
+          <button onclick="if(window.openSubterraneanModal) window.openSubterraneanModal('${htmlEsc(p.id)}')" style="width:100%;padding:6px 10px;background:rgba(255,23,68,0.2);border:1px solid #FF1744;color:#FFCDD2;font-size:10px;font-weight:bold;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;">
+            🕳️ 침투 땅굴 정밀 분석관 열기
+          </button>
+        </div>
+      </div>`);
+    });
+
+    // ── DMZ Infiltration Tunnels (Axes) Click Handler ──
+    map.on('click', 'dmz-tunnels-axes-line', (e: any) => {
+      if (!e.features?.length) return;
+      const p = e.features[0].properties as any;
+      const coords = e.lngLat ? [e.lngLat.lng, e.lngLat.lat] : [126.6, 37.8];
+      let methods: string[] = [];
+      try { methods = JSON.parse(p.detection_methods || '[]'); } catch {}
+
+      popup(coords, `<div style="${pStyle}border:1.5px solid #FF9100;max-width:330px;background:rgba(15,17,23,0.96);">
+        <div style="color:#FF9100;font-size:12px;font-weight:bold;margin-bottom:5px;border-bottom:1px solid rgba(255,145,0,0.4);padding-bottom:4px;">
+          ⚠️ ${htmlEsc(p.name)}
+        </div>
+        <div style="font-size:9.5px;color:#FFF;margin-bottom:6px;">
+          <span style="color:#8A8880;">침투 방향:</span> <strong>${htmlEsc(p.target_direction || '')}</strong>
+        </div>
+        <div style="font-size:9px;color:#E8E6E0;background:rgba(255,145,0,0.08);padding:6px;border-left:3px solid #FF9100;border-radius:2px;margin-bottom:6px;line-height:1.4;">
+          <strong>전략적 의미:</strong> ${htmlEsc(p.strategic_significance || '')}
+        </div>
+        <div style="font-size:9px;color:#CFCBC2;margin-bottom:6px;">
+          <span style="color:#00E5FF;font-weight:bold;">지질학적 취약성:</span> ${htmlEsc(p.geological_vulnerability || '')}
+        </div>
+        ${methods.length > 0 ? `
+          <div style="border-top:1px dashed rgba(255,255,255,0.15);padding-top:5px;">
+            <div style="color:#76FF03;font-size:9px;font-weight:bold;margin-bottom:3px;">🔬 과학적 다층 탐지 기법 (IDF/USFK 권고):</div>
+            ${methods.map((m: string) => `<div style="font-size:8.5px;color:#E8E6E0;margin-bottom:2px;">✔ ${htmlEsc(m)}</div>`).join('')}
+          </div>
+        ` : ''}
+        <div style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.1);">
+          <button onclick="if(window.openSubterraneanModal) window.openSubterraneanModal('${htmlEsc(p.id)}')" style="width:100%;padding:6px 10px;background:rgba(255,145,0,0.2);border:1px solid #FF9100;color:#FFE0B2;font-size:10px;font-weight:bold;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;">
+            🧭 축선 상세 분석관 열기
+          </button>
+        </div>
+      </div>`);
+    });
+
+    // ── DMZ Suspected Tunnel Claims Click Handler ──
+    map.on('click', 'dmz-tunnels-claims-dots', (e: any) => {
+      if (!e.features?.length) return;
+      const p = e.features[0].properties as any;
+      const coords = (e.features[0].geometry as any).coordinates;
+      const isDisproven = p.socratic_verdict === 'DISPROVEN_NATURAL_GEOLOGY';
+      const badgeColor = isDisproven ? '#AB47BC' : '#FF7043';
+      const badgeText = isDisproven ? '과학적 반증 완료 (FACT_DISPROVEN)' : '접경지 상시 감시구역 (BORDER_WATCH)';
+
+      popup(coords, `<div style="${pStyle}border:1.5px solid ${badgeColor};max-width:340px;background:rgba(15,17,23,0.96);">
+        <div style="color:${badgeColor};font-size:12px;font-weight:bold;margin-bottom:5px;border-bottom:1px solid rgba(171,71,188,0.4);padding-bottom:4px;display:flex;justify-content:space-between;align-items:center;">
+          <span>🔍 ${htmlEsc(p.name)}</span>
+        </div>
+        <div style="font-size:8.5px;color:#FFF;background:${badgeColor}22;padding:2px 6px;border-radius:3px;display:inline-block;margin-bottom:6px;font-weight:bold;border:1px solid ${badgeColor};">
+          ${badgeText}
+        </div>
+        <div style="font-size:9.5px;color:#FFF;margin-bottom:6px;">
+          <span style="color:#8A8880;">위치:</span> <strong>${htmlEsc(p.location || '')}</strong>
+        </div>
+        <div style="font-size:9px;color:#FFB74D;background:rgba(255,183,77,0.08);padding:6px;border-left:3px solid #FFB74D;border-radius:2px;margin-bottom:6px;line-height:1.4;">
+          <strong>의혹 제보 내용:</strong> ${htmlEsc(p.claim_origin || '')}
+        </div>
+        <div style="font-size:9px;color:#CFCBC2;margin-bottom:4px;">
+          <span style="color:#00E5FF;font-weight:bold;">조사 기관:</span> ${htmlEsc(p.investigation_agency || '')}
+        </div>
+        <div style="font-size:9px;color:#CFCBC2;margin-bottom:6px;">
+          <span style="color:#76FF03;font-weight:bold;">시추 탐사 내역:</span> ${htmlEsc(p.drilling_stats || '')}
+        </div>
+        <div style="border-top:1px dashed rgba(255,255,255,0.15);padding-top:6px;margin-top:6px;">
+          <div style="color:#E040FB;font-size:9.5px;font-weight:bold;margin-bottom:3px;">🧠 소크라테스 물리적 반증 / 과학적 결론:</div>
+          <div style="font-size:8.5px;color:#ECEFF1;line-height:1.4;background:rgba(0,0,0,0.3);padding:5px;border-radius:3px;">
+            ${htmlEsc(p.scientific_reasoning || '')}
+          </div>
+        </div>
+        <div style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.1);">
+          <button onclick="if(window.openSubterraneanModal) window.openSubterraneanModal('${htmlEsc(p.id)}')" style="width:100%;padding:6px 10px;background:rgba(171,71,188,0.25);border:1px solid #AB47BC;color:#E1BEE7;font-size:10px;font-weight:bold;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;">
+            🔬 소크라테스 5대 관문 & 슈퍼파워 정밀 분석관 열기
+          </button>
+        </div>
+      </div>`);
+    });
+
+    // ── 6-Nation Global Subterranean Intel Nodes Click Handler ──
+    map.on('click', 'dmz-tunnels-intel-nodes-dots', (e: any) => {
+      if (!e.features?.length) return;
+      const p = e.features[0].properties as any;
+      const coords = (e.features[0].geometry as any).coordinates;
+
+      popup(coords, `<div style="${pStyle}border:1.5px solid #00E5FF;max-width:340px;background:rgba(15,17,23,0.96);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;border-bottom:1px solid rgba(0,229,255,0.4);padding-bottom:5px;">
+          <span style="color:#00E5FF;font-size:12px;font-weight:bold;display:flex;align-items:center;gap:4px;">
+            ${htmlEsc(p.flag || '🌐')} ${htmlEsc(p.name)}
+          </span>
+          <span style="color:#80D8FF;font-size:8.5px;font-family:monospace;background:rgba(0,229,255,0.15);padding:1px 5px;border-radius:3px;">
+            ${htmlEsc(p.country || '')}
+          </span>
+        </div>
+        <div style="color:#FFF;font-size:9.5px;margin-bottom:4px;">
+          <span style="color:#8A8880;">정보기관:</span> <strong>${htmlEsc(p.agency || '')}</strong>
+        </div>
+        <div style="font-size:9px;color:#FFD700;margin-bottom:5px;">
+          <span style="color:#8A8880;">담당 요충지:</span> ${htmlEsc(p.focus_area || '')}
+        </div>
+        <div style="font-size:9px;color:#ECEFF1;background:rgba(0,229,255,0.08);padding:6px;border-left:3px solid #00E5FF;border-radius:2px;margin-bottom:6px;line-height:1.4;">
+          <strong>핵심 평가:</strong> ${htmlEsc(p.assessment_summary || '')}
+        </div>
+        <div style="font-size:8.5px;color:#8A8880;margin-bottom:6px;">
+          <strong>근거 출처:</strong> ${htmlEsc(p.sources || '')}
+        </div>
+        <div style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.1);">
+          <button onclick="if(window.openSubterraneanModal) window.openSubterraneanModal()" style="width:100%;padding:6px 10px;background:rgba(0,229,255,0.2);border:1px solid #00E5FF;color:#E0F7FA;font-size:10px;font-weight:bold;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;">
+            🌐 6개국 정보기관 교차 분석관 열기
+          </button>
+        </div>
+      </div>`);
+    });
+
+    // ── Russia Incursions Events Click Handler ──
+    map.on('click', 'russia-incursions-events-dots', (e: any) => {
+      if (!e.features?.length) return;
+      const p = e.features[0].properties as any;
+      const coords = (e.features[0].geometry as any).coordinates;
+
+      popup(coords, `<div style="${pStyle}border:1.5px solid #FF1744;max-width:340px;background:rgba(15,17,23,0.96);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;border-bottom:1px solid rgba(255,23,68,0.4);padding-bottom:5px;">
+          <span style="color:#FF1744;font-size:12px;font-weight:bold;display:flex;align-items:center;gap:4px;">
+            🚨 ${htmlEsc(p.title)}
+          </span>
+          <span style="color:#00E5FF;font-size:8.5px;font-family:monospace;background:rgba(0,229,255,0.15);padding:1px 5px;border-radius:3px;">
+            ${htmlEsc(p.type)}
+          </span>
+        </div>
+        <div style="color:#FFD700;font-size:9.5px;font-weight:bold;margin-bottom:5px;">
+          📅 발생일시: ${htmlEsc(p.date)}
+        </div>
+        <div style="font-size:9px;color:#E8E6E0;margin-bottom:6px;background:rgba(255,255,255,0.04);padding:5px;border-radius:3px;">
+          <span style="color:#FF9500;font-weight:bold;">✈️ 투입 러시아군 자산:</span><br/>${htmlEsc(p.assets || '')}
+        </div>
+        <div style="font-size:9px;color:#E8E6E0;margin-bottom:6px;line-height:1.4;">
+          <strong>상황 요약:</strong> ${htmlEsc(p.summary || '')}
+        </div>
+        <div style="font-size:9px;color:#76FF03;background:rgba(118,255,3,0.08);padding:6px;border-left:3px solid #76FF03;border-radius:2px;margin-bottom:6px;line-height:1.35;">
+          <strong>🇰🇷 공군/해군 대응 조치:</strong> ${htmlEsc(p.rok_response || '')}
+        </div>
+        <div style="font-size:8.5px;color:#8A8880;">
+          <strong>검증 출처:</strong> ${htmlEsc(p.verification_source || '합동참모본부 공식 발표')}
+        </div>
+      </div>`);
+    });
+
+    // ── Russia Incursions Vectors Click Handler ──
+    map.on('click', 'russia-incursions-vectors-line', (e: any) => {
+      if (!e.features?.length) return;
+      const p = e.features[0].properties as any;
+      const coords = e.lngLat ? [e.lngLat.lng, e.lngLat.lat] : [131.0, 37.0];
+
+      popup(coords, `<div style="${pStyle}border:1.5px solid #FF9100;max-width:330px;background:rgba(15,17,23,0.96);">
+        <div style="color:#FF9100;font-size:12px;font-weight:bold;margin-bottom:5px;border-bottom:1px solid rgba(255,145,0,0.4);padding-bottom:4px;">
+          🐻 ${htmlEsc(p.name)}
+        </div>
+        <div style="font-size:9px;color:#00E5FF;font-weight:bold;margin-bottom:5px;">
+          분류: ${htmlEsc(p.type)} | 기동 빈도: <span style="color:#FFD700;">${htmlEsc(p.frequency || '')}</span>
+        </div>
+        <div style="font-size:9px;color:#E8E6E0;background:rgba(255,145,0,0.08);padding:6px;border-left:3px solid #FF9100;border-radius:2px;margin-bottom:6px;line-height:1.4;">
+          ${htmlEsc(p.description || '')}
+        </div>
+        <div style="font-size:9px;color:#76FF03;margin-bottom:5px;">
+          <strong>🛡️ 아군 대항 조치:</strong> ${htmlEsc(p.countermeasures || '')}
+        </div>
+        <div style="font-size:8.5px;color:#8A8880;">
+          <strong>주요 침입 역사:</strong> ${htmlEsc(p.incursion_history || '')}
+        </div>
+      </div>`);
+    });
+
+    // ── Russia Incursions Hubs Click Handler ──
+    map.on('click', 'russia-incursions-hubs-dots', (e: any) => {
+      if (!e.features?.length) return;
+      const p = e.features[0].properties as any;
+      const coords = (e.features[0].geometry as any).coordinates;
+
+      popup(coords, `<div style="${pStyle}border:1.5px solid #00E5FF;max-width:330px;background:rgba(15,17,23,0.96);">
+        <div style="color:#00E5FF;font-size:12px;font-weight:bold;margin-bottom:5px;border-bottom:1px solid rgba(0,229,255,0.4);padding-bottom:4px;">
+          ⚓ ${htmlEsc(p.name)}
+        </div>
+        <div style="font-size:9px;color:#8A8880;margin-bottom:5px;">
+          ${htmlEsc(p.name_en)} | <span style="color:#FFD700;">${htmlEsc(p.category)}</span>
+        </div>
+        <div style="font-size:9px;color:#E8E6E0;margin-bottom:6px;line-height:1.4;">
+          <strong style="color:#FFF;">전략적 역할:</strong> ${htmlEsc(p.strategic_role || '')}
+        </div>
+        <div style="font-size:9px;color:#FF9500;background:rgba(255,149,0,0.08);padding:5px;border-radius:3px;margin-bottom:6px;">
+          <strong>배치 주요 전력:</strong> ${htmlEsc(p.operating_assets || '')}
+        </div>
+        <div style="font-size:9px;color:#FF5252;margin-bottom:5px;">
+          <strong>🎯 위협 목표:</strong> ${htmlEsc(p.threat_target || '')}
+        </div>
+        <div style="font-size:8.5px;color:#8A8880;">
+          <strong>출처:</strong> ${htmlEsc(p.intelligence_source || '')}
+        </div>
       </div>`);
     });
 
@@ -4486,6 +5282,64 @@ function getVideoAnalysisKeyframe(p: any): string {
     setGeo('demarcation-lines', boundaries);
   }, [mapReady, setGeo]);
 
+  // ══ RUSSIAN MILITARY INCURSIONS & PACIFIC PATROL GEOJSON UPDATER ══
+  useEffect(() => {
+    if (!mapReady) return;
+    const isVisible = (activeLayers as any).russia_incursions !== false;
+    const hubs = (data as any).russia_hubs || [];
+    const vectors = (data as any).russia_vectors || [];
+    const events = (data as any).russia_events || [];
+
+    const hubFeatures = isVisible ? hubs.map((h: any) => ({
+      type: 'Feature' as const,
+      geometry: { type: 'Point' as const, coordinates: h.coordinates },
+      properties: {
+        id: h.id,
+        name: h.name,
+        name_en: h.name_en,
+        category: h.category,
+        strategic_role: h.strategic_role,
+        operating_assets: h.operating_assets,
+        threat_target: h.threat_target,
+        intelligence_source: h.intelligence_source
+      }
+    })) : [];
+
+    const vectorFeatures = isVisible ? vectors.map((v: any) => ({
+      type: 'Feature' as const,
+      geometry: { type: 'LineString' as const, coordinates: v.coordinates },
+      properties: {
+        id: v.id,
+        name: v.name,
+        status: v.status,
+        type: v.type,
+        description: v.description,
+        frequency: v.frequency,
+        countermeasures: v.countermeasures,
+        incursion_history: v.incursion_history
+      }
+    })) : [];
+
+    const eventFeatures = isVisible ? events.map((ev: any) => ({
+      type: 'Feature' as const,
+      geometry: { type: 'Point' as const, coordinates: ev.coordinates },
+      properties: {
+        id: ev.id,
+        date: ev.date,
+        title: ev.title,
+        type: ev.type,
+        assets: ev.assets,
+        summary: ev.summary,
+        rok_response: ev.rok_response,
+        verification_source: ev.verification_source
+      }
+    })) : [];
+
+    setGeo('russia-incursions-hubs-src', hubFeatures);
+    setGeo('russia-incursions-vectors-src', vectorFeatures);
+    setGeo('russia-incursions-events-src', eventFeatures);
+  }, [mapReady, activeLayers, (data as any).russia_hubs, (data as any).russia_vectors, (data as any).russia_events, setGeo]);
+
   // ══ CHINA YELLOW SEA & SOUTH CHINA SEA ARTIFICIAL STRUCTURES OSINT UPDATER ══
   useEffect(() => {
     if (!mapReady) return;
@@ -4577,6 +5431,162 @@ function getVideoAnalysisKeyframe(p: any): string {
     setGeo('cuas-gcs-emitters', gcsFeatures);
     setGeo('cuas-vector-lines', vectorLines);
   }, [mapReady, data.drones, setGeo]);
+
+  // ══ DMZ INFILTRATION TUNNELS, THREAT CONES, STRATEGIC AXES, CLAIMS & 6-NATION INTEL ══
+  useEffect(() => {
+    if (!mapReady) return;
+    const isVisible = (activeLayers as any).dmz_tunnels !== false;
+    const sites = (data as any).dmz_tunnel_sites || [];
+    const axes = (data as any).dmz_tunnel_axes || [];
+    const claims = (data as any).dmz_tunnel_claims || [];
+    const cones = (data as any).dmz_tunnel_cones || [];
+    const intelNodes = (data as any).dmz_tunnel_intel_nodes || [];
+
+    const siteFeatures = isVisible ? sites.map((s: any) => ({
+      type: 'Feature' as const,
+      geometry: { type: 'Point' as const, coordinates: s.coordinates },
+      properties: {
+        id: s.id,
+        name: s.name,
+        name_en: s.name_en,
+        status: s.status,
+        discovery_date: s.discovery_date || '',
+        depth_m: s.depth_m,
+        length_total_m: s.length_total_m,
+        mdl_penetration_m: s.mdl_penetration_m,
+        dimension: s.dimension,
+        capacity_per_hour: s.capacity_per_hour,
+        geology: s.geology,
+        threat_axis: s.threat_axis,
+        intelligence_source: s.intelligence_source,
+        pir_indicators: JSON.stringify(s.pir_indicators || [])
+      }
+    })) : [];
+
+    const axisFeatures = isVisible ? axes.map((a: any) => ({
+      type: 'Feature' as const,
+      geometry: { type: 'LineString' as const, coordinates: a.coordinates },
+      properties: {
+        id: a.id,
+        name: a.name,
+        status: a.status,
+        target_direction: a.target_direction,
+        strategic_significance: a.strategic_significance,
+        geological_vulnerability: a.geological_vulnerability,
+        detection_methods: JSON.stringify(a.detection_methods || [])
+      }
+    })) : [];
+
+    const claimFeatures = isVisible ? claims.map((c: any) => ({
+      type: 'Feature' as const,
+      geometry: { type: 'Point' as const, coordinates: c.coordinates },
+      properties: {
+        id: c.id,
+        name: c.name,
+        name_en: c.name_en,
+        location: c.location,
+        claim_origin: c.claim_origin,
+        investigation_agency: c.investigation_agency,
+        drilling_stats: c.drilling_stats,
+        socratic_verdict: c.socratic_verdict,
+        scientific_reasoning: c.scientific_reasoning,
+        evidence_gate_tier: c.evidence_gate_tier
+      }
+    })) : [];
+
+    const coneFeatures = isVisible ? cones.map((cn: any) => ({
+      type: 'Feature' as const,
+      geometry: { type: 'Polygon' as const, coordinates: [cn.coordinates] },
+      properties: {
+        id: cn.id,
+        tunnel_id: cn.tunnel_id,
+        name: cn.name,
+        threat_level: cn.threat_level,
+        target: cn.target
+      }
+    })) : [];
+
+    const nodeFeatures = isVisible ? intelNodes.map((n: any) => ({
+      type: 'Feature' as const,
+      geometry: { type: 'Point' as const, coordinates: n.coordinates },
+      properties: {
+        id: n.id,
+        country: n.country,
+        flag: n.flag,
+        agency: n.agency,
+        role: n.role,
+        name: n.name,
+        focus_area: n.focus_area,
+        assessment_summary: n.assessment_summary,
+        sources: n.sources
+      }
+    })) : [];
+
+    setGeo('dmz-tunnels-sites-src', siteFeatures);
+    setGeo('dmz-tunnels-axes-src', axisFeatures);
+    setGeo('dmz-tunnels-claims-src', claimFeatures);
+    setGeo('dmz-tunnels-cones-src', coneFeatures);
+    setGeo('dmz-tunnels-intel-nodes-src', nodeFeatures);
+  }, [mapReady, activeLayers, (data as any).dmz_tunnel_sites, (data as any).dmz_tunnel_axes, (data as any).dmz_tunnel_claims, (data as any).dmz_tunnel_cones, (data as any).dmz_tunnel_intel_nodes, setGeo]);
+
+  // ── 대한민국 국군(ROK Armed Forces) 부대 위치 데이터 공급 ──
+  useEffect(() => {
+    if (!mapReady) return;
+    const isVisible = Boolean(activeLayers.military || (activeLayers as any).rok_military || mapStyle === 'vworld_3d');
+    if (!isVisible) {
+      setGeo('rok-military-src', []);
+      return;
+    }
+    const features = ROK_MILITARY_SITES.map(s => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: s.coords },
+      properties: {
+        id: s.id,
+        name: s.name,
+        unit: s.unit,
+        branch: s.branch,
+        address: s.address,
+        role: s.role,
+        verifiedSource: s.verifiedSource,
+        primaryAssets: s.primaryAssets.join(', '),
+        markerType: 'rok_military'
+      }
+    }));
+    setGeo('rok-military-src', features);
+  }, [mapReady, activeLayers.military, (activeLayers as any).rok_military, mapStyle, setGeo]);
+
+  // 👁️ Gods Eye (신의 눈) Satellites Orbit & NASA FIRMS Thermal Live Telemetry Loader
+  useEffect(() => {
+    if (!mapReady) return;
+    if (!godsEyeReconActive) {
+      setGeo('godseye-satellites-src', []);
+      setGeo('godseye-firms-src', []);
+      return;
+    }
+
+    const loadGodsEyeData = async () => {
+      try {
+        const [satRes, firmsRes] = await Promise.all([
+          fetch('/api/intel/gods-eye/satellites'),
+          fetch('/api/intel/gods-eye/firms'),
+        ]);
+        if (satRes.ok) {
+          const satData = await satRes.json();
+          setGeo('godseye-satellites-src', satData.features || []);
+        }
+        if (firmsRes.ok) {
+          const firmsData = await firmsRes.json();
+          setGeo('godseye-firms-src', firmsData.features || []);
+        }
+      } catch (err) {
+        console.error('[GodsEye] Layer data fetch error:', err);
+      }
+    };
+
+    loadGodsEyeData();
+    const interval = setInterval(loadGodsEyeData, 12000);
+    return () => clearInterval(interval);
+  }, [mapReady, godsEyeReconActive, setGeo]);
 
   // DPRK Strategic Military, Nuclear, Missile, UAV, MLRS, SPG & HARTS Sites
   useEffect(() => {
@@ -5399,14 +6409,30 @@ function getVideoAnalysisKeyframe(p: any): string {
     setVis(['ship-icons','ship-dots','ship-glow','ship-label'], activeLayers.maritime);
     // Demarcation Lines (DMZ, NLL, KADIZ, CADIZ, China-ROK EEZ)
     setVis(['demarcation-lines-layer','demarcation-labels-layer'], (activeLayers as any).military_demarcation !== false);
+    // DMZ Infiltration Tunnels, Cones, Axes, Claims & 6-Nation Intel (DIA / UNC / KIGAM)
+    setVis([
+      'dmz-tunnels-cones-fill', 'dmz-tunnels-cones-line',
+      'dmz-tunnels-axes-glow', 'dmz-tunnels-axes-line', 'dmz-tunnels-axes-labels',
+      'dmz-tunnels-sites-glow', 'dmz-tunnels-sites-dots', 'dmz-tunnels-sites-labels',
+      'dmz-tunnels-claims-pulse', 'dmz-tunnels-claims-dots', 'dmz-tunnels-claims-labels',
+      'dmz-tunnels-intel-nodes-glow', 'dmz-tunnels-intel-nodes-dots', 'dmz-tunnels-intel-nodes-labels'
+    ], (activeLayers as any).dmz_tunnels !== false);
     // DPRK Strategic Sites & Think-Tank Intel Sites
     setVis(['dprk-sites-threat-rings','dprk-sites-glow','dprk-sites-dots','dprk-sites-labels'], (activeLayers as any).dprk_sites !== false);
+    // ROK Armed Forces Strategic Military Sites (3D 위성 클릭 시 또는 군사 레이어 활성 시 표출)
+    setVis(['rok-military-glow','rok-military-dots','rok-military-labels'], Boolean(activeLayers.military || (activeLayers as any).rok_military || mapStyle === 'vworld_3d'));
     // DPRK Military Activities (Harness)
     setVis(['dprk-activity-glow','dprk-activity-dots'], (activeLayers as any).dprk_activity !== false);
     // Seismic Nuclear Watch
     setVis(['seismic-nuclear-glow','seismic-nuclear-dots'], (activeLayers as any).seismic_watch !== false);
     // China Yellow Sea & South China Sea Encroachment & Artificial Islands
     setVis(['china-encroachment-radii','china-encroachment-glow','china-encroachment-dots','china-encroachment-labels'], (activeLayers as any).china_encroachment !== false);
+    // Russian Military Incursions & Far East Strategic Patrols (VKS / Pacific Fleet / Smuggling)
+    setVis([
+      'russia-incursions-vectors-glow', 'russia-incursions-vectors-line', 'russia-incursions-vectors-labels',
+      'russia-incursions-hubs-glow', 'russia-incursions-hubs-dots', 'russia-incursions-hubs-labels',
+      'russia-incursions-events-glow', 'russia-incursions-events-dots', 'russia-incursions-events-labels'
+    ], (activeLayers as any).russia_incursions !== false);
     setVis(['news-glow','news-dots','news-label'], activeLayers.live_news);
     setVis(['sigint-news-glow','sigint-news-dots','sigint-news-label'], activeLayers.news_intel);
     setVis(['conflict-icons'], activeLayers.conflict_zones !== false);
@@ -5424,9 +6450,19 @@ function getVideoAnalysisKeyframe(p: any): string {
     setVis(['radio-stations-circle', 'radio-stations-label'], activeLayers.radio);
     setVis(['alpr-checkpoints-circle', 'alpr-checkpoints-label'], activeLayers.alpr);
 
+    // 👁️ Gods Eye (신의 눈) Satellites Orbit & NASA FIRMS Thermal Live Layers
+    setVis([
+      'godseye-satellites-orbit-lines',
+      'godseye-satellites-footprints',
+      'godseye-satellites-points',
+      'godseye-satellites-labels',
+      'godseye-firms-heatspots',
+      'godseye-firms-labels',
+    ], !!godsEyeReconActive);
+
     // Sweep layers always visible when data is present (controlled by useEffect)
     setVis(['sweep-connections','sweep-pulse-ring','sweep-device-glow','sweep-device-dots','sweep-device-labels'], true);
-  }, [mapReady, activeLayers, setVis]);
+  }, [mapReady, activeLayers, godsEyeReconActive, setVis]);
 
   // IP Sweep visualization
   useEffect(() => {
@@ -5618,7 +6654,7 @@ function getVideoAnalysisKeyframe(p: any): string {
     }
   }, [mapReady, activeLayers.terrain_3d]);
 
-  // Satellite / Dark style switching
+  // Satellite / Dark / VWorld 3D Buildings style switching
   useEffect(() => {
     if (!mapReady || !mapRef.current) return;
     if (mapStyle === prevStyleRef.current) return;
@@ -5626,8 +6662,15 @@ function getVideoAnalysisKeyframe(p: any): string {
     const map = mapRef.current;
 
     try {
-      if (mapStyle !== 'dark') {
-        // Add satellite raster tiles
+      // 기존 불투명 2D 흰색 타일이 있다면 즉시 숨김
+      if (map.getLayer('vworld-base-layer')) {
+        map.setLayoutProperty('vworld-base-layer', 'visibility', 'none');
+      }
+
+      const isSat = mapStyle === 'satellite' || mapStyle?.includes('World_Imagery') || mapStyle === 'vworld_3d';
+
+      // 1. 고해상도 위성 타일 처리 (satellite 및 vworld_3d 공통 배경)
+      if (isSat) {
         if (!map.getSource('satellite-tiles')) {
           map.addSource('satellite-tiles', {
             type: 'raster',
@@ -5635,13 +6678,60 @@ function getVideoAnalysisKeyframe(p: any): string {
             tileSize: 256,
             maxzoom: 18,
           });
-          map.addLayer({ id: 'satellite-layer', type: 'raster', source: 'satellite-tiles', paint: { 'raster-opacity': 0.85 } }, 'day-night-fill');
+          map.addLayer({ id: 'satellite-layer', type: 'raster', source: 'satellite-tiles', paint: { 'raster-opacity': 0.95 } }, 'day-night-fill');
         } else {
           map.setLayoutProperty('satellite-layer', 'visibility', 'visible');
         }
       } else {
         if (map.getLayer('satellite-layer')) {
           map.setLayoutProperty('satellite-layer', 'visibility', 'none');
+        }
+      }
+
+      // 2. 오픈소스 텍스트 라벨 & VWorld 하이브리드 한글 도로/건물/시설 글자 오버레이
+      if (mapStyle === 'vworld_3d') {
+        // A. 오픈소스 OSM 기반 고선명 텍스트 라벨 (도시명, 도로명, 주요 건물명이 영문/한글 글자로 뚜렷하게 표시)
+        if (!map.getSource('osm-voyager-labels')) {
+          map.addSource('osm-voyager-labels', {
+            type: 'raster',
+            tiles: ['https://basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}.png'],
+            tileSize: 256,
+            maxzoom: 20,
+          });
+          map.addLayer({ id: 'osm-voyager-labels-layer', type: 'raster', source: 'osm-voyager-labels', paint: { 'raster-opacity': 0.95 } });
+        } else {
+          map.setLayoutProperty('osm-voyager-labels-layer', 'visibility', 'visible');
+        }
+
+        // B. 대한민국 국토교통부 브이월드(VWorld) 투명 하이브리드 세부 건물/도로명 한글 라벨
+        if (!map.getSource('vworld-hybrid-tiles')) {
+          map.addSource('vworld-hybrid-tiles', {
+            type: 'raster',
+            tiles: ['https://xdworld.vworld.kr/2d/Hybrid/service/{z}/{x}/{y}.png'],
+            tileSize: 256,
+            maxzoom: 19,
+          });
+          map.addLayer({ id: 'vworld-hybrid-layer', type: 'raster', source: 'vworld-hybrid-tiles', paint: { 'raster-opacity': 1.0 } });
+        } else {
+          map.setLayoutProperty('vworld-hybrid-layer', 'visibility', 'visible');
+        }
+
+        // 글자가 가려지지 않도록 3D 건물 익스트루전은 숨김 처리
+        if (map.getLayer('3d-buildings-extrusion')) {
+          map.setLayoutProperty('3d-buildings-extrusion', 'visibility', 'none');
+        }
+
+        // 지도 위 글자가 왜곡 없이 선명하게 읽히도록 피치 25도로 편안한 원근감 유지
+        map.easeTo({ pitch: 25, duration: 800 });
+      } else {
+        if (map.getLayer('osm-voyager-labels-layer')) {
+          map.setLayoutProperty('osm-voyager-labels-layer', 'visibility', 'none');
+        }
+        if (map.getLayer('vworld-hybrid-layer')) {
+          map.setLayoutProperty('vworld-hybrid-layer', 'visibility', 'none');
+        }
+        if (map.getLayer('3d-buildings-extrusion')) {
+          map.setLayoutProperty('3d-buildings-extrusion', 'visibility', 'none');
         }
       }
     } catch (e) {
@@ -5677,18 +6767,45 @@ function getVideoAnalysisKeyframe(p: any): string {
     if (!mapReady || !mapRef.current) return;
     const src = mapRef.current.getSource('draw-polygons') as maplibregl.GeoJSONSource | undefined;
     if (!src) return;
-    const features = drawnPolygons.map(p => {
-      const ring = p.coordinates;
-      const coords = ring.length > 2 && (ring[0][0] !== ring[ring.length-1][0] || ring[0][1] !== ring[ring.length-1][1])
-        ? [...ring, ring[0]] : ring;
-      return {
-        type: 'Feature' as const,
-        id: p.id,
-        geometry: { type: 'Polygon' as const, coordinates: [coords] },
-        properties: { id: p.id, name: p.name, color: p.color || '#00E5FF' }
-      };
-    });
-    src.setData({ type: 'FeatureCollection', features });
+    const features = (Array.isArray(drawnPolygons) ? drawnPolygons : [])
+      .map(p => {
+        if (!p || typeof p !== 'object') return null;
+        try {
+          // Standard DrawnShape with geojson
+          if (p.geojson && p.geojson.geometry) {
+            return {
+              type: 'Feature' as const,
+              id: p.id,
+              geometry: p.geojson.geometry,
+              properties: {
+                ...(p.geojson.properties || {}),
+                id: p.id,
+                name: p.name,
+                color: p.color || '#00E5FF',
+              },
+            };
+          }
+          // Legacy object with coordinates array
+          if (Array.isArray(p.coordinates) && p.coordinates.length > 0) {
+            const ring = p.coordinates;
+            const coords = ring.length > 2 && (ring[0][0] !== ring[ring.length - 1][0] || ring[0][1] !== ring[ring.length - 1][1])
+              ? [...ring, ring[0]]
+              : ring;
+            return {
+              type: 'Feature' as const,
+              id: p.id,
+              geometry: { type: 'Polygon' as const, coordinates: [coords] },
+              properties: { id: p.id, name: p.name, color: p.color || '#00E5FF' },
+            };
+          }
+        } catch {
+          return null;
+        }
+        return null;
+      })
+      .filter((f): f is NonNullable<typeof f> => f !== null);
+
+    src.setData({ type: 'FeatureCollection', features: features as any });
   }, [mapReady, drawnPolygons]);
 
   const drawCbRef = useRef({ onDrawComplete, onDrawProgress, onDrawCancel });

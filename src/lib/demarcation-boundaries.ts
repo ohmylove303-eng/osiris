@@ -6984,8 +6984,8 @@ export function getAllDemarcationGeoJSON(): DemarcationLineFeature[] {
         name: '[CADIZ] 중국 서해 방공식별구역 (PLA ADIZ)',
         domain: 'AIR',
         category: 'CADIZ_AIR',
-        color: '#FFD600',
-        line_dash: [5, 5],
+        color: '#EAB308',
+        line_dash: [6, 4],
         description: '중국 인민해방군 서해/동중국해 방공식별구역 (CADIZ) 경계선',
       }
     },

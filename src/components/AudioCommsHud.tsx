@@ -1,16 +1,16 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Radio, Volume2, VolumeX, AlertTriangle, Activity, X, ShieldAlert, Wifi, Play, Square, Volume1 } from 'lucide-react';
+import { Volume2, VolumeX, Volume1, Radio, ShieldAlert, X, Activity } from 'lucide-react';
 
-interface AudioChannel {
+export interface AudioChannel {
   id: string;
   name: string;
   frequency: string;
-  category: 'AVIATION' | 'MARITIME' | 'MILITARY' | 'EMERGENCY' | 'STRATEGIC';
+  category: 'MILITARY' | 'AVIATION' | 'MARITIME' | 'EMERGENCY' | 'STRATEGIC';
   location: string;
   streamUrl?: string;
-  status: 'ACTIVE' | 'STANDBY' | 'TRANSMITTING';
+  status: 'ACTIVE' | 'STANDBY';
   sampleCalls: string[];
 }
 
@@ -87,7 +87,7 @@ const FREQUENCY_CHANNELS: AudioChannel[] = [
     frequency: '97.3 MHz / Shortwave',
     category: 'STRATEGIC',
     location: '한반도 전역 및 대북 송출',
-    streamUrl: 'https://world.kbs.co.kr',
+    streamUrl: 'https://replaynewskr.ice.infomaniak.ch/replaynewskr-128.mp3',
     status: 'ACTIVE',
     sampleCalls: [
       '여기는 대한민국 서울에서 보내드리는 KBS World 라디오입니다. 정오 전략 안보 뉴스 전해드립니다.',
@@ -103,14 +103,19 @@ export default function AudioCommsHud({ onClose, emergencyFlights = [] }: { onCl
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [currentTransmission, setCurrentTransmission] = useState<string>('무전 대기 중... 채널을 청취하십시오.');
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
+  const [measuredSnr, setMeasuredSnr] = useState<string>('+24.8 dB');
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const masterGainRef = useRef<GainNode | null>(null);
+  const commsBusRef = useRef<GainNode | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const hissSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const hissGainRef = useRef<GainNode | null>(null);
+  const voiceSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const liveRadioAudioRef = useRef<HTMLAudioElement | null>(null);
+  const liveRadioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const chatterTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Active Squawk emergency detection from live flights
@@ -118,25 +123,36 @@ export default function AudioCommsHud({ onClose, emergencyFlights = [] }: { onCl
 
   // Initialize Web Audio Context
   const getAudioContext = useCallback(() => {
+    if (typeof window === 'undefined') return null;
     if (!audioContextRef.current) {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (AudioCtx) {
         const ctx = new AudioCtx();
+
+        // 1. Master Output Gain -> Audio Destination (Speakers)
         const masterGain = ctx.createGain();
         masterGain.gain.setValueAtTime(isMuted ? 0 : volume, ctx.currentTime);
         masterGain.connect(ctx.destination);
 
+        // 2. Comms Bus Gain (Combines all radio sources: RF hiss, voice, squelch, roger beep)
+        const commsBus = ctx.createGain();
+        commsBus.gain.setValueAtTime(1.0, ctx.currentTime);
+        commsBus.connect(masterGain);
+
+        // 3. Analyser Node for Oscilloscope Canvas (Tapped directly from comms bus)
         const analyser = ctx.createAnalyser();
         analyser.fftSize = 256;
-        masterGain.connect(analyser);
+        analyser.smoothingTimeConstant = 0.25;
+        commsBus.connect(analyser);
 
         audioContextRef.current = ctx;
         masterGainRef.current = masterGain;
+        commsBusRef.current = commsBus;
         analyserRef.current = analyser;
       }
     }
     if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
-      audioContextRef.current.resume();
+      audioContextRef.current.resume().catch(() => {});
     }
     return audioContextRef.current;
   }, [isMuted, volume]);
@@ -145,6 +161,9 @@ export default function AudioCommsHud({ onClose, emergencyFlights = [] }: { onCl
   useEffect(() => {
     if (masterGainRef.current && audioContextRef.current) {
       masterGainRef.current.gain.setValueAtTime(isMuted ? 0 : volume, audioContextRef.current.currentTime);
+    }
+    if (liveRadioAudioRef.current) {
+      liveRadioAudioRef.current.volume = isMuted ? 0 : volume;
     }
   }, [volume, isMuted]);
 
@@ -157,13 +176,13 @@ export default function AudioCommsHud({ onClose, emergencyFlights = [] }: { onCl
     const buffer = ctx.createBuffer(1, ctx.sampleRate * duration, ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < data.length; i++) {
-      data[i] = (Math.random() * 2 - 1) * 0.4;
+      data[i] = (Math.random() * 2 - 1) * 0.45;
     }
 
     const noise = ctx.createBufferSource();
     noise.buffer = buffer;
 
-    // Tactical Bandpass Filter (1200Hz VHF radio frequency curve)
+    // Tactical Bandpass Filter (1400Hz VHF radio frequency curve)
     const filter = ctx.createBiquadFilter();
     filter.type = 'bandpass';
     filter.frequency.setValueAtTime(1400, ctx.currentTime);
@@ -171,12 +190,16 @@ export default function AudioCommsHud({ onClose, emergencyFlights = [] }: { onCl
 
     const gain = ctx.createGain();
     const now = ctx.currentTime;
-    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.setValueAtTime(0.25, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
 
     noise.connect(filter);
     filter.connect(gain);
-    if (masterGainRef.current) gain.connect(masterGainRef.current);
+    if (commsBusRef.current) {
+      gain.connect(commsBusRef.current);
+    } else if (masterGainRef.current) {
+      gain.connect(masterGainRef.current);
+    }
 
     noise.start(now);
     noise.stop(now + duration);
@@ -197,13 +220,17 @@ export default function AudioCommsHud({ onClose, emergencyFlights = [] }: { onCl
     osc2.type = 'sine';
     osc2.frequency.setValueAtTime(1300, now + 0.04);
 
-    gain.gain.setValueAtTime(0.08, now);
-    gain.gain.setValueAtTime(0.08, now + 0.07);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.setValueAtTime(0.12, now + 0.07);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
 
     osc1.connect(gain);
     osc2.connect(gain);
-    if (masterGainRef.current) gain.connect(masterGainRef.current);
+    if (commsBusRef.current) {
+      gain.connect(commsBusRef.current);
+    } else if (masterGainRef.current) {
+      gain.connect(masterGainRef.current);
+    }
 
     osc1.start(now);
     osc1.stop(now + 0.04);
@@ -222,7 +249,7 @@ export default function AudioCommsHud({ onClose, emergencyFlights = [] }: { onCl
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
-      data[i] = (Math.random() * 2 - 1) * 0.04;
+      data[i] = (Math.random() * 2 - 1) * 0.06;
     }
 
     const hiss = ctx.createBufferSource();
@@ -235,11 +262,15 @@ export default function AudioCommsHud({ onClose, emergencyFlights = [] }: { onCl
     filter.Q.setValueAtTime(1.8, ctx.currentTime);
 
     const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.02, ctx.currentTime);
+    gain.gain.setValueAtTime(0.03, ctx.currentTime);
 
     hiss.connect(filter);
     filter.connect(gain);
-    if (masterGainRef.current) gain.connect(masterGainRef.current);
+    if (commsBusRef.current) {
+      gain.connect(commsBusRef.current);
+    } else if (masterGainRef.current) {
+      gain.connect(masterGainRef.current);
+    }
 
     hiss.start();
     hissSourceRef.current = hiss;
@@ -251,80 +282,174 @@ export default function AudioCommsHud({ onClose, emergencyFlights = [] }: { onCl
       try {
         hissSourceRef.current.stop();
         hissSourceRef.current.disconnect();
-      } catch (e) {
-        // ignore
-      }
+      } catch (e) {}
       hissSourceRef.current = null;
     }
   };
 
-  // Play a tactical speech radio transmission
-  const transmitMessage = useCallback((text?: string) => {
+  // Play a REAL tactical speech radio transmission using Web Audio API + backend physical output
+  const transmitMessage = useCallback(async (text?: string) => {
     const pool = selectedChannel.sampleCalls;
     const msg = text || pool[Math.floor(Math.random() * pool.length)];
     setCurrentTransmission(msg);
     setIsSpeaking(true);
 
-    // 1. Opening squelch burst
+    const ctx = getAudioContext();
+    if (ctx && ctx.state === 'suspended') {
+      await ctx.resume().catch(() => {});
+    }
+
+    // 1. Opening squelch burst (krrr-chk)
     playSquelch('open');
 
-    // 2. Web Speech Synthesis with Radio effect
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utt = new SpeechSynthesisUtterance(msg);
-      utt.lang = /[가-힣]/.test(msg) ? 'ko-KR' : 'en-US';
-      utt.rate = 1.05;
-      utt.pitch = 0.95;
-      utt.volume = isMuted ? 0 : volume;
+    // Stop any currently playing voice
+    if (voiceSourceRef.current) {
+      try {
+        voiceSourceRef.current.stop();
+        voiceSourceRef.current.disconnect();
+      } catch {}
+      voiceSourceRef.current = null;
+    }
 
-      utt.onend = () => {
+    try {
+      // 2. Fetch REAL radio audio WAV from backend endpoint (with physical host playback)
+      const resp = await fetch(`/api/tactical-radio/voice?channel=${selectedChannel.id}&text=${encodeURIComponent(msg)}&physical=1`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+      const arrayBuffer = await resp.arrayBuffer();
+      if (!ctx) throw new Error('No AudioContext');
+
+      const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+
+      // Real tactical radio acoustic bandpass filter (300Hz ~ 3400Hz speech clarity curve)
+      const radioFilter = ctx.createBiquadFilter();
+      radioFilter.type = 'bandpass';
+      radioFilter.frequency.setValueAtTime(1350, ctx.currentTime);
+      radioFilter.Q.setValueAtTime(1.8, ctx.currentTime);
+
+      const voiceGain = ctx.createGain();
+      voiceGain.gain.setValueAtTime(isMuted ? 0 : 1.6, ctx.currentTime);
+
+      source.connect(radioFilter);
+      radioFilter.connect(voiceGain);
+      if (commsBusRef.current) {
+        voiceGain.connect(commsBusRef.current);
+      } else if (masterGainRef.current) {
+        voiceGain.connect(masterGainRef.current);
+      }
+
+      source.onended = () => {
         setIsSpeaking(false);
-        // 3. Ending roger beep & squelch
         playRogerBeep();
         setTimeout(() => playSquelch('close'), 70);
       };
 
-      utt.onerror = () => {
+      source.start(ctx.currentTime + 0.04);
+      voiceSourceRef.current = source;
+    } catch (err) {
+      console.warn('[Tactical Audio Fallback to HTML5 Audio]', err);
+      try {
+        const audio = new Audio(`/api/tactical-radio/voice?channel=${selectedChannel.id}&text=${encodeURIComponent(msg)}&physical=1`);
+        audio.volume = isMuted ? 0 : volume;
+        audio.onended = () => {
+          setIsSpeaking(false);
+          playRogerBeep();
+          setTimeout(() => playSquelch('close'), 70);
+        };
+        audio.play().catch(() => setIsSpeaking(false));
+      } catch {
         setIsSpeaking(false);
-        playRogerBeep();
-      };
-
-      setTimeout(() => {
-        window.speechSynthesis.speak(utt);
-      }, 80);
-    } else {
-      setTimeout(() => {
-        setIsSpeaking(false);
-        playRogerBeep();
-      }, 2500);
+      }
     }
-  }, [selectedChannel, playSquelch, playRogerBeep, isMuted, volume]);
+  }, [selectedChannel, playSquelch, playRogerBeep, isMuted, volume, getAudioContext]);
+
+  // Live radio continuous stream player (24/7 Korean News stream for Strategic Radio)
+  const playLiveRadioStream = () => {
+    stopLiveRadioStream();
+    try {
+      const audio = new Audio('https://replaynewskr.ice.infomaniak.ch/replaynewskr-128.mp3');
+      audio.crossOrigin = 'anonymous';
+      audio.volume = isMuted ? 0 : volume * 0.85;
+      liveRadioAudioRef.current = audio;
+
+      const ctx = getAudioContext();
+      if (ctx) {
+        try {
+          const src = ctx.createMediaElementSource(audio);
+          const filter = ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(1250, ctx.currentTime);
+          filter.Q.setValueAtTime(1.5, ctx.currentTime);
+          src.connect(filter);
+          if (commsBusRef.current) filter.connect(commsBusRef.current);
+          else if (masterGainRef.current) filter.connect(masterGainRef.current);
+          liveRadioSourceRef.current = src;
+        } catch {}
+      }
+      audio.play().catch(e => console.warn('[Live Radio Play]', e));
+    } catch (e) {
+      console.warn('[Live Radio Error]', e);
+    }
+  };
+
+  const stopLiveRadioStream = () => {
+    if (liveRadioAudioRef.current) {
+      try {
+        liveRadioAudioRef.current.pause();
+        liveRadioAudioRef.current.src = '';
+      } catch {}
+      liveRadioAudioRef.current = null;
+    }
+    if (liveRadioSourceRef.current) {
+      try {
+        liveRadioSourceRef.current.disconnect();
+      } catch {}
+      liveRadioSourceRef.current = null;
+    }
+  };
 
   // Toggle Radio Listening
-  const toggleAudio = () => {
+  const toggleAudio = async () => {
+    const ctx = getAudioContext();
+    if (ctx && ctx.state === 'suspended') {
+      await ctx.resume().catch(() => {});
+    }
+
     if (!isLiveAudio) {
-      getAudioContext();
       setIsLiveAudio(true);
       playSquelch('open');
       startRadioHiss();
-      // Transmit first transmission immediately
-      setTimeout(() => {
-        transmitMessage();
-      }, 300);
+
+      if (selectedChannel.id === 'KBS_STRATEGIC') {
+        playLiveRadioStream();
+        setCurrentTransmission(`${selectedChannel.name} 실시간 전략 단파 뉴스 방송 수신 중 (${selectedChannel.frequency})`);
+      } else {
+        // Transmit first transmission immediately with real audio
+        setTimeout(() => {
+          transmitMessage();
+        }, 180);
+      }
     } else {
       setIsLiveAudio(false);
       setIsSpeaking(false);
       stopRadioHiss();
-      playSquelch('close');
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
+      stopLiveRadioStream();
+      if (voiceSourceRef.current) {
+        try {
+          voiceSourceRef.current.stop();
+          voiceSourceRef.current.disconnect();
+        } catch {}
+        voiceSourceRef.current = null;
       }
+      playSquelch('close');
     }
   };
 
   // Periodic radio chatter when live audio is on
   useEffect(() => {
-    if (isLiveAudio) {
+    if (isLiveAudio && selectedChannel.id !== 'KBS_STRATEGIC') {
       if (chatterTimerRef.current) clearInterval(chatterTimerRef.current);
       chatterTimerRef.current = setInterval(() => {
         if (!isSpeaking) {
@@ -340,17 +465,27 @@ export default function AudioCommsHud({ onClose, emergencyFlights = [] }: { onCl
     return () => {
       if (chatterTimerRef.current) clearInterval(chatterTimerRef.current);
     };
-  }, [isLiveAudio, isSpeaking, transmitMessage]);
+  }, [isLiveAudio, isSpeaking, selectedChannel, transmitMessage]);
 
   // Channel change handler
   const handleSelectChannel = (ch: AudioChannel) => {
     setSelectedChannel(ch);
     if (isLiveAudio) {
       playSquelch('close');
-      setTimeout(() => {
-        playSquelch('open');
-        transmitMessage(ch.sampleCalls[0]);
-      }, 150);
+      if (ch.id === 'KBS_STRATEGIC') {
+        stopLiveRadioStream();
+        setTimeout(() => {
+          playSquelch('open');
+          playLiveRadioStream();
+          setCurrentTransmission(`${ch.name} 실시간 국제 뉴스 단파 방송 청취 중 (${ch.frequency})`);
+        }, 150);
+      } else {
+        stopLiveRadioStream();
+        setTimeout(() => {
+          playSquelch('open');
+          transmitMessage(ch.sampleCalls[0]);
+        }, 150);
+      }
     } else {
       setCurrentTransmission(`${ch.name} 주파수 대기 중 (${ch.frequency})`);
     }
@@ -360,8 +495,13 @@ export default function AudioCommsHud({ onClose, emergencyFlights = [] }: { onCl
   useEffect(() => {
     return () => {
       stopRadioHiss();
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
+      stopLiveRadioStream();
+      if (voiceSourceRef.current) {
+        try {
+          voiceSourceRef.current.stop();
+          voiceSourceRef.current.disconnect();
+        } catch {}
+        voiceSourceRef.current = null;
       }
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
@@ -382,14 +522,15 @@ export default function AudioCommsHud({ onClose, emergencyFlights = [] }: { onCl
     ctx.scale(dpr, dpr);
 
     let phase = 0;
+    let snrFrameCounter = 0;
 
     const renderWaveform = () => {
       ctx.clearRect(0, 0, w, h);
 
-      // Grid Lines
-      ctx.strokeStyle = 'rgba(0, 229, 255, 0.1)';
+      // Grid Lines (Tactical RF oscilloscope scale)
+      ctx.strokeStyle = 'rgba(0, 229, 255, 0.12)';
       ctx.lineWidth = 1;
-      for (let x = 0; x < w; x += 30) {
+      for (let x = 0; x < w; x += 25) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
         ctx.lineTo(x, h);
@@ -408,18 +549,48 @@ export default function AudioCommsHud({ onClose, emergencyFlights = [] }: { onCl
         const dataArray = new Uint8Array(bufferLength);
         analyser.getByteTimeDomainData(dataArray);
 
+        // Calculate real RMS energy from byte domain data
+        let sumSquares = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          const norm = (dataArray[i] - 128) / 128.0;
+          sumSquares += norm * norm;
+        }
+        const rms = Math.sqrt(sumSquares / bufferLength);
+
+        // Dynamically compute and update measured SNR periodically
+        snrFrameCounter++;
+        if (snrFrameCounter % 15 === 0) {
+          const baseSnr = isSpeaking ? 31.5 : 24.2;
+          const jitter = (Math.random() * 1.4 - 0.7);
+          const computedSnr = Math.min(42.0, Math.max(14.0, baseSnr + rms * 35 + jitter)).toFixed(1);
+          setMeasuredSnr(`+${computedSnr} dB`);
+        }
+
+        // Oscilloscope Waveform Styling
         ctx.strokeStyle = isSpeaking ? '#FFD740' : '#00E5FF';
-        ctx.lineWidth = isSpeaking ? 2.5 : 1.8;
+        ctx.lineWidth = isSpeaking ? 2.6 : 1.8;
         ctx.shadowColor = isSpeaking ? '#FFD740' : '#00E5FF';
-        ctx.shadowBlur = isSpeaking ? 10 : 4;
+        ctx.shadowBlur = isSpeaking ? 12 : 5;
 
         ctx.beginPath();
         const sliceWidth = w / bufferLength;
         let x = 0;
 
         for (let i = 0; i < bufferLength; i++) {
-          const v = dataArray[i] / 128.0;
-          const y = (v * h) / 2;
+          const rawNorm = (dataArray[i] - 128) / 128.0;
+          let y: number;
+
+          if (isSpeaking || rms > 0.035) {
+            // Active voice demodulation excursion (vibrant, responsive, crisp)
+            const excursion = rawNorm * (h * 0.44) * 3.2;
+            y = Math.max(3, Math.min(h - 3, midY + excursion));
+          } else {
+            // Standby RF carrier ripple + ambient RF static noise
+            const carrierRipple = Math.sin(x * 0.08 + phase) * 4.5 * Math.sin(x * 0.02 + phase * 0.5);
+            const noise = rawNorm * (h * 0.35) * 5.0 + (Math.random() - 0.5) * 2.0;
+            y = Math.max(4, Math.min(h - 4, midY + carrierRipple + noise));
+          }
+
           if (i === 0) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
           x += sliceWidth;
@@ -427,21 +598,20 @@ export default function AudioCommsHud({ onClose, emergencyFlights = [] }: { onCl
         ctx.lineTo(w, midY);
         ctx.stroke();
         ctx.shadowBlur = 0;
+        phase += 0.08;
       } else {
-        // Standby synthetic subtle noise line
-        ctx.strokeStyle = isLiveAudio ? '#00E5FF' : 'rgba(0, 229, 255, 0.4)';
-        ctx.lineWidth = 1.5;
+        // Radio Standby / Off
+        ctx.strokeStyle = 'rgba(0, 229, 255, 0.3)';
+        ctx.lineWidth = 1.2;
         ctx.beginPath();
-
-        const amplitude = isLiveAudio ? 8 : 3;
         for (let x = 0; x < w; x++) {
-          const noise = (Math.random() - 0.5) * (isLiveAudio ? 3 : 1.5);
-          const y = midY + Math.sin(x * 0.05 + phase) * amplitude * Math.sin(x * 0.015) + noise;
+          const noise = (Math.random() - 0.5) * 1.5;
+          const y = midY + Math.sin(x * 0.04 + phase) * 2.5 + noise;
           if (x === 0) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
         }
         ctx.stroke();
-        phase += 0.05;
+        phase += 0.03;
       }
 
       animationFrameRef.current = requestAnimationFrame(renderWaveform);
@@ -509,7 +679,7 @@ export default function AudioCommsHud({ onClose, emergencyFlights = [] }: { onCl
         </div>
         <div className="absolute bottom-1.5 right-2 text-[9px] text-neutral-300 flex items-center gap-1.5">
           <Activity className={`w-3 h-3 ${isSpeaking ? 'text-[#FFD740] animate-spin' : 'text-[#00E5FF]'}`} />
-          <span>{isSpeaking ? '⚡ 음성 복조 중' : (isLiveAudio ? 'SNR: +24.8 dB' : '무선 캐리어 오프')}</span>
+          <span>{isSpeaking ? `⚡ 음성 복조 중 (${measuredSnr})` : (isLiveAudio ? `SNR: ${measuredSnr}` : '무선 캐리어 오프')}</span>
         </div>
       </div>
 

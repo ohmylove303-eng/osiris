@@ -972,6 +972,7 @@ function CctvPreviews({ mapRef, active, selectedCorridorId, onSelectCorridor, on
   const nodes = useRef(new Map<string, HTMLDivElement | null>());
 
   const selectedCorridor = selectedCorridorId ? ROAD_CORRIDORS.find(c => c.id === selectedCorridorId) : null;
+  const [isBarExpanded, setIsBarExpanded] = useState(false);
 
   // ── 1. Recompute cameras to display ──
   const recompute = useCallback(() => {
@@ -1152,90 +1153,99 @@ function CctvPreviews({ mapRef, active, selectedCorridorId, onSelectCorridor, on
   return (
     <>
       {/* ── Top Floating Road Corridor Quick Bar & Scale Selector ── */}
-      <div className="pointer-events-auto absolute top-16 md:top-20 left-1/2 -translate-x-1/2 z-[45] flex flex-col items-center gap-1.5 max-w-[96vw]">
-        <div className="flex items-center gap-2 bg-black/90 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-cyan-500/40 shadow-[0_4px_24px_rgba(0,0,0,0.85),0_0_14px_rgba(0,229,255,0.25)]">
+      <div className="pointer-events-auto absolute top-20 md:top-[84px] left-1/2 -translate-x-1/2 z-[45] flex flex-col items-center gap-1.5 max-w-[96vw]">
+        <button
+          type="button"
+          onClick={() => setIsBarExpanded(prev => !prev)}
+          className="flex items-center gap-2 bg-black/90 hover:bg-black/95 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-cyan-500/40 shadow-[0_4px_24px_rgba(0,0,0,0.85),0_0_14px_rgba(0,229,255,0.25)] transition-all cursor-pointer group"
+        >
           <Radio className="w-3.5 h-3.5 text-cyan-400 animate-pulse shrink-0" />
           <span className="text-[11px] md:text-xs font-mono font-bold text-cyan-300 tracking-wider">
-            주요 도로 CCTV 라이브 회랑 (최대 6채널 동시 송출)
+            주요 도로 CCTV 라이브 회랑
+          </span>
+          <span className="text-[10px] text-cyan-400 font-mono transition-transform duration-200">
+            {isBarExpanded || selectedCorridorId ? '▲ 접기' : '▼ 펼치기'}
           </span>
           {selectedCorridor && (
             <span
-              className="text-[9px] font-mono font-black px-2 py-[1px] rounded text-black shadow-sm"
+              className="text-[9px] font-mono font-black px-2 py-[1px] rounded text-black shadow-sm ml-1"
               style={{ backgroundColor: selectedCorridor.color }}
             >
               [{selectedCorridor.routeNumber}호선] {selectedCorridor.shortLabel}
             </span>
           )}
-        </div>
+        </button>
 
-        {/* Corridor Chips & Tile Scale Controls */}
-        <div className="flex items-center flex-wrap justify-center gap-1.5 max-w-full">
-          {/* Corridor Selection Buttons (진짜 도로명 표기) */}
-          <div className="flex items-center gap-1 bg-black/85 backdrop-blur-md p-1 rounded-xl border border-white/10 shadow-xl overflow-x-auto max-w-full styled-scrollbar">
-            {ROAD_CORRIDORS.map(corridor => {
-              const isSelected = selectedCorridorId === corridor.id;
-              return (
-                <button
-                  key={corridor.id}
-                  onClick={() => onSelectCorridor?.(isSelected ? null : corridor.id)}
-                  className={`px-2.5 py-1 rounded-lg text-[10px] md:text-xs font-mono font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ${
-                    isSelected
-                      ? 'text-black shadow-lg'
-                      : 'bg-black/60 text-white/80 hover:text-white hover:bg-white/10 border border-white/5'
-                  }`}
-                  style={isSelected ? { backgroundColor: corridor.color, color: '#000', boxShadow: `0 0 16px ${corridor.color}` } : {}}
-                  title={`${corridor.label} (실시간 CCTV 6대)`}
-                >
-                  <span
-                    className="px-1 py-[0.5px] rounded text-[8px] font-black"
-                    style={{
-                      backgroundColor: isSelected ? 'rgba(0,0,0,0.35)' : `${corridor.color}33`,
-                      color: isSelected ? '#000' : corridor.color,
-                    }}
+        {/* Corridor Chips & Tile Scale Controls (펼침 상태 또는 회랑 선택 시에만 노출) */}
+        {(isBarExpanded || selectedCorridorId) && (
+          <div className="flex items-center flex-wrap justify-center gap-1.5 max-w-full animate-in fade-in duration-200">
+            {/* Corridor Selection Buttons (진짜 도로명 표기) */}
+            <div className="flex items-center gap-1 bg-black/85 backdrop-blur-md p-1 rounded-xl border border-white/10 shadow-xl overflow-x-auto max-w-full styled-scrollbar">
+              {ROAD_CORRIDORS.map(corridor => {
+                const isSelected = selectedCorridorId === corridor.id;
+                return (
+                  <button
+                    key={corridor.id}
+                    onClick={() => onSelectCorridor?.(isSelected ? null : corridor.id)}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] md:text-xs font-mono font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                      isSelected
+                        ? 'text-black shadow-lg'
+                        : 'bg-black/60 text-white/80 hover:text-white hover:bg-white/10 border border-white/5'
+                    }`}
+                    style={isSelected ? { backgroundColor: corridor.color, color: '#000', boxShadow: `0 0 16px ${corridor.color}` } : {}}
+                    title={`${corridor.label} (실시간 CCTV 6대)`}
                   >
-                    {corridor.routeNumber}
-                  </span>
-                  <span>{corridor.shortLabel}</span>
+                    <span
+                      className="px-1 py-[0.5px] rounded text-[8px] font-black"
+                      style={{
+                        backgroundColor: isSelected ? 'rgba(0,0,0,0.35)' : `${corridor.color}33`,
+                        color: isSelected ? '#000' : corridor.color,
+                      }}
+                    >
+                      {corridor.routeNumber}
+                    </span>
+                    <span>{corridor.shortLabel}</span>
+                  </button>
+                );
+              })}
+              {selectedCorridorId && (
+                <button
+                  onClick={() => onSelectCorridor?.(null)}
+                  className="px-2 py-1 rounded-lg text-[10px] font-mono font-bold text-red-400 hover:text-red-300 hover:bg-red-950/50 border border-red-500/30 transition-all shrink-0 cursor-pointer ml-1"
+                  title="회랑 모드 해제"
+                >
+                  ✕ 해제
                 </button>
-              );
-            })}
-            {selectedCorridorId && (
-              <button
-                onClick={() => onSelectCorridor?.(null)}
-                className="px-2 py-1 rounded-lg text-[10px] font-mono font-bold text-red-400 hover:text-red-300 hover:bg-red-950/50 border border-red-500/30 transition-all shrink-0 cursor-pointer ml-1"
-                title="회랑 모드 해제"
-              >
-                ✕ 해제
-              </button>
-            )}
-          </div>
+              )}
+            </div>
 
-          {/* CCTV Preview Tile Scale Selector (사용자가 필요한 만큼 확대) */}
-          <div className="flex items-center gap-1 bg-black/85 backdrop-blur-md px-2.5 py-1 rounded-xl border border-cyan-500/30 shadow-lg">
-            <span className="text-[9px] font-mono font-bold text-cyan-300/90 mr-0.5 flex items-center gap-1">
-              <ZoomIn className="w-2.5 h-2.5 text-cyan-400" />
-              CCTV 확대:
-            </span>
-            {[
-              { label: '1.0x', scale: 1.0 },
-              { label: '1.4x', scale: 1.4 },
-              { label: '1.8x', scale: 1.8 },
-              { label: '2.2x', scale: 2.2 },
-            ].map(opt => (
-              <button
-                key={opt.scale}
-                onClick={() => handleSetScale(opt.scale)}
-                className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold transition-all cursor-pointer ${
-                  tileScale === opt.scale
-                    ? 'bg-cyan-500 text-black shadow-sm font-black'
-                    : 'bg-white/5 text-white/70 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+            {/* CCTV Preview Tile Scale Selector (사용자가 필요한 만큼 확대) */}
+            <div className="flex items-center gap-1 bg-black/85 backdrop-blur-md px-2.5 py-1 rounded-xl border border-cyan-500/30 shadow-lg">
+              <span className="text-[9px] font-mono font-bold text-cyan-300/90 mr-0.5 flex items-center gap-1">
+                <ZoomIn className="w-2.5 h-2.5 text-cyan-400" />
+                CCTV 확대:
+              </span>
+              {[
+                { label: '1.0x', scale: 1.0 },
+                { label: '1.4x', scale: 1.4 },
+                { label: '1.8x', scale: 1.8 },
+                { label: '2.2x', scale: 2.2 },
+              ].map(opt => (
+                <button
+                  key={opt.scale}
+                  onClick={() => handleSetScale(opt.scale)}
+                  className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold transition-all cursor-pointer ${
+                    tileScale === opt.scale
+                      ? 'bg-cyan-500 text-black shadow-sm font-black'
+                      : 'bg-white/5 text-white/70 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* ── ON-MAP LIVE CCTV PREVIEW TILES (지도 상에 직접 뜨는 실시간 영상 타일) ── */}

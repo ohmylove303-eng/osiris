@@ -295,6 +295,109 @@ If you want to help keep the servers alive, and support us to get access to bett
 *Supporters receive the `🔴 RedTeam Console` role and access to encrypted developer comms.*
 
 
+---
+
+## 🇰🇷 한국어 사용 가이드 (Korean Guide)
+
+> **OSIRIS / 번개의 눈동자** — 실시간 글로벌 인텔리전스 대시보드 로컬 운용 매뉴얼
+
+### 시스템 요구사항
+
+| 항목 | 최소 사양 |
+|------|---------|
+| OS | macOS 13+ / Ubuntu 22.04+ |
+| Node.js | v22+ |
+| Python | 3.9+ (Vision Engine용) |
+| RAM | 8GB+ |
+| GPU | 선택 (SAM 2.1 / ALPR 가속) |
+| 외장 드라이브 | Samsung T7 (스킬 시스템 설치용) |
+
+### 로컬 설치 및 실행
+
+```bash
+# 1. 저장소 클론
+git clone https://github.com/simplifaisoul/osiris.git
+cd osiris
+
+# 2. 의존성 설치
+npm install
+
+# 3. 환경 변수 설정 (.env.local 생성)
+cp .env.example .env.local
+# OPENAI_API_KEY, N2YO_API_KEY 등 설정
+
+# 4. 개발 서버 실행
+npm run dev
+# → http://localhost:3000
+
+# 5. Vision Engine 실행 (선택)
+cd engine && python -m uvicorn engine.vision_server:app --host 127.0.0.1 --port 8100
+
+# 6. 외부 공개 (Cloudflare Tunnel, 선택)
+cloudflared tunnel --url http://127.0.0.1:3000
+```
+
+### 주요 인텔리전스 레이어 설명
+
+| 레이어 | 기능 | 단축키/방법 |
+|--------|------|------------|
+| 🛩️ **항공 추적** | OpenSky 실시간 항공기 6,000+ | 레이어 패널 → Flights ON |
+| 📡 **CCTV** | 전세계 17,000+ 공개 카메라 | 레이어 → CCTV ON, 클릭하면 영상 팝업 |
+| 🔴 **DPRK 인텔** | 북한 군사 시설 22개 + 활동 23건 | 레이어 → DPRK Intel ON |
+| 🛰️ **위성 추적** | TLE 기반 실시간 위성 11,000+ | 레이어 → Satellites ON (초기 로딩 30초) |
+| 🌊 **해상** | 39개 항구, 10개 초크포인트 | 레이어 → Maritime ON |
+| ⚡ **GPS 재밍** | 재밍 탐지 구역 실시간 | 레이어 → GPS Jamming ON |
+| 🌍 **분쟁지역** | 15개 분쟁지 + 뉴스 헤드라인 | 레이어 → Conflicts ON |
+| 🔥 **화재** | NASA FIRMS 활성 화재 | 레이어 → Fires ON |
+| 💻 **사이버 위협** | NVD CVE + 취약점 스캔 | 레이어 → Cyber ON |
+| 🌐 **암호화폐** | BTC/ETH 지갑 추적 + OFAC SDN | 레이어 → Crypto ON |
+
+### DPRK 인텔 기능 사용법
+
+```
+1. 레이어 패널에서 'DPRK Intel' ON
+2. 지도에서 빨간 마커 클릭
+3. 팝업: 3단계 전술 분석 (위성판독 → 분석 → 권고)
+4. 이미지 클릭: 고해상도 전술 인포그래픽 확대
+5. MGRS 좌표 자동 표시
+```
+
+### Vision Engine (AI 분석) 사용법
+
+```
+기능: YOLO26n 객체 탐지 + ByteTrack 추적 + ALPR 번호판 인식
+접근: http://localhost:8100/health  → 상태 확인
+CCTV 연동: 카메라 → Vision 탭 → 실시간 분석 시작
+```
+
+### 외장형 스킬 시스템 (Samsung T7 필요)
+
+```bash
+# 시스템 상태 진단
+/Volumes/SAMSUNG/.agents/bin/jh-system doctor
+
+# 프로젝트 자동 분석 + 스킬 라우팅
+/Volumes/SAMSUNG/.agents/bin/jh-system route osiris "레이어 추가"
+
+# 소크라테스 5관문 물리 검증
+/Volumes/SAMSUNG/.agents/bin/jh-system verify osiris
+
+# 재귀 자율 루프 실행
+/Volumes/SAMSUNG/.agents/bin/jh-system loop osiris "북한 인텔 최신화"
+```
+
+### 검증된 작동 상태 (2026-10-26 기준)
+
+```
+✅ 서버: Next.js 16 + Vision Engine 8100 + Cloudflare Tunnel
+✅ API 15/19 정상 (위성·기상은 느린 외부 API, 정상 응답)
+✅ TypeScript 에러 0건
+✅ 이미지 파일 130/130 실존
+✅ 스킬 심볼릭 링크 12/12 정상
+```
+
+---
+
 **Built by [simplifaisoul](https://github.com/simplifaisoul)**
 
 [Join our Discord to be a part of this movement!](https://discord.gg/umBykEpb98)

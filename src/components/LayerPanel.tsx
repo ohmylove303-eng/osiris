@@ -142,9 +142,11 @@ const LAYER_GROUPS: LayerGroupDef[] = [
     icon: AlertTriangle,
     layers: [
       { key: 'gps_jamming', label: '🚨 GPS 전파 교란 실시간 경보 (GPS Jamming / Spoofing)', description: '북한 옹진반도·개풍군 발원지 및 서해·수도권 피격권', dataKey: 'gps_jamming' },
+      { key: 'dmz_tunnels', label: '🕳️ 北 DMZ 침투 회랑·6대 축선·구글 의혹지 & 6개국 지하전 관제', description: '제1~4땅굴 침투 콘, 6대 축선, 양주·남양주·화성 시추 반증지 및 미·일·이스라엘·한 6개국 감시망', dataKey: 'dmz_tunnels' },
       { key: 'dprk_sites', label: '북한 전력 / 핵·미사일·무인기·포병 갱도 진지 (HARTS)', description: '북한 핵심 군사기지 및 갱도 포병 진지 8,000곳', dataKey: 'dprk_sites' },
       { key: 'dprk_activity', label: '🔴 글로벌 14개 국방 씽크탱크 수집 브릿지 (DPRK Intel)', description: 'CSIS, 38North 등 국방 싱크탱크 위성 정밀 판독', dataKey: 'dprk_activities' },
       { key: 'china_encroachment', label: '🇨🇳 중국 서해·남중국해 인공구조물 / 인공섬', description: '선란 1·2호 해상 플랫폼 및 인공 기지 감시', dataKey: '' },
+      { key: 'russia_incursions', label: '🐻 러시아군 KADIZ/동해 침입 및 북·러 축선 (Russian Incursions)', description: 'KADIZ 무단진입 축선, 태평양함대 기동로 및 나진-보스토치니 무기 회랑 (합참/방위성 공인)', dataKey: 'russia_incursions' },
       { key: 'seismic_watch', label: '🟣 지진/충격파 핵실험 감시 (Seismic Nuclear Watch)', description: '풍계리 등 핵실험 및 인공 충격파 자동 판독', dataKey: 'seismic_events' },
       { key: 'infrastructure', label: '원자력 발전소 및 주요 에너지 인프라', description: '국내외 원전, 변전소, 주요 국가 중요 시설', dataKey: 'infrastructure' },
       { key: 'global_incidents', label: '글로벌 분쟁 / 사건 (GDELT Live Incidents)', description: '전 세계 100개국 실시간 물리적 충돌 및 시위', dataKey: 'gdelt' },
@@ -729,6 +731,19 @@ function LayerPanel({
                             <span className={`text-[11px] font-mono uppercase tracking-wider flex-1 transition-colors duration-200 ${isLayerActive ? 'text-white/80' : 'text-white/40'}`}>
                               {layer.label}
                               {(liveStatus?.[layer.key] ?? layer.description) && <span className={`block mt-0.5 text-[9px] normal-case tracking-normal ${liveStatus?.[layer.key] ? 'text-white/55' : 'text-white/35'}`}>{liveStatus?.[layer.key] ?? layer.description}</span>}
+                              {layer.key === 'dmz_tunnels' && (
+                                <span
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if ((window as any).openSubterraneanModal) {
+                                      (window as any).openSubterraneanModal('CLAIM-YANGJU');
+                                    }
+                                  }}
+                                  className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded text-[9.5px] font-sans font-bold bg-purple-500/25 hover:bg-purple-500/40 text-purple-200 border border-purple-500/50 cursor-pointer transition-colors shadow-sm"
+                                >
+                                  🔬 소크라테스 5대 관문 & 슈퍼파워 정밀 분석관 열기
+                                </span>
+                              )}
                             </span>
                             {count !== null && (
                               <span className={`text-[10px] font-mono tabular-nums transition-colors ${isLayerActive ? 'text-white/45' : 'text-white/20'}`}>

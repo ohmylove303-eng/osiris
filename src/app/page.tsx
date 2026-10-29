@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo, use } from 'react';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Layers, BarChart3, Newspaper, Search, X, Globe, MapPinned, Route, Radar, Satellite, Moon, ExternalLink, AlertTriangle, Activity, Database, Wifi, Play, Network, Crosshair, Bluetooth, Pentagon, Radio, PenLine, Zap, Navigation, ChevronDown, Eye, Orbit } from 'lucide-react';
+import { Layers, BarChart3, Newspaper, Search, X, Globe, MapPinned, Route, Radar, Satellite, Moon, ExternalLink, AlertTriangle, Activity, Database, Wifi, Play, Network, Crosshair, Bluetooth, Pentagon, Radio, PenLine, Zap, Navigation, ChevronDown, Eye, Orbit, Bus, Key, Building2, LocateFixed } from 'lucide-react';
 import { type TerrainStatus } from '@/lib/map-terrain';
 import { loadCameraCatalog, mergeCameraCatalog } from '@/lib/camera-catalog';
 import IntelFeed from '@/components/IntelFeed';
@@ -51,9 +51,12 @@ const DrawingToolbar = dynamic(() => import('@/components/DrawingToolbar'), { ss
 const DrawHud = dynamic(() => import('@/components/DrawHud'), { ssr: false });
 const DprkReportDossierModal = dynamic(() => import('@/components/DprkReportDossierModal'), { ssr: false });
 const ChinaEncroachmentModal = dynamic(() => import('@/components/ChinaEncroachmentModal'), { ssr: false });
+const SubterraneanAuditModal = dynamic(() => import('@/components/SubterraneanAuditModal').then(mod => mod.SubterraneanAuditModal), { ssr: false });
 const AudioCommsHud = dynamic(() => import('@/components/AudioCommsHud'), { ssr: false });
 const IntelLegendModal = dynamic(() => import('@/components/IntelLegendModal'), { ssr: false });
 const GodsEyeReconModal = dynamic(() => import('@/components/GodsEyeReconModal'), { ssr: false });
+const GodsEyeHudConsole = dynamic(() => import('@/components/GodsEyeHudConsole').then(mod => mod.GodsEyeHudConsole), { ssr: false });
+const KoreaApiKeyModal = dynamic(() => import('@/components/KoreaApiKeyModal').then(mod => mod.KoreaApiKeyModal), { ssr: false });
 // The measurement helpers are pure functions — importing them directly keeps
 // them out of the lazy chunk, so a finished polygon can be measured whether or
 // not the toolbar has loaded yet.
@@ -279,9 +282,28 @@ export default function Dashboard(props?: {
 
   const [dprkReportModalData, setDprkReportModalData] = useState<any>(null);
   const [chinaEncroachmentModalSiteId, setChinaEncroachmentModalSiteId] = useState<string | null>(null);
+  const [subterraneanModalSiteId, setSubterraneanModalSiteId] = useState<string | null>(null);
   const [showAudioComms, setShowAudioComms] = useState(false);
   const [showIntelLegend, setShowIntelLegend] = useState(false);
   const [showGodsEyeModal, setShowGodsEyeModal] = useState(false);
+  const [godsEyeReconActive, setGodsEyeReconActive] = useState(false);
+  const [showKoreaApiKeyModal, setShowKoreaApiKeyModal] = useState(false);
+  const [isTopToolsOpen, setIsTopToolsOpen] = useState(false);
+  const topToolsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (topToolsRef.current && !topToolsRef.current.contains(e.target as Node)) {
+        setIsTopToolsOpen(false);
+      }
+    };
+    if (isTopToolsOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isTopToolsOpen]);
 
   // The popup lives in raw map HTML, so it hands aircraft and DPRK dossiers over through globals.
   useEffect(() => {
@@ -292,9 +314,11 @@ export default function Dashboard(props?: {
     };
     (window as any).openDprkReportDossier = (data: any) => setDprkReportModalData(data);
     (window as any).openChinaEncroachmentModal = (siteId: string) => setChinaEncroachmentModalSiteId(siteId || 'YS-SHENLAN-01');
+    (window as any).openSubterraneanModal = (siteId?: string) => setSubterraneanModalSiteId(siteId || 'CLAIM-YANGJU');
     return () => {
       delete (window as any).openDprkReportDossier;
       delete (window as any).openChinaEncroachmentModal;
+      delete (window as any).openSubterraneanModal;
     };
   }, []);
 
@@ -354,11 +378,8 @@ export default function Dashboard(props?: {
     return out;
   }, [watchedFlights, data]);
 
-  // A navigation session owns its own position watch. The planner's watch dies
-  // with the planner when guidance takes over the panel, so guidance cannot
-  // depend on it — without this the banner sits on "waiting for a fix" forever.
+  // 실시간 모바일/스마트폰 GPS 위치 추적 (브라우저 위치 권한 허용 시 실시간 갱신)
   useEffect(() => {
-    if (!navSession) return;
     if (typeof navigator === 'undefined' || !navigator.geolocation) return;
     const id = navigator.geolocation.watchPosition(
       (pos) => setLiveLocation({
@@ -367,11 +388,11 @@ export default function Dashboard(props?: {
         accuracy: pos.coords.accuracy,
         heading: pos.coords.heading,
       }),
-      () => { /* the view already explains the HTTPS requirement */ },
-      { enableHighAccuracy: true, maximumAge: 2000, timeout: 15000 },
+      (err) => { /* HTTPS 및 권한 상태에 따라 조용히 대기 */ },
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 15000 },
     );
     return () => navigator.geolocation.clearWatch(id);
-  }, [navSession]);
+  }, []);
   const [showRemote, setShowRemote] = useState(false);
   const [showArcGIS, setShowArcGIS] = useState(false);
   const [arcgisLayers, setArcgisLayers] = useState<Array<{ id: string; title: string; url: string; geojson: any; color: string; visible: boolean; opacity: number }>>([]);
@@ -487,7 +508,7 @@ export default function Dashboard(props?: {
   const [terrainFocus, setTerrainFocus] = useState(0);
   const [terrainStatus, setTerrainStatus] = useState<TerrainStatus>('idle');
   const [terrainRetry, setTerrainRetry] = useState(0);
-  const [mapStyle, setMapStyle] = useState<'dark'|'satellite'>('dark');
+  const [mapStyle, setMapStyle] = useState<'dark'|'satellite'|'vworld_3d'>('dark');
   const [sweepData, setSweepData] = useState<any>(null);
   const [scanTargets, setScanTargets] = useState<any[]>([]);
   const [drawnPolygons, setDrawnPolygons] = useState<DrawnShape[]>([]);
@@ -502,6 +523,7 @@ export default function Dashboard(props?: {
   const [cockpitState, setCockpitState] = useState<CockpitState | null>(null);
   const [showContacts, setShowContacts] = useState(false);
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
+  const [directCockpitTarget, setDirectCockpitTarget] = useState<TrackedAircraft | null>(null);
   const cockpitSavedCamera = useRef<{ center: [number, number]; zoom: number; pitch: number; bearing: number } | null>(null);
 
   // Apply sensor filter to map canvas
@@ -625,8 +647,9 @@ export default function Dashboard(props?: {
     // Military flights
     (data?.military_flights || []).forEach((f: any) => {
       if (f?.lat && f?.lng) {
+        const id = f.hex || f.icao24 || (f.callsign ? `mil-${f.callsign}` : `mil-${Math.random()}`);
         targets.push({
-          id: f.icao24 || `mil-${f.callsign || Math.random()}`,
+          id,
           label: f.callsign || f.icao24 || 'MIL-TGT',
           type: 'flight',
           lat: f.lat,
@@ -643,8 +666,9 @@ export default function Dashboard(props?: {
     // Commercial & private flights
     [...(data?.commercial_flights || []), ...(data?.private_flights || [])].slice(0, 80).forEach((f: any) => {
       if (f?.lat && f?.lng) {
+        const id = f.icao24 || f.hex || (f.callsign ? `flt-${f.callsign}` : `flt-${Math.random()}`);
         targets.push({
-          id: f.icao24 || `flt-${Math.random()}`,
+          id,
           label: f.callsign || f.icao24 || 'AIR-TGT',
           type: 'flight',
           lat: f.lat,
@@ -679,8 +703,12 @@ export default function Dashboard(props?: {
 
   // God's Eye View: Active tracked aircraft for Cockpit Mode & HUD
   const cockpitAircraft = useMemo<TrackedAircraft | null>(() => {
+    if (directCockpitTarget) {
+      return directCockpitTarget;
+    }
+
     if (selectedContactId) {
-      const match = contactsList.find(c => c.id === selectedContactId);
+      const match = contactsList.find(c => c.id === selectedContactId || c.label === selectedContactId);
       if (match) {
         return {
           icao24: match.id,
@@ -694,19 +722,28 @@ export default function Dashboard(props?: {
         };
       }
 
-      // Check all available flight lists (commercial, military, private) if not in contactsList
+      // Check all available flight lists (military, commercial, private) if not in contactsList
       const allFlights = [
-        ...(data?.commercial_flights || []),
         ...(data?.military_flights || []),
+        ...(data?.commercial_flights || []),
         ...(data?.private_flights || []),
         ...(data?.private_jets || []),
       ];
+      const cleanId = selectedContactId.replace(/^mil-|^flt-|^tgt-/, '');
       const fMatch = allFlights.find((f: any) =>
-        f && (f.icao24 === selectedContactId || f.callsign === selectedContactId || f.hex === selectedContactId || f.id === selectedContactId)
+        f && (
+          f.icao24 === selectedContactId ||
+          f.callsign === selectedContactId ||
+          f.hex === selectedContactId ||
+          f.id === selectedContactId ||
+          (cleanId && (f.icao24 === cleanId || f.callsign === cleanId || f.hex === cleanId)) ||
+          (f.callsign && selectedContactId.includes(f.callsign)) ||
+          (f.hex && selectedContactId.includes(f.hex))
+        )
       );
       if (fMatch && typeof fMatch.lat === 'number' && typeof fMatch.lng === 'number') {
         return {
-          icao24: fMatch.icao24 || fMatch.hex || selectedContactId,
+          icao24: fMatch.hex || fMatch.icao24 || selectedContactId,
           callsign: fMatch.callsign || fMatch.icao24,
           lat: fMatch.lat,
           lng: fMatch.lng,
@@ -919,7 +956,7 @@ export default function Dashboard(props?: {
     jets: true,
     military: true,
     maritime: true,
-    transit: false,
+    transit: true,
     satellites: true,
     sat_comms: false,
     sat_military: true,
@@ -939,10 +976,12 @@ export default function Dashboard(props?: {
     global_incidents: false,
     alert_pins: false,
     military_demarcation: true,
+    dmz_tunnels: true,
     dprk_sites: true,
     dprk_activity: true,
     seismic_watch: true,
     china_encroachment: true,
+    russia_incursions: true,
     war_alerts: true,
     day_night: true,
     cables: false,
@@ -1312,7 +1351,7 @@ export default function Dashboard(props?: {
       }
       if (e.key === 'l') setShowLayers(p => !p);
       if (e.key === 'm') setShowMarkets(p => !p);
-      if (e.key === 'c') setShowScmPanel(p => !p);
+      if ((e.key === 'c' || e.key === 'C') && (e.altKey)) setShowScmPanel(p => !p);
       if (e.key === 'i') setShowIntel(p => !p);
       if (e.key === 's') { setShowDesktopSearch(p => !p); setShowIntel(false); setShowMarkets(false); setShowAlerts(false); setShowSpaceCam(false); }
       if (e.key === 'r' && !e.ctrlKey && !e.metaKey) setFlyToLocation({ lat: 20, lng: 0, zoom: 2.5, ts: Date.now() });
@@ -1638,6 +1677,18 @@ export default function Dashboard(props?: {
       layerFetchedRef.current.add('dprk_sites');
     }
 
+    // DMZ Infiltration Tunnels, 6 Strategic Axes, Cones & 6-Nation Intel (DIA / UNC / KIGAM)
+    if (activeLayers.dmz_tunnels && !layerFetchedRef.current.has('dmz_tunnels')) {
+      fetchEndpoint('/api/intel/tunnels', d => ({
+        dmz_tunnel_sites: d.sites,
+        dmz_tunnel_axes: d.axes,
+        dmz_tunnel_claims: d.claims,
+        dmz_tunnel_cones: d.cones,
+        dmz_tunnel_intel_nodes: d.intel_nodes
+      }));
+      layerFetchedRef.current.add('dmz_tunnels');
+    }
+
     // Bridge 1: DPRK Military Activity Intelligence (Harness)
     if (activeLayers.dprk_activity && !layerFetchedRef.current.has('dprk_activity')) {
       fetchEndpoint('/api/osint/dprk-activity', d => ({ dprk_activities: d.activities }));
@@ -1648,6 +1699,16 @@ export default function Dashboard(props?: {
     if (activeLayers.seismic_watch && !layerFetchedRef.current.has('seismic_watch')) {
       fetchEndpoint('/api/osint/seismic-watch', d => ({ seismic_events: d.events }));
       layerFetchedRef.current.add('seismic_watch');
+    }
+
+    // Russian Military Incursions & Far East Strategic Patrols
+    if (activeLayers.russia_incursions && !layerFetchedRef.current.has('russia_incursions')) {
+      fetchEndpoint('/api/intel/russia-incursions', d => ({
+        russia_hubs: d.hubs,
+        russia_vectors: d.vectors,
+        russia_events: d.events
+      }));
+      layerFetchedRef.current.add('russia_incursions');
     }
 
     // Submarine Cables & Anchor Drag Watch
@@ -2134,7 +2195,7 @@ export default function Dashboard(props?: {
           terrainRetry={terrainRetry}
           onTerrainStatusChange={setTerrainStatus}
           onLayerOff={key => setActiveLayers(prev => ({ ...prev, [key]: false }))}
-          mapStyle={mapStyle === 'satellite' ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}' : 'dark'} 
+          mapStyle={mapStyle} 
           onEntityClick={handleEntityClick} 
           onMouseCoords={handleMouseCoords} 
           onRightClick={handleRightClick} 
@@ -2170,6 +2231,7 @@ export default function Dashboard(props?: {
           onOiHover={setOiHover}
           onOiFollow={setOiFollowing}
           oiHighlight={oiHighlight}
+          godsEyeReconActive={godsEyeReconActive}
         />
       </ErrorBoundary>
 
@@ -2291,6 +2353,44 @@ export default function Dashboard(props?: {
           <FeynmanTooltip dictKey="view_sat" position="top">
             <ViewSegment layoutId="view-style" active={mapStyle === 'satellite'} onClick={() => setMapStyle('satellite')} icon={Satellite} label="SAT" />
           </FeynmanTooltip>
+          <button
+            type="button"
+            onClick={() => {
+              setMapStyle(prev => prev === 'vworld_3d' ? 'dark' : 'vworld_3d');
+            }}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold transition-all cursor-pointer ${
+              mapStyle === 'vworld_3d'
+                ? 'bg-cyan-500 text-black shadow-[0_0_12px_rgba(0,229,255,0.7)] font-black'
+                : 'text-white/70 hover:text-white hover:bg-white/10'
+            }`}
+            title="고해상도 실사 위성 영상 + 국토교통부 브이월드 투명 한글 도로/시설 라벨 + 3D 입체 건물 뷰어"
+          >
+            <Building2 className={`w-3.5 h-3.5 ${mapStyle === 'vworld_3d' ? 'text-black' : 'text-cyan-400'}`} />
+            <span>3D 위성</span>
+          </button>
+          <div className="w-px h-5 mx-1 bg-[var(--border-secondary)]" />
+          {/* 모바일 GPS 내 위치 원클릭 이동 버튼 */}
+          <button
+            type="button"
+            onClick={() => {
+              if (liveLocation) {
+                setFlyToLocation({ lat: liveLocation.lat, lng: liveLocation.lng, zoom: 16, ts: Date.now() });
+              } else if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                  pos => {
+                    setLiveLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy, heading: pos.coords.heading });
+                    setFlyToLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude, zoom: 16, ts: Date.now() });
+                  },
+                  err => alert('GPS 위치를 가져올 수 없습니다. 브라우저 위치 권한을 확인해주세요.')
+                );
+              }
+            }}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 transition-all cursor-pointer shadow-[0_0_8px_rgba(0,229,255,0.25)]"
+            title="스마트폰 GPS 내 현재 위치로 지도 비행"
+          >
+            <LocateFixed className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+            <span>내 위치</span>
+          </button>
         </div>
 
 
@@ -2335,65 +2435,181 @@ export default function Dashboard(props?: {
         </div>
       </motion.div>
 
-      {/* ── TOP ACTION BAR (실시간 내비게이션 & 인텔리전스 브릿지 & 검색) ── */}
-      {!isMobile && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 2.3 }}
-          className="absolute top-4 left-[310px] md:left-[340px] xl:left-[370px] z-[200] pointer-events-auto flex items-center gap-2"
-        >
-          {/* 1. 핵심 내비게이션 바로가기 */}
-          <FeynmanTooltip dictKey="top_nav" position="bottom">
+      {/* ── TOP-LEFT ACTION BAR (전술 도구함 & 인텔리전스 브릿지 좌측 상단 완벽 밀착) ── */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 2.3 }}
+        className="absolute top-[64px] z-[200] pointer-events-auto flex items-center gap-2"
+        style={{ left: isMobile ? '12px' : '56px' }}
+      >
+          {/* ── ⚡ 접이식 전술 도구함 (평소에는 슬림하게 최소화, 클릭 시 펼쳐짐) ── */}
+          <div className="relative" ref={topToolsRef}>
             <button
               type="button"
-              onClick={() => {
-                setShowDirections(prev => {
-                  const next = !prev;
-                  if (!next) setActiveRoute(null);
-                  return next;
-                });
-              }}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-mono font-bold transition-all shrink-0 cursor-pointer ${
-                showDirections || navSession
-                  ? 'bg-[var(--gold-primary)] text-black shadow-[0_0_12px_var(--gold-glow)]'
-                  : 'bg-[var(--gold-primary)]/10 border border-[var(--border-primary)] hover:border-[var(--border-active)] text-[var(--gold-primary)] hover:bg-[var(--gold-primary)]/20 shadow-[0_0_8px_var(--gold-glow)]'
+              onClick={() => setIsTopToolsOpen(prev => !prev)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-mono font-bold transition-all shrink-0 cursor-pointer border ${
+                isTopToolsOpen
+                  ? 'bg-cyan-900 border-cyan-400 text-white shadow-[0_0_16px_rgba(0,229,255,0.5)]'
+                  : ((showDirections || navSession ? 1 : 0) + (showAudioComms ? 1 : 0) + (godsEyeReconActive ? 1 : 0) + (activeLayers.transit ? 1 : 0) + (showIntelBridge ? 1 : 0)) > 0
+                    ? 'bg-cyan-950/80 border-cyan-400/70 text-cyan-200 shadow-[0_0_12px_rgba(0,229,255,0.3)]'
+                    : 'bg-[#070b14]/85 border-cyan-500/40 hover:border-cyan-300 text-cyan-200/90 hover:bg-cyan-900/40 shadow-[0_4px_12px_rgba(0,0,0,0.5)]'
               }`}
-              aria-label="내비게이션"
+              aria-label="전술 도구함 메뉴"
+              title="클릭하여 내비게이션, 전술 무전, 신의 눈, 대중교통, API 키 열기/닫기"
             >
-              <Navigation className="w-3.5 h-3.5" />
-              <span>🧭 내비게이션</span>
+              <span className="text-cyan-400 font-extrabold animate-pulse">⚡</span>
+              <span>전술 도구함</span>
+              {((showDirections || navSession ? 1 : 0) + (showAudioComms ? 1 : 0) + (godsEyeReconActive ? 1 : 0) + (activeLayers.transit ? 1 : 0) + (showIntelBridge ? 1 : 0)) > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono bg-cyan-400 text-black font-extrabold">
+                  {((showDirections || navSession ? 1 : 0) + (showAudioComms ? 1 : 0) + (godsEyeReconActive ? 1 : 0) + (activeLayers.transit ? 1 : 0) + (showIntelBridge ? 1 : 0))}
+                </span>
+              )}
+              <ChevronDown className={`w-3.5 h-3.5 text-cyan-400 transition-transform duration-200 ${isTopToolsOpen ? 'rotate-180' : ''}`} />
             </button>
-          </FeynmanTooltip>
 
+            {/* ── 펼쳐지는 전술 도구함 팝오버 콘솔 ── */}
+            <AnimatePresence>
+              {isTopToolsOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute left-0 mt-2 w-[340px] sm:w-[380px] bg-[#070b14]/95 border border-cyan-500/50 rounded-2xl shadow-[0_16px_40px_rgba(0,0,0,0.9),0_0_24px_rgba(0,229,255,0.25)] backdrop-blur-2xl p-3 z-[600] flex flex-col gap-2.5"
+                >
+                  {/* 도구함 헤더 */}
+                  <div className="flex items-center justify-between pb-2 border-b border-cyan-500/20 px-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                      <span className="text-[11px] font-mono font-bold text-cyan-200 tracking-wider">⚡ 전술 작전 도구 콘솔</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsTopToolsOpen(false)}
+                      className="text-[10px] font-mono text-white/50 hover:text-white px-2 py-0.5 rounded hover:bg-white/10 transition-colors cursor-pointer"
+                    >
+                      ✕ 접기
+                    </button>
+                  </div>
 
-          {/* 1.8 전술 무전 & RF 스펙트럼 (LiveATC / VHF Ch.16 / Squawk 7700) */}
-          <FeynmanTooltip dictKey="top_radio" position="bottom">
-            <button
-              type="button"
-              onClick={() => setShowAudioComms(prev => !prev)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-mono font-bold transition-all shrink-0 cursor-pointer ${
-                showAudioComms
-                  ? 'bg-cyan-900 border border-cyan-400 text-white shadow-[0_0_12px_rgba(6,182,212,0.5)]'
-                  : 'bg-cyan-950/60 border border-cyan-500/50 hover:border-cyan-300 text-cyan-200 hover:bg-cyan-900/60 shadow-[0_0_8px_rgba(6,182,212,0.25)]'
-              }`}
-              aria-label="전술 무전"
-            >
-              <Radio className="w-3.5 h-3.5 text-cyan-400" />
-              <span>📻 전술 무전 (SIGINT)</span>
-            </button>
-          </FeynmanTooltip>
+                  {/* 5개 주요 도구 그리드 */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* 1. 핵심 내비게이션 바로가기 */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDirections(prev => {
+                          const next = !prev;
+                          if (!next) setActiveRoute(null);
+                          return next;
+                        });
+                      }}
+                      className={`flex items-center gap-2 p-2 rounded-xl text-xs font-mono font-bold transition-all text-left cursor-pointer border ${
+                        showDirections || navSession
+                          ? 'bg-[var(--gold-primary)] text-black border-[var(--gold-primary)] shadow-[0_0_12px_var(--gold-glow)]'
+                          : 'bg-black/40 border-white/10 hover:border-[var(--gold-primary)]/60 text-[var(--gold-primary)] hover:bg-[var(--gold-primary)]/10'
+                      }`}
+                      aria-label="내비게이션"
+                    >
+                      <Navigation className="w-4 h-4 shrink-0" />
+                      <div className="flex flex-col">
+                        <span>🧭 내비게이션</span>
+                        <span className="text-[9px] opacity-70 font-normal">경로 탐색 / 길찾기</span>
+                      </div>
+                    </button>
 
-          {/* 1.9 신의 눈 (GOD'S EYE) 초광역 위성 정찰 관제소 */}
-          <button
-            type="button"
-            onClick={() => setShowGodsEyeModal(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-mono font-bold transition-all shrink-0 cursor-pointer bg-[#D4AF37]/20 border border-[#D4AF37]/60 hover:border-[#FFD700] text-[#FFD700] hover:bg-[#D4AF37]/35 shadow-[0_0_14px_rgba(212,175,55,0.4)]"
-            aria-label="신의 눈 위성 정찰"
-          >
-            <Eye className="w-3.5 h-3.5 text-[#D4AF37] animate-pulse" />
-            <span>👁️ 신의 눈 (GOD&apos;S EYE)</span>
-          </button>
+                    {/* 2. 전술 무전 & RF 스펙트럼 */}
+                    <button
+                      type="button"
+                      onClick={() => setShowAudioComms(prev => !prev)}
+                      className={`flex items-center gap-2 p-2 rounded-xl text-xs font-mono font-bold transition-all text-left cursor-pointer border ${
+                        showAudioComms
+                          ? 'bg-cyan-900 border-cyan-400 text-white shadow-[0_0_12px_rgba(6,182,212,0.5)]'
+                          : 'bg-black/40 border-white/10 hover:border-cyan-400/60 text-cyan-200 hover:bg-cyan-900/30'
+                      }`}
+                      aria-label="전술 무전"
+                    >
+                      <Radio className="w-4 h-4 text-cyan-400 shrink-0" />
+                      <div className="flex flex-col">
+                        <span>📻 전술 무전</span>
+                        <span className="text-[9px] opacity-70 font-normal">SIGINT / LiveATC</span>
+                      </div>
+                    </button>
+
+                    {/* 3. 신의 눈 (GOD'S EYE) 실시간 3D 위성 정찰 */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = !godsEyeReconActive;
+                        setGodsEyeReconActive(next);
+                        if (next) {
+                          setFlyToLocation({ lat: 38, lng: 127.5, zoom: 3.5, ts: Date.now() });
+                        }
+                      }}
+                      className={`flex items-center gap-2 p-2 rounded-xl text-xs font-mono font-bold transition-all text-left cursor-pointer border ${
+                        godsEyeReconActive
+                          ? 'bg-[#D4AF37] border-2 border-[#FFD700] text-black shadow-[0_0_20px_rgba(255,215,0,0.85)] font-black'
+                          : 'bg-black/40 border-white/10 hover:border-[#FFD700]/60 text-[#FFD700] hover:bg-[#D4AF37]/20'
+                      }`}
+                      aria-label="신의 눈 3D 위성 정찰 궤도"
+                    >
+                      <Eye className={`w-4 h-4 shrink-0 ${godsEyeReconActive ? 'text-black' : 'text-[#D4AF37]'}`} />
+                      <div className="flex flex-col">
+                        <span>👁️ 신의 눈</span>
+                        <span className="text-[9px] opacity-70 font-normal">3D 위성 정찰 궤도</span>
+                      </div>
+                    </button>
+
+                    {/* 4. 실시간 대중교통 (버스 · KTX/전철) */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = !activeLayers.transit;
+                        setActiveLayers(prev => ({ ...prev, transit: next }));
+                        if (next && mapView.zoom < 8) {
+                          setFlyToLocation({ lat: 37.60, lng: 126.75, zoom: 10.5, ts: Date.now() });
+                        }
+                      }}
+                      className={`flex items-center gap-2 p-2 rounded-xl text-xs font-mono font-bold transition-all text-left cursor-pointer border ${
+                        activeLayers.transit
+                          ? 'bg-emerald-900 border-emerald-400 text-white shadow-[0_0_14px_rgba(16,185,129,0.5)]'
+                          : 'bg-black/40 border-white/10 hover:border-emerald-400/60 text-emerald-200 hover:bg-emerald-900/30'
+                      }`}
+                      aria-label="실시간 대중교통"
+                    >
+                      <Bus className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <div className="flex flex-col">
+                        <span>🚌 버스·지하철</span>
+                        <span className="text-[9px] opacity-70 font-normal">
+                          TAGO 관제 ({activeLayers.transit ? 'ON' : 'OFF'})
+                        </span>
+                      </div>
+                    </button>
+
+                    {/* 5. 공공데이터포털 API 키 등록/관리 */}
+                    <button
+                      type="button"
+                      onClick={() => setShowKoreaApiKeyModal(true)}
+                      className="col-span-2 flex items-center justify-between p-2 rounded-xl text-xs font-mono font-bold transition-all text-left cursor-pointer bg-black/40 border border-white/10 hover:border-cyan-400/60 text-cyan-200 hover:bg-cyan-900/30"
+                      aria-label="공공데이터 API 키 관리"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Key className="w-4 h-4 text-cyan-400 shrink-0" />
+                        <div className="flex flex-col">
+                          <span>🔑 공공데이터포털 API 키 관리</span>
+                          <span className="text-[9px] opacity-70 font-normal">국토교통부 TAGO 버스 API 키 로컬 보안 연동</span>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-mono text-cyan-400/80 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-500/30">
+                        설정 열기 →
+                      </span>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           {/* 2. 번개의 눈동자 최신 인텔리전스 브릿지 */}
           <div className="relative">
@@ -2636,8 +2852,16 @@ export default function Dashboard(props?: {
             </AnimatePresence>
           </div>
 
-          {/* 통합 검색바 & 음성 AI 버튼 */}
-          <div className="w-52 lg:w-72 flex items-center gap-1.5">
+        </motion.div>
+
+        {/* ── TOP SEARCH BAR (우측 상단 독립 배치: 좌측 상단 도구함과 충돌 원천 차단) ── */}
+        {!isMobile && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 2.4 }}
+            className="absolute top-4 right-[250px] lg:right-[330px] z-[200] pointer-events-auto flex items-center gap-1.5 w-48 sm:w-56 lg:w-72"
+          >
             <SearchBar
               onLocate={(lat, lng, zoom) => { setFlyToLocation({ lat, lng, zoom, ts: Date.now() }); }}
               onRouteTo={handleRouteTo}
@@ -2645,9 +2869,8 @@ export default function Dashboard(props?: {
             <FeynmanTooltip dictKey="top_voice" position="bottom">
               <VoiceMicButton onAction={handleVoiceAction} className="pointer-events-auto shrink-0" />
             </FeynmanTooltip>
-          </div>
-        </motion.div>
-      )}
+          </motion.div>
+        )}
 
 
       {/* ── TOP-RIGHT STATUS (desktop) ── */}
@@ -3384,6 +3607,21 @@ export default function Dashboard(props?: {
         />
       )}
 
+      {/* ── Subterranean DMZ Tunnels & Civilian Claims Socratic Audit Modal ── */}
+      {subterraneanModalSiteId && (
+        <SubterraneanAuditModal
+          isOpen={!!subterraneanModalSiteId}
+          onClose={() => setSubterraneanModalSiteId(null)}
+          initialSiteId={subterraneanModalSiteId}
+          onFlyTo={(coords, zoom) => {
+            setSubterraneanModalSiteId(null);
+            if ((window as any).osirisMapFlyTo) {
+              (window as any).osirisMapFlyTo(coords, zoom || 12);
+            }
+          }}
+        />
+      )}
+
       {/* ── LiveATC / Marine VHF Tactical Audio Comms & RF Spectrum HUD ── */}
       {showAudioComms && (
         <AudioCommsHud
@@ -3395,6 +3633,27 @@ export default function Dashboard(props?: {
           ]}
         />
       )}
+
+      {/* ── 👁️ 신의 눈 (GOD'S EYE) 실시간 위성 궤도 & 전술 관제 HUD 콘솔 ── */}
+      <GodsEyeHudConsole
+        visible={godsEyeReconActive}
+        onClose={() => setGodsEyeReconActive(false)}
+        onSelectSatellite={(sat) => {
+          setFlyToLocation({ lat: sat.lat, lng: sat.lng, zoom: 6, ts: Date.now() });
+        }}
+        onFlyToOrbit={() => {
+          setFlyToLocation({ lat: 38, lng: 127.5, zoom: 3.2, ts: Date.now() });
+        }}
+        onFlyToTactical={() => {
+          setFlyToLocation({ lat: 37.5665, lng: 126.9780, zoom: 11, ts: Date.now() });
+        }}
+      />
+
+      {/* ── 🔑 공공데이터포털(data.go.kr) 국토부 TAGO API 키 관리 모달 ── */}
+      <KoreaApiKeyModal
+        isOpen={showKoreaApiKeyModal}
+        onClose={() => setShowKoreaApiKeyModal(false)}
+      />
 
       {/* ── 👁️ 신의 눈 (GOD'S EYE) 초광역 위성 정찰 관제소 모달 ── */}
       {showGodsEyeModal && (
@@ -3461,6 +3720,17 @@ export default function Dashboard(props?: {
         }}
         onTrackCockpit={(t) => {
           setSelectedContactId(t.id);
+          const mapped: TrackedAircraft = {
+            icao24: t.id,
+            callsign: t.label || t.id,
+            lat: t.lat,
+            lng: t.lng,
+            alt: t.alt || 5500,
+            heading: t.heading || 0,
+            speed: t.speed || 310,
+            type: t.subType,
+          };
+          setDirectCockpitTarget(mapped);
           setCockpitMode(true);
         }}
       />
@@ -3493,7 +3763,10 @@ export default function Dashboard(props?: {
           aircraft={cockpitAircraft}
           sensorMode={sensorMode}
           visible={cockpitMode}
-          onExit={() => setCockpitMode(false)}
+          onExit={() => {
+            setCockpitMode(false);
+            setDirectCockpitTarget(null);
+          }}
         />
       )}
 
@@ -3508,6 +3781,16 @@ export default function Dashboard(props?: {
         onTrackCockpit={(c) => {
           if (c?.id) {
             setSelectedContactId(c.id);
+            setDirectCockpitTarget({
+              icao24: c.id,
+              callsign: c.label || c.id,
+              lat: c.position[1],
+              lng: c.position[0],
+              alt: c.alt || 4000,
+              heading: typeof c.meta.heading === 'number' ? c.meta.heading : 0,
+              speed: typeof c.meta.speed === 'number' ? c.meta.speed : 350,
+              type: typeof c.meta.type === 'string' ? c.meta.type : undefined,
+            });
           }
           setCockpitMode(true);
         }}
