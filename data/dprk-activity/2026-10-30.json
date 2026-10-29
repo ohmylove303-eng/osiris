@@ -1,83 +1,76 @@
 [
   {
-    "id": "dprk-live-1793293293740-pbtw06",
+    "id": "dprk-live-1793309253984-azdokt",
     "title": "북한 미사일 전력 관련 정밀 정보 보고서 (국제 안보 전략 기관 분석)",
     "description": "글로벌 안보 연구소 및 정부기관 최신 수집 데이터 기반 4단계 재귀 검증 완료 인텔리전스.",
     "category": "military_training",
     "lat": 39.0392,
     "lng": 125.7625,
-    "source_org": "NK News",
-    "source_url": "https://www.nknews.org/2026/10/north-korea-fires-unidentified-projectile-toward-sea-rok-military/",
-    "source_date": "2026-10-30",
-    "published_date": "Thu, 29 Oct 2026 03:51:53 +0000",
+    "source_org": "Naval News (해상/잠수함)",
+    "source_url": "https://www.navalnews.com/naval-news/2026/10/chinas-new-trimaran-submarine-16-missiles-and-an-unconventional-design/",
+    "source_date": "Wed, 28 Oct 2026 09:29:00 +0000",
+    "published_date": "Wed, 28 Oct 2026 09:29:00 +0000",
     "media_urls": [
       "/intel/dprk/sanumdong_sat.png"
     ],
-    "report_url": "https://www.nknews.org/2026/10/north-korea-fires-unidentified-projectile-toward-sea-rok-military/",
-    "verification_tier": "CROSS-VERIFIED",
-    "verification_score": 95,
+    "report_url": "https://www.navalnews.com/naval-news/2026/10/chinas-new-trimaran-submarine-16-missiles-and-an-unconventional-design/",
+    "verification_tier": "TIER-1 VERIFIED",
+    "verification_score": 94,
     "verification_log": [
-      "[1/4] Source: NK News (Tier-2, Trust=80%)",
-      "[2/4] PASS: 56 cross-references found"
+      "[1/4] Source: Naval News (Tier-1, Trust=94%)",
+      "[1/4] PASS: Tier-1 institution → immediate high trust"
     ],
-    "cross_references": [
-      "https://news.usni.org/2026/10/23/army-activates-air-defense-guam-battalion-focused-on-chinese-north-korean-threats",
-      "https://www.nknews.org/2026/10/us-rok-defense-chiefs-agree-to-delay-top-level-military-talks-on-opcon-transfer/",
-      "https://www.nknews.org/2026/10/the-elephants-gambit-why-seoul-and-washington-should-ignore-north-korea/",
-      "https://www.nknews.org/2026/10/woman-entered-restricted-area-near-north-korea-border-damaged-fencing-seoul/",
-      "https://www.nknews.org/2026/10/seoul-again-proposes-talks-with-north-korea-on-border-lines-amid-rising-tensions/",
-      "https://www.nknews.org/2026/10/canada-can-help-seoul-counter-north-koreas-new-ways-of-war-military-chief/",
-      "https://www.nknews.org/2026/10/north-korea-has-made-various-changes-to-forces-facing-border-islands-rok/",
-      "https://www.nknews.org/2026/10/swiss-delegation-visits-north-korea-to-prepare-launch-of-first-diplomatic-office/",
-      "https://www.nknews.org/2026/10/nonprofit-fined-after-defector-data-found-in-balloon-launched-toward-north-korea/",
-      "https://www.nknews.org/2026/10/kim-yo-jong-threatens-restart-of-north-korean-loudspeakers-amid-border-tensions/",
-      "https://www.nknews.org/2026/10/another-north-korean-mine-found-on-south-korean-island-fourth-in-last-month/",
-      "https://www.nknews.org/2026/10/rok-kicks-off-exercise-on-countering-north-korea-postponed-drills-with-us/",
-      "https://www.nknews.org/2026/10/north-korean-missile-chief-accuses-south-of-faking-hypersonic-weapon-test/",
-      "https://www.nknews.org/2026/10/bosnian-arms-dealer-gets-prison-time-over-plan-to-buy-north-korean-missiles/",
-      "https://www.nknews.org/2026/10/how-north-korean-missiles-found-their-way-into-houthi-hands/",
-      "https://www.nknews.org/2026/10/north-korea-says-it-tested-submarine-launched-cruise-missiles/",
-      "https://www.nknews.org/2026/10/kamala-harris-slams-trumps-cuts-to-us-rok-drills-on-countering-north-korea/",
-      "https://www.nknews.org/2026/10/kim-jong-un-opens-new-weapons-museum-as-north-korea-claims-missile-test-success/",
-      "https://www.nknews.org/2026/10/north-korea-appears-to-conduct-fourth-missile-test-in-a-month/",
-      "https://www.nknews.org/2026/10/south-korea-tests-hypersonic-missile-for-first-time-weeks-after-north/",
-      "https://www.nknews.org/2026/10/suspected-north-korean-land-mine-washes-ashore-on-south-korean-island/",
-      "https://www.nknews.org/2026/10/seoul-seeks-joint-probe-with-un-command-into-north-korean-border-crossings/",
-      "https://www.nknews.org/2026/10/north-korea-turning-to-knock-off-parts-for-missiles-used-in-ukraine-report/",
-      "https://www.nknews.org/2026/10/north-korea-says-hypersonic-missile-flew-1000km-exceeding-seoul-tokyo-reports/",
-      "https://www.nknews.org/2026/10/north-korea-mocks-seoul-tokyo-over-alleged-failure-to-track-missile/",
-      "https://www.nknews.org/2026/10/north-korea-fires-ballistic-missile-toward-east-sea/",
-      "https://www.nknews.org/2026/10/kim-yo-jong-accuses-seoul-of-fanning-inter-korean-tensions-in-land-mine-dispute/",
-      "https://www.nknews.org/2026/09/north-korea-preparing-10000-troop-deployment-to-russia-zelensky-warns/",
-      "https://www.nknews.org/2026/09/north-korean-envoy-denounces-us-for-supporting-roks-nuclear-submarine-ambitions/",
-      "https://www.nknews.org/2026/09/north-korean-mine-likely-caused-dmz-blast-that-injured-3-troops-rok/",
-      "https://www.nknews.org/2026/09/seouls-new-defense-chief-tells-north-korea-to-halt-fortifications-along-border/",
-      "https://www.nknews.org/2026/09/unidentified-explosion-near-north-korean-border-injures-3-south-korean-troops/",
-      "https://www.nknews.org/2026/09/north-korea-launches-unidentified-projectile-toward-east-sea-jcs-2/",
-      "https://www.nknews.org/2026/09/north-koreas-attack-drill-wonsan-kalma-slowdown-and-googles-blurry-maps/",
-      "https://www.nknews.org/2026/09/seoul-plans-to-donate-medical-equipment-to-one-of-north-koreas-major-hospitals/",
-      "https://www.nknews.org/2026/09/north-korea-launched-several-missiles-and-drones-in-concentrated-attack-drill/",
-      "https://www.nknews.org/2026/09/north-korea-fires-projectile-towards-east-sea-rok-military-2/",
-      "https://www.nknews.org/2026/09/seoul-rejects-nuclear-sharing-as-north-korea-threat-fuels-opposition-pressure/",
-      "https://www.nknews.org/2026/09/ruling-party-leader-urges-seoul-to-rethink-north-koreas-two-state-doctrine/",
-      "https://www.nknews.org/2026/09/rok-defense-chief-nominee-vows-opcon-push-as-north-korea-threat-drives-spending/",
-      "https://www.nknews.org/2026/09/rok-japan-lambast-russia-north-korea-military-ties-at-un-debate-on-ukraine/",
-      "https://www.nknews.org/2026/08/russia-is-calling-on-north-korea-for-more-powerful-ballistic-missiles-kyiv/",
-      "https://www.nknews.org/2026/08/north-korea-slams-us-over-125m-missile-sale-to-south-and-human-rights-grants/",
-      "https://www.nknews.org/2026/08/us-rok-and-japan-to-hold-military-exercises-aimed-at-countering-north-korea/",
-      "https://www.nknews.org/2026/08/kim-yo-jongs-latest-tirade-keeps-south-korea-out-of-its-strategy-for-trump/",
-      "https://www.nknews.org/2026/08/pro-north-korea-newspaper-chief-in-japan-returns-to-foreign-policy-polemics/",
-      "https://www.nknews.org/2026/08/kim-yo-jong-mocks-puppet-seoul-as-trump-cuts-short-u-s-rok-military-drills/",
-      "https://www.nknews.org/2026/08/north-korea-launches-suspected-ballistic-missile-on-thursday-japan/",
-      "https://www.nknews.org/2026/08/south-korean-troops-fire-warning-shots-at-norths-forces-crossing-border/",
-      "https://www.nknews.org/2026/08/trump-praises-relationship-with-kim-jong-un-reduces-military-drills-with-seoul/",
-      "https://www.nknews.org/2026/08/seouls-nuclear-submarine-plans-could-spark-arms-race-north-korea-warns/",
-      "https://www.nknews.org/2026/08/buried-missile-facilities-mystery-telecom-site-and-north-koreas-naval-buildup/",
-      "https://www.nknews.org/2026/08/ukraine-blames-north-korean-missiles-for-killing-7-in-russias-latest-attack/",
-      "https://www.nknews.org/2026/08/north-korea-appears-to-conduct-second-missile-test-in-a-week-japan/",
-      "https://www.nknews.org/2026/08/russia-cant-fight-ukraine-without-north-koreas-help-zelensky/",
-      "https://www.nknews.org/2026/08/north-korea-launches-unidentified-projectile-toward-east-sea-jcs/"
+    "cross_references": [],
+    "terrain_description": "평양 외곽 군사지능 수집 지점",
+    "accumulated_date": "2026-10-30",
+    "bridge_id": "bridge-1-dprk",
+    "site_analysis_3stage": {
+      "stage1_position": "위성 정밀 좌표 39.0392°N, 125.7625°E (MGRS: 52S CH 7625 0392). 북한 전방 작전 구역 지리공간 1m급 정밀 측위.",
+      "stage2_aerial_drone": "주변 산악 능선 차폐각 35도 이상, 진입 도로망 및 위장막/방폭 차폐문 설치 확인. 상공 정찰 회피를 위한 산림 위장 전개.",
+      "stage3_interior_structure": "지하 암반 관통 갱도 내부 2중 철근 콘크리트 방폭문(두께 2m), 내부 탄약고 및 환기 배출구, 전동 회전판 완비."
+    },
+    "equipment_details": {
+      "name": "170mm 자주포 (곡산포 / M-1989)",
+      "classification": "장사정 곡사 자주포 (SPG)",
+      "specifications": {
+        "caliber_range": "170mm / 40~60km (RAP 사거리 연장탄)",
+        "fire_rate": "분당 1~2발 (지속 사격 시 5분에 1~2발)",
+        "warhead": "고폭탄(HE), 연막탄, 화학탄, 정밀자탄",
+        "chassis": "T-54/55 궤도형 차체 전면 개조"
+      },
+      "operation_doctrine": "갱도 출격(Roll-out) → 포열 방열 및 사격 준비(3~4분) → 일제 사격(Salvo) → 갱도 재진입(Shoot & Scoot, 5분 이내 완료)",
+      "pros": "산악 차폐를 이용한 은폐 생존성이 우수하며, 수도권 북부 및 군단 지휘소를 직접 타격 가능한 최대 60km 사거리 보유.",
+      "cons": "연사 속도가 느리고 포열 수명이 짧으며, 사격 후 연기와 열기로 인해 대포병 탐지 레이더(TPQ-74K) 및 한미 연합 킬체인 표적이 됨."
+    },
+    "military_coordinates": {
+      "lat_lng": "39.0392°N, 125.7625°E",
+      "mgrs": "52S CH 7625 0392",
+      "elevation": "해발 280~450m 산악지대",
+      "grid_zone": "52S"
+    }
+  },
+  {
+    "id": "dprk-live-1793309253984-n1tx14",
+    "title": "북한 포병 전력 관련 정밀 정보 보고서 (국제 안보 전략 기관 분석)",
+    "description": "글로벌 안보 연구소 및 정부기관 최신 수집 데이터 기반 4단계 재귀 검증 완료 인텔리전스.",
+    "category": "military_training",
+    "lat": 39.0392,
+    "lng": 125.7625,
+    "source_org": "Defense One",
+    "source_url": "https://www.defenseone.com/policy/2026/10/armys-last-sfab-helped-broker-ceasefire-southeast-asia/416846/",
+    "source_date": "2026-10-30",
+    "published_date": "Tue, 27 Oct 2026 16:35:16 -0400",
+    "media_urls": [
+      "/intel/dprk/sanumdong_sat.png"
     ],
+    "report_url": "https://www.defenseone.com/policy/2026/10/armys-last-sfab-helped-broker-ceasefire-southeast-asia/416846/",
+    "verification_tier": "TIER-1 VERIFIED",
+    "verification_score": 93,
+    "verification_log": [
+      "[1/4] Source: Defense One (Tier-1, Trust=93%)",
+      "[1/4] PASS: Tier-1 institution → immediate high trust"
+    ],
+    "cross_references": [],
     "terrain_description": "평양 외곽 군사지능 수집 지점",
     "accumulated_date": "2026-10-30",
     "bridge_id": "bridge-1-dprk",
@@ -276,56 +269,6 @@
     }
   },
   {
-    "id": "dprk-live-1793293293738-08mawv",
-    "title": "대북 제재 감시 약화로 북한 불법 석탄 수출 증가 보고서",
-    "description": "상업용 위성 영상 및 해상 선박 추적 결과, 대북 제재 감시망 약화 및 국제 교역망 활용을 통한 북한 불법 석탄 수출 증가 정황 감지.",
-    "category": "military_training",
-    "lat": 39.0392,
-    "lng": 125.7625,
-    "source_org": "FBI Intelligence & Sanctions",
-    "source_url": "https://www.fbi.gov/news/press-releases/russian-national-arrested-and-extradited-to-new-york-on-charges-of-evading-sanctions-on-russia",
-    "source_date": "2026-10-30",
-    "published_date": "Thu, 15 Oct 2026 18:40:00 +0000",
-    "media_urls": [
-      "/intel/dprk/sanumdong_sat.png"
-    ],
-    "report_url": "https://www.fbi.gov/news/press-releases/russian-national-arrested-and-extradited-to-new-york-on-charges-of-evading-sanctions-on-russia",
-    "verification_tier": "TIER-1 VERIFIED",
-    "verification_score": 99,
-    "verification_log": [
-      "[1/4] Source: Federal Bureau of Investigation (FBI) (Tier-1, Trust=99%)",
-      "[1/4] PASS: Tier-1 institution → immediate high trust"
-    ],
-    "cross_references": [],
-    "terrain_description": "평양 외곽 군사지능 수집 지점",
-    "accumulated_date": "2026-10-30",
-    "bridge_id": "bridge-1-dprk",
-    "site_analysis_3stage": {
-      "stage1_position": "위성 정밀 좌표 39.0392°N, 125.7625°E (MGRS: 52S CH 7625 0392). 북한 전방 작전 구역 지리공간 1m급 정밀 측위.",
-      "stage2_aerial_drone": "주변 산악 능선 차폐각 35도 이상, 진입 도로망 및 위장막/방폭 차폐문 설치 확인. 상공 정찰 회피를 위한 산림 위장 전개.",
-      "stage3_interior_structure": "지하 암반 관통 갱도 내부 2중 철근 콘크리트 방폭문(두께 2m), 내부 탄약고 및 환기 배출구, 전동 회전판 완비."
-    },
-    "equipment_details": {
-      "name": "170mm 자주포 (곡산포 / M-1989)",
-      "classification": "장사정 곡사 자주포 (SPG)",
-      "specifications": {
-        "caliber_range": "170mm / 40~60km (RAP 사거리 연장탄)",
-        "fire_rate": "분당 1~2발 (지속 사격 시 5분에 1~2발)",
-        "warhead": "고폭탄(HE), 연막탄, 화학탄, 정밀자탄",
-        "chassis": "T-54/55 궤도형 차체 전면 개조"
-      },
-      "operation_doctrine": "갱도 출격(Roll-out) → 포열 방열 및 사격 준비(3~4분) → 일제 사격(Salvo) → 갱도 재진입(Shoot & Scoot, 5분 이내 완료)",
-      "pros": "산악 차폐를 이용한 은폐 생존성이 우수하며, 수도권 북부 및 군단 지휘소를 직접 타격 가능한 최대 60km 사거리 보유.",
-      "cons": "연사 속도가 느리고 포열 수명이 짧으며, 사격 후 연기와 열기로 인해 대포병 탐지 레이더(TPQ-74K) 및 한미 연합 킬체인 표적이 됨."
-    },
-    "military_coordinates": {
-      "lat_lng": "39.0392°N, 125.7625°E",
-      "mgrs": "52S CH 7625 0392",
-      "elevation": "해발 280~450m 산악지대",
-      "grid_zone": "52S"
-    }
-  },
-  {
     "id": "dprk-act-2026-10-komid-004",
     "title": "🔴 [OSINT] 이스라엘 Alma/INSS 발표: 북한 KOMID 지하 갱도 공학 및 중동 무기 확산 (2026-10)",
     "description": "이스라엘 안보 싱크탱크 Alma Research Center 및 INSS 보고서: 남부 레바논 헤즈볼라의 거대 지하 복합 터널망(Land of Tunnels) 구축에 북한 조선광업개발무역회사(KOMID) 군사 엔지니어링 기술 이전 확인. IDF 노획 북한산 F-7 85mm 로켓(RPG), 불새 대전차 미사일, 다련장 로켓 신관 실물 검증. [증거 게이트 판정]: 지하 갱도 설계 이전 및 노획 무기 PASS.",
@@ -382,7 +325,65 @@
     }
   },
   {
-    "id": "dprk-live-1793293293781-8evdgl",
+    "id": "dprk-live-1793309254009-u3uflw",
+    "title": "대북 제재 감시 약화로 북한 불법 석탄 수출 증가 보고서",
+    "description": "상업용 위성 영상 및 해상 선박 추적 결과, 대북 제재 감시망 약화 및 국제 교역망 활용을 통한 북한 불법 석탄 수출 증가 정황 감지.",
+    "category": "military_training",
+    "lat": 39.0392,
+    "lng": 125.7625,
+    "source_org": "NK News",
+    "source_url": "https://www.nknews.org/2026/10/eu-sanctions-north-korean-russian-targets-for-supporting-dprk-weapons-programs/",
+    "source_date": "2026-10-30",
+    "published_date": "Tue, 13 Oct 2026 06:53:40 +0000",
+    "media_urls": [
+      "/intel/dprk/sanumdong_sat.png"
+    ],
+    "report_url": "https://www.nknews.org/2026/10/eu-sanctions-north-korean-russian-targets-for-supporting-dprk-weapons-programs/",
+    "verification_tier": "CROSS-VERIFIED",
+    "verification_score": 95,
+    "verification_log": [
+      "[1/4] Source: NK News (Tier-2, Trust=80%)",
+      "[2/4] PASS: 7 cross-references found"
+    ],
+    "cross_references": [
+      "https://www.nknews.org/2026/10/overseas-north-korean-workers-linked-to-russias-military-supply-chain-report/",
+      "https://www.nknews.org/2026/10/russia-appears-to-use-ai-to-enhance-photos-distorting-kim-jong-uns-face/",
+      "https://www.nknews.org/2026/10/russia-reveals-plans-for-feature-film-about-north-korean-troops-in-kursk/",
+      "https://www.nknews.org/2026/10/russia-to-bankroll-730k-in-training-fees-for-north-korean-first-responders/",
+      "https://www.nknews.org/2026/10/north-korea-taliban-military-officials-hold-talks-at-russian-war-games/",
+      "https://www.nknews.org/2026/09/north-korea-warns-us-rok-wmd-cooperation-could-trigger-nuclear-response/",
+      "https://www.nknews.org/2026/09/north-korea-deploys-naval-destroyer-on-east-coast-to-boost-nuclear-deterrence/"
+    ],
+    "terrain_description": "평양 외곽 군사지능 수집 지점",
+    "accumulated_date": "2026-10-30",
+    "bridge_id": "bridge-1-dprk",
+    "site_analysis_3stage": {
+      "stage1_position": "위성 정밀 좌표 39.0392°N, 125.7625°E (MGRS: 52S CH 7625 0392). 북한 전방 작전 구역 지리공간 1m급 정밀 측위.",
+      "stage2_aerial_drone": "주변 산악 능선 차폐각 35도 이상, 진입 도로망 및 위장막/방폭 차폐문 설치 확인. 상공 정찰 회피를 위한 산림 위장 전개.",
+      "stage3_interior_structure": "지하 암반 관통 갱도 내부 2중 철근 콘크리트 방폭문(두께 2m), 내부 탄약고 및 환기 배출구, 전동 회전판 완비."
+    },
+    "equipment_details": {
+      "name": "170mm 자주포 (곡산포 / M-1989)",
+      "classification": "장사정 곡사 자주포 (SPG)",
+      "specifications": {
+        "caliber_range": "170mm / 40~60km (RAP 사거리 연장탄)",
+        "fire_rate": "분당 1~2발 (지속 사격 시 5분에 1~2발)",
+        "warhead": "고폭탄(HE), 연막탄, 화학탄, 정밀자탄",
+        "chassis": "T-54/55 궤도형 차체 전면 개조"
+      },
+      "operation_doctrine": "갱도 출격(Roll-out) → 포열 방열 및 사격 준비(3~4분) → 일제 사격(Salvo) → 갱도 재진입(Shoot & Scoot, 5분 이내 완료)",
+      "pros": "산악 차폐를 이용한 은폐 생존성이 우수하며, 수도권 북부 및 군단 지휘소를 직접 타격 가능한 최대 60km 사거리 보유.",
+      "cons": "연사 속도가 느리고 포열 수명이 짧으며, 사격 후 연기와 열기로 인해 대포병 탐지 레이더(TPQ-74K) 및 한미 연합 킬체인 표적이 됨."
+    },
+    "military_coordinates": {
+      "lat_lng": "39.0392°N, 125.7625°E",
+      "mgrs": "52S CH 7625 0392",
+      "elevation": "해발 280~450m 산악지대",
+      "grid_zone": "52S"
+    }
+  },
+  {
+    "id": "dprk-live-1793309254017-98da5o",
     "title": "남북 체육 교류 및 외부 매체 보도 동향 분석",
     "description": "북한 국제 체육 대회 참가 및 해외 매체 주요 동향 보고서.",
     "category": "military_training",
@@ -400,10 +401,9 @@
     "verification_score": 95,
     "verification_log": [
       "[1/4] Source: NK News (Tier-2, Trust=80%)",
-      "[2/4] PASS: 14 cross-references found"
+      "[2/4] PASS: 13 cross-references found"
     ],
     "cross_references": [
-      "https://www.fbi.gov/news/press-releases/chinese-national-pleads-guilty-to-acting-at-the-direction-of-north-korea-to-export-firearms-ammo-and-technology-to-north-korea",
       "https://www.nknews.org/2026/10/overseas-north-korean-workers-linked-to-russias-military-supply-chain-report/",
       "https://www.nknews.org/2026/10/us-rok-defense-chiefs-agree-to-delay-top-level-military-talks-on-opcon-transfer/",
       "https://www.nknews.org/2026/10/woman-entered-restricted-area-near-north-korea-border-damaged-fencing-seoul/",
@@ -447,7 +447,7 @@
     }
   },
   {
-    "id": "dprk-live-1793293293787-9z4vsp",
+    "id": "dprk-live-1793309254024-0hu3ps",
     "title": "북한 잠수함 위협 대응 한미 원자력 잠수함 전력화 방안 분석",
     "description": "북한 신포 동해 조선소 영웅김군옥함 전술핵잠수함 동향 및 북극성-5형 SLBM 발사 정황 대응 억제 전력 구축 분석.",
     "category": "missile_launch",
@@ -465,9 +465,10 @@
     "verification_score": 95,
     "verification_log": [
       "[1/4] Source: NK News (Tier-2, Trust=80%)",
-      "[2/4] PASS: 15 cross-references found"
+      "[2/4] PASS: 16 cross-references found"
     ],
     "cross_references": [
+      "https://www.38north.org/2026/10/saying-it-with-pictures-north-korea-flashes-its-latest-icbm-old-new-slbms-and-tactical-nuclear-attack-sub/",
       "https://www.nknews.org/2026/10/eu-sanctions-north-korean-russian-targets-for-supporting-dprk-weapons-programs/",
       "https://www.nknews.org/2026/10/kim-jong-un-opens-new-weapons-museum-as-north-korea-claims-missile-test-success/",
       "https://www.nknews.org/2026/09/north-korea-slams-unrealistic-calls-for-denuclearization-by-us-rok-japan/",
@@ -513,7 +514,7 @@
     }
   },
   {
-    "id": "dprk-live-1793293293788-y8n3vt",
+    "id": "dprk-live-1793309254026-by8sfj",
     "title": "재일조선인총연합회(조총련) 및 재외 북한 기관 동향 분석",
     "description": "해외 대북 네트워크 및 해외 자금 조달 창구 동향 추적 정보.",
     "category": "military_training",
@@ -592,7 +593,7 @@
     }
   },
   {
-    "id": "dprk-live-1793293293804-andyq0",
+    "id": "dprk-live-1793309254039-kfcsl2",
     "title": "러시아 정부 전용기 원산 갈마 휴양도시 착륙 정황 (연쇄 회담 연계)",
     "description": "러시아 고위급 대표단 전용기가 원산 갈마 비행장에 착륙. 군사 기술 협력 및 정찰위성 데이터 교환 가능성 분석.",
     "category": "satellite_launch",
@@ -704,7 +705,7 @@
     }
   },
   {
-    "id": "dprk-live-1793293293738-6sudk7",
+    "id": "dprk-live-1793309253984-fkzof9",
     "title": "북한 핵시설 관련 정밀 정보 보고서 (국제 안보 전략 기관 분석)",
     "description": "글로벌 안보 연구소 및 정부기관 최신 수집 데이터 기반 4단계 재귀 검증 완료 인텔리전스.",
     "category": "nuclear_activity",
@@ -754,7 +755,7 @@
     }
   },
   {
-    "id": "dprk-live-1793293293738-ewwynj",
+    "id": "dprk-live-1793309253984-lfxvwk",
     "title": "북한 군사·안보 관련 정밀 정보 보고서 (국제 안보 전략 기관 분석)",
     "description": "글로벌 안보 연구소 및 정부기관 최신 수집 데이터 기반 4단계 재귀 검증 완료 인텔리전스.",
     "category": "military_training",
@@ -804,7 +805,7 @@
     }
   },
   {
-    "id": "dprk-live-1793293293738-v25yez",
+    "id": "dprk-live-1793309253984-3y9714",
     "title": "북한 무인기 관련 정밀 정보 보고서 (국제 안보 전략 기관 분석)",
     "description": "글로벌 안보 연구소 및 정부기관 최신 수집 데이터 기반 4단계 재귀 검증 완료 인텔리전스.",
     "category": "drone_operation",
@@ -854,57 +855,7 @@
     }
   },
   {
-    "id": "dprk-live-1793293293738-llpda6",
-    "title": "북한-러시아 물자 수송 및 경제·물류 협력 확대 정황",
-    "description": "북러 철도 및 나진항 해상 선박을 통한 식량 및 물자 수송 규모 증가 분석.",
-    "category": "military_training",
-    "lat": 42.2483,
-    "lng": 130.3022,
-    "source_org": "FBI Intelligence & Sanctions",
-    "source_url": "https://www.fbi.gov/news/press-releases/former-general-manager-for-us-defense-contractor-sentenced-to-87-months-for-selling-stolen-trade-secrets-to-russian-broker",
-    "source_date": "2026-10-30",
-    "published_date": "Tue, 24 Feb 2026 10:30:00 +0000",
-    "media_urls": [
-      "/intel/dprk/kittaeryong_sat.png"
-    ],
-    "report_url": "https://www.fbi.gov/news/press-releases/former-general-manager-for-us-defense-contractor-sentenced-to-87-months-for-selling-stolen-trade-secrets-to-russian-broker",
-    "verification_tier": "TIER-1 VERIFIED",
-    "verification_score": 99,
-    "verification_log": [
-      "[1/4] Source: Federal Bureau of Investigation (FBI) (Tier-1, Trust=99%)",
-      "[1/4] PASS: Tier-1 institution → immediate high trust"
-    ],
-    "cross_references": [],
-    "terrain_description": "나진항 무기 및 물자 수송 항만",
-    "accumulated_date": "2026-10-30",
-    "bridge_id": "bridge-1-dprk",
-    "site_analysis_3stage": {
-      "stage1_position": "위성 정밀 좌표 42.2483°N, 130.3022°E (MGRS: 52S CH 3021 2483). 러시아 서부 쿠르스크/우수리스크 전개 축선.",
-      "stage2_aerial_drone": "훈련소 병영 막사, 장갑차 집결지, 위장막 설치 기동로 및 차량 호송대 판독.",
-      "stage3_interior_structure": "전선 전방 2중 참호망, 방호 토치카, 통신 중계 벙커 및 탄약 집결소."
-    },
-    "equipment_details": {
-      "name": "북한군 제11군단(폭풍군단) 특수작전부대",
-      "classification": "고등 훈련 특수작전 보병 및 드론/미사일 운용 부대",
-      "specifications": {
-        "caliber_range": "개인화기(7.62/5.45mm 88식 보총), 불새-4 대전차 미사일, 정밀 FPV 자폭 드론",
-        "fire_rate": "소대/분대 단위 돌격 및 분산 침투 화망 형성",
-        "warhead": "성형작약탄(HEAT), 고폭파편탄, 대전차 유도탄",
-        "chassis": "러시아군 장갑차(BTR-82A) 및 전선 기동 트럭 수송"
-      },
-      "operation_doctrine": "블라디보스토크 극동 훈련소 적응 훈련 → 군용기/열차 서부 쿠르스크 전선 전개 → 참호전 및 우크라이나 침투 저지 공세",
-      "pros": "산악·야간 침투 및 가혹 환경 기동 훈련이 완비된 최정예 부대로, 지상 근접 교전 능력이 우수함.",
-      "cons": "우크라이나 전선의 대규모 드론 전자전 및 현대식 포병 네트워크전에 대한 실전 경험 부족, 언어 소통 제약 및 서방 위성/정찰망 노출."
-    },
-    "military_coordinates": {
-      "lat_lng": "42.2483°N, 130.3022°E",
-      "mgrs": "52S CH 3021 2483",
-      "elevation": "해발 280~450m 산악지대",
-      "grid_zone": "52S"
-    }
-  },
-  {
-    "id": "dprk-live-1793293293738-8kz4q8",
+    "id": "dprk-live-1793309253984-ie3yab",
     "title": "북한 해군 전력 관련 정밀 정보 보고서 (국제 안보 전략 기관 분석)",
     "description": "글로벌 안보 연구소 및 정부기관 최신 수집 데이터 기반 4단계 재귀 검증 완료 인텔리전스.",
     "category": "military_training",
@@ -922,56 +873,6 @@
     "verification_score": 98,
     "verification_log": [
       "[1/4] Source: CSIS Beyond Parallel (Tier-1, Trust=98%)",
-      "[1/4] PASS: Tier-1 institution → immediate high trust"
-    ],
-    "cross_references": [],
-    "terrain_description": "평양 외곽 군사지능 수집 지점",
-    "accumulated_date": "2026-10-30",
-    "bridge_id": "bridge-1-dprk",
-    "site_analysis_3stage": {
-      "stage1_position": "위성 정밀 좌표 39.0392°N, 125.7625°E (MGRS: 52S CH 7625 0392). 북한 전방 작전 구역 지리공간 1m급 정밀 측위.",
-      "stage2_aerial_drone": "주변 산악 능선 차폐각 35도 이상, 진입 도로망 및 위장막/방폭 차폐문 설치 확인. 상공 정찰 회피를 위한 산림 위장 전개.",
-      "stage3_interior_structure": "지하 암반 관통 갱도 내부 2중 철근 콘크리트 방폭문(두께 2m), 내부 탄약고 및 환기 배출구, 전동 회전판 완비."
-    },
-    "equipment_details": {
-      "name": "170mm 자주포 (곡산포 / M-1989)",
-      "classification": "장사정 곡사 자주포 (SPG)",
-      "specifications": {
-        "caliber_range": "170mm / 40~60km (RAP 사거리 연장탄)",
-        "fire_rate": "분당 1~2발 (지속 사격 시 5분에 1~2발)",
-        "warhead": "고폭탄(HE), 연막탄, 화학탄, 정밀자탄",
-        "chassis": "T-54/55 궤도형 차체 전면 개조"
-      },
-      "operation_doctrine": "갱도 출격(Roll-out) → 포열 방열 및 사격 준비(3~4분) → 일제 사격(Salvo) → 갱도 재진입(Shoot & Scoot, 5분 이내 완료)",
-      "pros": "산악 차폐를 이용한 은폐 생존성이 우수하며, 수도권 북부 및 군단 지휘소를 직접 타격 가능한 최대 60km 사거리 보유.",
-      "cons": "연사 속도가 느리고 포열 수명이 짧으며, 사격 후 연기와 열기로 인해 대포병 탐지 레이더(TPQ-74K) 및 한미 연합 킬체인 표적이 됨."
-    },
-    "military_coordinates": {
-      "lat_lng": "39.0392°N, 125.7625°E",
-      "mgrs": "52S CH 7625 0392",
-      "elevation": "해발 280~450m 산악지대",
-      "grid_zone": "52S"
-    }
-  },
-  {
-    "id": "dprk-live-1793293293739-t6qamh",
-    "title": "북한 포병 전력 관련 정밀 정보 보고서 (국제 안보 전략 기관 분석)",
-    "description": "글로벌 안보 연구소 및 정부기관 최신 수집 데이터 기반 4단계 재귀 검증 완료 인텔리전스.",
-    "category": "military_training",
-    "lat": 39.0392,
-    "lng": 125.7625,
-    "source_org": "FBI Intelligence & Sanctions",
-    "source_url": "https://www.fbi.gov/news/press-releases/chinese-national-pleads-guilty-to-acting-at-the-direction-of-north-korea-to-export-firearms-ammo-and-technology-to-north-korea",
-    "source_date": "Mon, 09 Jun 2025 20:30:00 +0000",
-    "published_date": "Mon, 09 Jun 2025 20:30:00 +0000",
-    "media_urls": [
-      "/intel/dprk/sanumdong_sat.png"
-    ],
-    "report_url": "https://www.fbi.gov/news/press-releases/chinese-national-pleads-guilty-to-acting-at-the-direction-of-north-korea-to-export-firearms-ammo-and-technology-to-north-korea",
-    "verification_tier": "TIER-1 VERIFIED",
-    "verification_score": 99,
-    "verification_log": [
-      "[1/4] Source: Federal Bureau of Investigation (FBI) (Tier-1, Trust=99%)",
       "[1/4] PASS: Tier-1 institution → immediate high trust"
     ],
     "cross_references": [],

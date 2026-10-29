@@ -64,7 +64,8 @@ export default function SearchBar({ onLocate, center = null, onClose, onDirectio
   // The query the current results answer, so "no results" is never shown for a search still on its way.
   const [answered, setAnswered] = useState('');
   const [selected, setSelected] = useState(0);
-  const [recent, setRecent] = useState<RecentPlace[]>(() => (typeof window === 'undefined' ? [] : loadRecent()));
+  const [recent, setRecent] = useState<RecentPlace[]>([]);
+  const [mounted, setMounted] = useState(false);
   const [locating, setLocating] = useState(false);
   const [locateNote, setLocateNote] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -72,6 +73,11 @@ export default function SearchBar({ onLocate, center = null, onClose, onDirectio
   const abortRef = useRef<AbortController | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const listId = useId();
+
+  useEffect(() => {
+    setRecent(loadRecent());
+    setMounted(true);
+  }, []);
 
   useEffect(() => { const t = setTimeout(() => inputRef.current?.focus(), 50); return () => clearTimeout(t); }, []);
 
@@ -103,7 +109,7 @@ export default function SearchBar({ onLocate, center = null, onClose, onDirectio
 
   const typing = value.trim().length > 0;
   const you: Hit = { label: '현재 내 위치', context: locateNote || '실시간 내 위치로 카메라 이동', lat: 0, lng: 0, kind: 'current', zoom: 14 };
-  const items: Hit[] = typing ? results : [you, ...recent.map(r => ({ ...r, zoom: ZOOM_BY_KIND[r.kind ?? ''] ?? 13 }))];
+  const items: Hit[] = typing ? results : [you, ...(mounted ? recent : []).map(r => ({ ...r, zoom: ZOOM_BY_KIND[r.kind ?? ''] ?? 13 }))];
   const active = Math.min(selected, Math.max(0, items.length - 1));
 
   const search = useCallback((q: string) => {
@@ -241,7 +247,7 @@ export default function SearchBar({ onLocate, center = null, onClose, onDirectio
       <div className={`min-h-0 overflow-y-auto styled-scrollbar ${embedded ? 'pt-3' : 'p-2'}`}>
         {!typing && (
           <span className={`block px-3 pt-1 pb-1.5 text-[10px] font-mono tracking-[0.14em] uppercase text-[var(--text-muted)] ${embedded ? 'px-1' : ''}`}>
-            {recent.length ? '최근 장소 바로가기' : '추천 시작 장소'}
+            {mounted && recent.length ? '최근 장소 바로가기' : '추천 시작 장소'}
           </span>
         )}
         <div id={listId} role="listbox" aria-label={typing ? '검색된 장소' : '추천 장소'} className="flex flex-col gap-0.5">
@@ -260,7 +266,7 @@ export default function SearchBar({ onLocate, center = null, onClose, onDirectio
           ))}
         </div>
 
-        {!typing && recent.length > 0 && (
+        {!typing && mounted && recent.length > 0 && (
           <button onClick={() => { forgetRecent(); setRecent([]); setSelected(0); }}
             className="mt-1 ml-3 text-[10.5px] text-[var(--text-muted)] hover:text-[var(--text-heading)] transition-colors">
             최근 검색 기록 삭제

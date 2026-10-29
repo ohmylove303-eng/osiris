@@ -473,8 +473,12 @@ export default function DirectionsBar({ onRoute, onLocate, onClose, center = nul
   const [vias, setVias] = useState<Array<{ place: Place | null; text: string }>>([]);
   const [avoid, setAvoid] = useState({ tolls: false, highways: false, ferries: false });
   const [showOptions, setShowOptions] = useState(false);
-  const [recent, setRecent] = useState<RecentPlace[]>(() => (typeof window === 'undefined' ? [] : loadRecent()));
+  const [recent, setRecent] = useState<RecentPlace[]>([]);
   const watchId = useRef<number | null>(null);
+
+  useEffect(() => {
+    setRecent(loadRecent());
+  }, []);
 
   /** Remember a place picked for the route, for the next time a field is empty. */
   const remember = (p: Place) => {
