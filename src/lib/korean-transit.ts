@@ -12,6 +12,9 @@
  */
 
 import type { TransitVehicle, TransitFeed } from './transit';
+import GROUNDED_CORRIDORS_DATA from '@/data/grounded_transit_corridors.json';
+
+const GROUNDED_CORRIDORS = GROUNDED_CORRIDORS_DATA as unknown as Record<string, [number, number][]>;
 
 export const KOREA_TRANSIT_FEED_ID = 'korea-tago-transit';
 
@@ -725,6 +728,14 @@ export const KOREAN_ROUTES: RouteDefinition[] = [
     ],
   },
 ];
+
+// ── OpenStreetMap & 국토교통부 실측 고밀도 회랑 좌표계(Dense Grounded Corridors) 자동 결합 ──
+for (const route of KOREAN_ROUTES) {
+  const dense = GROUNDED_CORRIDORS[route.id];
+  if (dense && dense.length > 0) {
+    route.waypoints = dense;
+  }
+}
 
 /** 두 좌표 사이의 방위각 (degrees 0–360) 계산 */
 export function getBearing(from: [number, number], to: [number, number]): number {
