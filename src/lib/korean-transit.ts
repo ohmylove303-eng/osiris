@@ -253,7 +253,10 @@ export const KOREAN_ROUTES: RouteDefinition[] = [
       [126.7980, 37.5780], // 개화역 (48번 국도)
       [126.8350, 37.5680], // 송정역 / 공항대로
       [126.8650, 37.5580], // 등촌역 / 염창동
-      [126.8950, 37.5480], // 양화대교 남단
+      [126.8850, 37.5500], // 노들로 진입
+      [126.9020, 37.5430], // 양화대교 남단 교각 진입로
+      [126.9050, 37.5460], // 양화대교 주탑 (선유도 횡단)
+      [126.9080, 37.5490], // 양화대교 북단 램프
       [126.9130, 37.5500], // 합정역 2호선
       [126.9240, 37.5570], // 홍대입구역
       [126.9370, 37.5550], // 신촌역 2호선 (현대백화점)
@@ -279,20 +282,23 @@ export const KOREAN_ROUTES: RouteDefinition[] = [
       [126.8200, 37.6050], // 전호대교 (올림픽대로 접속)
       [126.8450, 37.5850], // 가양대교 남단 올림픽대로
       [126.8750, 37.5550], // 성산대교 남단 올림픽대로
+      [126.9150, 37.5270], // 여의상류IC 올림픽대로
       [126.9200, 37.5250], // 여의도 63빌딩 앞 올림픽대로
+      [126.9380, 37.5240], // 원효대교 남단 교차로
+      [126.9410, 37.5290], // 원효대교 한강 주탑 횡단
       [126.9450, 37.5350], // 원효대교 북단 진입
       [126.9680, 37.5450], // 청파로 / 숙대입구
       [126.9710, 37.5560], // 서울역 환승센터 5번홈
     ],
   },
 
-  // ── [BUS 7700] 청라 ↔ 가양역 BRT ──
+  // ── [BUS 7700] 청라 ↔ 가양역 BRT (공항 활주로 완전 회피, 봉오대로·화곡로 정밀 도로망 축선) ──
   {
     id: 'bus-7700',
-    name: '7700번 BRT (인천 청라 ↔ 봉오대로 ↔ 가양역)',
+    name: '7700번 BRT (인천 청라 ↔ 봉오대로 ↔ 화곡로 ↔ 가양역)',
     mode: 'bus',
     labelPrefix: '인천74사',
-    speedKmh: 60,
+    speedKmh: 55,
     terminals: { up: '가양역', down: '청라로봇랜드' },
     waypoints: [
       [126.6110, 37.5320], // 청라로봇랜드
@@ -300,12 +306,22 @@ export const KOREAN_ROUTES: RouteDefinition[] = [
       [126.6340, 37.5360], // 청라호수공원 봉오대로 BRT
       [126.6520, 37.5365], // 청라2동주민센터
       [126.6740, 37.5380], // 가정역 (루원시티)
+      [126.6900, 37.5380], // 아나지고개 (봉오대로)
       [126.7020, 37.5380], // 서운JC 봉오대로
       [126.7210, 37.5380], // 작전역 (부평IC)
-      [126.7620, 37.5450], // 계양구청 (봉오대로 BRT 전용차로)
-      [126.8050, 37.5550], // 오쇠삼거리
-      [126.8370, 37.5620], // 발산역 (공항대로)
-      [126.8630, 37.5610], // 가양역 9호선
+      [126.7620, 37.5400], // 계양구청 (봉오대로 BRT 전용차로)
+      [126.7850, 37.5340], // 부천 오정동 봉오대로
+      [126.8050, 37.5335], // 대장동 남단 도로 (공항 남단 외곽 봉오대로)
+      [126.8200, 37.5338], // 고강교사거리 (봉오대로 남단)
+      [126.8340, 37.5340], // 신월IC 서부간선 교차 (봉오대로 끝)
+      [126.8385, 37.5360], // 화곡로입구 교차로
+      [126.8400, 37.5385], // 신월동 화곡로 북상
+      [126.8405, 37.5415], // 화곡역 교차로 (지하철 5호선)
+      [126.8360, 37.5480], // 우장산역 (강서로)
+      [126.8380, 37.5585], // 발산역 (공항대로 교차로)
+      [126.8460, 37.5600], // 등촌3동주민센터 (강서로)
+      [126.8520, 37.5560], // 강서구청사거리 (화곡로)
+      [126.8580, 37.5615], // 가양역 9호선 (양천로/화곡로)
     ],
   },
 
@@ -375,6 +391,8 @@ export const KOREAN_ROUTES: RouteDefinition[] = [
       [126.6229, 37.5534], // 청라에코로 입구
       [126.6172, 37.5518], // 청라세계로 삼거리
       [126.6110, 37.5478], // 청라체고앞 삼거리
+      [126.6110, 37.5530], // 청라대로 북단 교차로
+      [126.6180, 37.5540], // 경명대로 / 청라역 진입로
       [126.6235, 37.5540], // 청라국제도시역 환승센터
     ],
   },
@@ -855,6 +873,104 @@ export function getKoreanTransitVehicles(nowMs: number = Date.now()): TransitVeh
   });
 
   return vehicles;
+}
+
+/**
+ * 수도권 정밀 대중교통 노선망 전체를 지도 도로망 위에 시각적으로 렌더링하기 위한 GeoJSON LineString FeatureCollection 생성
+ * (7700번 BRT, 간선/지선/광역 버스, 지하철 1·2·9호선, AREX, KTX, SRT 등)
+ */
+export function getKoreanTransitRoutesGeoJSON(): any {
+  return {
+    type: 'FeatureCollection',
+    features: KOREAN_ROUTES.map(route => {
+      let shortName = route.name;
+      let color = '#00E5FF';
+
+      if (route.id === 'bus-7700') {
+        shortName = '7700번 BRT';
+        color = '#00E5FF'; // BRT Neon Cyan
+      } else if (route.id === 'bus-740') {
+        shortName = '740번 간선버스';
+        color = '#2979FF'; // Blue Bus
+      } else if (route.id === 'bus-273') {
+        shortName = '273번 간선버스';
+        color = '#2979FF';
+      } else if (route.id === 'bus-421') {
+        shortName = '421번 간선버스';
+        color = '#2979FF';
+      } else if (route.id === 'bus-150') {
+        shortName = '150번 간선버스';
+        color = '#2979FF';
+      } else if (route.id === 'bus-01') {
+        shortName = '01번 남산순환';
+        color = '#FFD600'; // Yellow
+      } else if (route.id === 'bus-360') {
+        shortName = '360번 간선버스';
+        color = '#2979FF';
+      } else if (route.id === 'bus-3000') {
+        shortName = '3000번 직행좌석';
+        color = '#FF1744'; // Red
+      } else if (route.id === 'bus-m6117') {
+        shortName = 'M6117번 광역급행';
+        color = '#FF1744';
+      } else if (route.id === 'bus-9401') {
+        shortName = '9401번 광역급행';
+        color = '#FF1744';
+      } else if (route.id === 'bus-70') {
+        shortName = '70번 일반버스';
+        color = '#00E676'; // Green
+      } else if (route.id === 'metro-line2') {
+        shortName = '지하철 2호선';
+        color = '#00E676';
+      } else if (route.id === 'metro-line1') {
+        shortName = '지하철 1호선';
+        color = '#1565C0';
+      } else if (route.id === 'metro-line9') {
+        shortName = '지하철 9호선 급행';
+        color = '#D4AF37';
+      } else if (route.id === 'metro-arex') {
+        shortName = '공항철도 (AREX)';
+        color = '#0090D2';
+      } else if (route.id === 'metro-gimpo-gold') {
+        shortName = '김포골드라인';
+        color = '#AD8600';
+      } else if (route.id === 'rail-ktx-gyeongbu') {
+        shortName = 'KTX 경부고속철도';
+        color = '#0288D1';
+      } else if (route.id === 'rail-srt-honam') {
+        shortName = 'SRT 호남고속철도';
+        color = '#880E4F';
+      } else if (route.id === 'rail-gyeongui-dmz') {
+        shortName = '경의선 DMZ 평화열차';
+        color = '#2E7D32';
+      } else if (route.mode === 'taxi') {
+        shortName = '스마트 K-TAXI';
+        color = '#FFD600';
+      }
+
+      const coords = [...route.waypoints];
+      if (route.isCircular && coords.length > 0) {
+        coords.push(coords[0]);
+      }
+
+      return {
+        type: 'Feature',
+        geometry: {
+          type: 'LineString',
+          coordinates: coords,
+        },
+        properties: {
+          id: route.id,
+          name: route.name,
+          shortName,
+          mode: route.mode,
+          color,
+          speedKmh: route.speedKmh,
+          terminals: `${route.terminals?.down || ''} ↔ ${route.terminals?.up || ''}`,
+        },
+      };
+    }),
+  };
 }
 
 /**

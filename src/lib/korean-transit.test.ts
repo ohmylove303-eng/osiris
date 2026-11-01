@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getKoreanTransitVehicles, interpolateRoutePosition, KOREAN_ROUTES } from './korean-transit';
+import { getKoreanTransitVehicles, interpolateRoutePosition, KOREAN_ROUTES, getKoreanTransitRoutesGeoJSON } from './korean-transit';
 
 describe('Korean Transit Simulation & Directional Engine', () => {
   it('generates vehicles for all four transit modes: bus, taxi, rail, metro', () => {
@@ -67,6 +67,42 @@ describe('Korean Transit Simulation & Directional Engine', () => {
     const returnTimeMs = (oneWaySec * 1.5) * 1000;
     const pos2 = interpolateRoutePosition(waypoints, 50, 0, returnTimeMs, false);
     expect(pos2.forward).toBe(false);
+  });
+
+  it('generates rich GeoJSON LineString corridors for all Korean transit routes', () => {
+    const geo = getKoreanTransitRoutesGeoJSON();
+    expect(geo.type).toBe('FeatureCollection');
+    expect(geo.features.length).toBe(KOREAN_ROUTES.length);
+    expect(geo.features.length).toBeGreaterThan(15);
+
+    for (const feat of geo.features) {
+      expect(feat.type).toBe('Feature');
+      expect(feat.geometry.type).toBe('LineString');
+      expect(feat.geometry.coordinates.length).toBeGreaterThanOrEqual(2);
+      expect(feat.properties.id).toBeDefined();
+      expect(feat.properties.shortName).toBeDefined();
+      expect(feat.properties.color).toBeDefined();
+      expect(feat.properties.mode).toBeDefined();
+    }
+  });
+
+  it('guarantees bus-7700 (BRT) strictly avoids Gimpo Airport runways and follows roads', () => {
+    const brt = KOREAN_ROUTES.find(r => r.id === 'bus-7700');
+    expect(brt).toBeDefined();
+
+    // Gimpo Airport Active Runway Box
+    // Lat: 37.548 to 37.575, Lon: 126.785 to 126.815
+    for (const [lng, lat] of brt!.waypoints) {
+      const inRunwayBox = lat >= 37.548 && lat <= 37.575 && lng >= 126.785 && lng <= 126.815;
+      expect(inRunwayBox).toBe(false);
+    }
+
+    // Check multiple sampled interpolated time offsets across the entire day
+    for (let sec = 0; sec < 3600; sec += 30) {
+      const pos = interpolateRoutePosition(brt!.waypoints, brt!.speedKmh, 0, sec * 1000, false);
+      const inRunwayBox = pos.lat >= 37.548 && pos.lat <= 37.575 && pos.lng >= 126.785 && pos.lng <= 126.815;
+      expect(inRunwayBox).toBe(false);
+    }
   });
 });
 

@@ -176,27 +176,140 @@ function OsirisMap({
     return map;
   }, []);
 
+  // ── 정밀 항공기 캔버스 렌더러 (민간 여객기, 스텔스 전투기, VIP 비즈니스 제트) ──
+  const drawAircraftOnCanvas = (ctx: CanvasRenderingContext2D, id: string, color: string, size: number) => {
+    const cx = size / 2, cy = size / 2;
+    ctx.clearRect(0, 0, size, size);
+
+    const isFighter = id.includes('green') || id.includes('red') || id.includes('orange') || id.includes('brown') || id.includes('navy') || id.includes('blue') || id.includes('fighter');
+    const isJet = id.includes('yellow') || id.includes('pink') || id.includes('jet');
+
+    if (isFighter) {
+      // ── 전술 전투기 (F-35, KF-21, F-15K, MiG-29): 스텔스 다이아몬드/델타익, 트윈 수직꼬리날개, 트윈 애프터버너 ──
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 4;
+      ctx.fillStyle = color;
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 0.8;
+
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - size * 0.44); // 기두 노즈
+      ctx.lineTo(cx + size * 0.08, cy - size * 0.18);
+      ctx.lineTo(cx + size * 0.42, cy + size * 0.12); // 우측 주익
+      ctx.lineTo(cx + size * 0.38, cy + size * 0.18);
+      ctx.lineTo(cx + size * 0.14, cy + size * 0.16);
+      ctx.lineTo(cx + size * 0.22, cy + size * 0.38); // 우측 수직미익
+      ctx.lineTo(cx + size * 0.09, cy + size * 0.38);
+      ctx.lineTo(cx + size * 0.05, cy + size * 0.34); // 엔진 배기구
+      ctx.lineTo(cx - size * 0.05, cy + size * 0.34);
+      ctx.lineTo(cx - size * 0.09, cy + size * 0.38);
+      ctx.lineTo(cx - size * 0.22, cy + size * 0.38); // 좌측 수직미익
+      ctx.lineTo(cx - size * 0.14, cy + size * 0.16);
+      ctx.lineTo(cx - size * 0.38, cy + size * 0.18);
+      ctx.lineTo(cx - size * 0.42, cy + size * 0.12); // 좌측 주익
+      ctx.lineTo(cx - size * 0.08, cy - size * 0.18);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.shadowBlur = 0;
+
+      // 조종석 캐노피 (버블 글래스 반사)
+      ctx.fillStyle = '#06101E';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - size * 0.14, size * 0.045, size * 0.12, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#67E8F9';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - size * 0.16, size * 0.02, size * 0.06, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 트윈 엔진 배기구 하이라이트
+      ctx.fillStyle = color;
+      ctx.fillRect(cx - size * 0.07, cy + size * 0.34, size * 0.04, size * 0.05);
+      ctx.fillRect(cx + size * 0.03, cy + size * 0.34, size * 0.04, size * 0.05);
+    } else if (isJet) {
+      // ── VIP 비즈니스 제트기 (Gulfstream G650, Global 7500): 유선형 동체, 후방 엔진 마운트, T-Tail ──
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 3;
+      ctx.fillStyle = color;
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 0.8;
+
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - size * 0.44); // 노즈
+      ctx.lineTo(cx + size * 0.06, cy - size * 0.08);
+      ctx.lineTo(cx + size * 0.40, cy + size * 0.10); // 주익 우측
+      ctx.lineTo(cx + size * 0.38, cy + size * 0.16);
+      ctx.lineTo(cx + size * 0.07, cy + size * 0.12);
+      ctx.lineTo(cx + size * 0.07, cy + size * 0.28);
+      ctx.lineTo(cx + size * 0.22, cy + size * 0.38); // T-Tail 수평미익
+      ctx.lineTo(cx - size * 0.22, cy + size * 0.38);
+      ctx.lineTo(cx - size * 0.07, cy + size * 0.28);
+      ctx.lineTo(cx - size * 0.07, cy + size * 0.12);
+      ctx.lineTo(cx - size * 0.38, cy + size * 0.16);
+      ctx.lineTo(cx - size * 0.40, cy + size * 0.10); // 주익 좌측
+      ctx.lineTo(cx - size * 0.06, cy - size * 0.08);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.shadowBlur = 0;
+      // 후방 트윈 엔진 포드
+      ctx.fillStyle = '#06101E';
+      ctx.fillRect(cx - size * 0.11, cy + size * 0.18, size * 0.035, size * 0.08);
+      ctx.fillRect(cx + size * 0.075, cy + size * 0.18, size * 0.035, size * 0.08);
+    } else {
+      // ── 민간 대형 여객기 (B777, A350, B747, A330): 후퇴익, 주익 하부 트윈 터빈 엔진, 윙렛, 수평/수직미익 ──
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 4;
+      ctx.fillStyle = color;
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 0.8;
+
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - size * 0.44); // 노즈 레이돔
+      ctx.lineTo(cx + size * 0.06, cy - size * 0.12);
+      ctx.lineTo(cx + size * 0.44, cy + size * 0.08); // 우측 윙팁
+      ctx.lineTo(cx + size * 0.43, cy + size * 0.15);
+      ctx.lineTo(cx + size * 0.08, cy + size * 0.12); // 주익 후연
+      ctx.lineTo(cx + size * 0.06, cy + size * 0.30); // 동체
+      ctx.lineTo(cx + size * 0.22, cy + size * 0.40); // 우측 수평미익
+      ctx.lineTo(cx, cy + size * 0.38); // 기미부 테일콘
+      ctx.lineTo(cx - size * 0.22, cy + size * 0.40); // 좌측 수평미익
+      ctx.lineTo(cx - size * 0.06, cy + size * 0.30);
+      ctx.lineTo(cx - size * 0.08, cy + size * 0.12);
+      ctx.lineTo(cx - size * 0.43, cy + size * 0.15);
+      ctx.lineTo(cx - size * 0.44, cy + size * 0.08); // 좌측 윙팁
+      ctx.lineTo(cx - size * 0.06, cy - size * 0.12);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.shadowBlur = 0;
+
+      // 주익 하부 제트 터빈 엔진 2기 (Nacelles)
+      ctx.fillStyle = '#0B1526';
+      ctx.beginPath();
+      ctx.ellipse(cx - size * 0.18, cy + size * 0.04, size * 0.03, size * 0.06, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx + size * 0.18, cy + size * 0.04, size * 0.03, size * 0.06, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 조종석 윈드실드 (파노라마 유리창)
+      ctx.fillStyle = '#06101E';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - size * 0.30, size * 0.04, size * 0.035, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  };
+
   // Create aircraft icon on canvas (for WebGL symbol layer)
   const createIcon = useCallback((map: maplibregl.Map, id: string, color: string, size: number) => {
     if (map.hasImage(id)) return;
     const canvas = document.createElement('canvas');
     canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d')!;
-    const cx = size / 2, cy = size / 2;
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy - size * 0.4);
-    ctx.lineTo(cx - size * 0.12, cy + size * 0.1);
-    ctx.lineTo(cx - size * 0.4, cy + size * 0.2);
-    ctx.lineTo(cx - size * 0.4, cy + size * 0.3);
-    ctx.lineTo(cx - size * 0.12, cy + size * 0.15);
-    ctx.lineTo(cx, cy + size * 0.35);
-    ctx.lineTo(cx + size * 0.12, cy + size * 0.15);
-    ctx.lineTo(cx + size * 0.4, cy + size * 0.3);
-    ctx.lineTo(cx + size * 0.4, cy + size * 0.2);
-    ctx.lineTo(cx + size * 0.12, cy + size * 0.1);
-    ctx.closePath();
-    ctx.fill();
+    drawAircraftOnCanvas(ctx, id, color, size);
     map.addImage(id, { width: size, height: size, data: new Uint8Array(ctx.getImageData(0, 0, size, size).data) });
   }, []);
 
@@ -2195,6 +2308,96 @@ function OsirisMap({
         'icon-rotate': ['get','heading'], 'icon-rotation-alignment': 'map', 'icon-allow-overlap': true, 'icon-ignore-placement': true,
       }, paint: { 'icon-opacity': 0.85 }});
 
+      // ── Dedicated High-Visibility Flight Identification & Tactical Status Labels ──
+      // 1. 군용기 전술 식별 라벨 (피아구분 뱃지, 편대/기종명, 고도/속도)
+      map.addLayer({
+        id: 'fl-labels-mil',
+        type: 'symbol',
+        source: 'military',
+        minzoom: 4.8,
+        layout: {
+          'text-field': ['concat', ['get', 'displayLabel'], '\n', ['get', 'subLabel']],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 5, 9.5, 8, 11, 12, 12],
+          'text-font': ['Open Sans Bold'],
+          'text-offset': [0, 1.8],
+          'text-anchor': 'top',
+          'text-allow-overlap': false,
+          'text-ignore-placement': false,
+          'text-max-width': 22,
+        },
+        paint: {
+          'text-color': ['get', 'textColor'],
+          'text-halo-color': '#050B14',
+          'text-halo-width': 2.2,
+        },
+      });
+
+      // 2. 민간 여객기 표준 식별 라벨 (항공사/편명, 기종, 순항고도/속도, 목적지)
+      map.addLayer({
+        id: 'fl-labels-com',
+        type: 'symbol',
+        source: 'flights',
+        minzoom: 5.2,
+        layout: {
+          'text-field': ['concat', ['get', 'displayLabel'], '\n', ['get', 'subLabel']],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 5.2, 9, 8, 10.5, 12, 11.5],
+          'text-font': ['Open Sans Bold'],
+          'text-offset': [0, 1.8],
+          'text-anchor': 'top',
+          'text-allow-overlap': false,
+          'text-ignore-placement': false,
+          'text-max-width': 22,
+        },
+        paint: {
+          'text-color': '#00E5FF',
+          'text-halo-color': '#050B14',
+          'text-halo-width': 2.2,
+        },
+      });
+
+      // 3. VIP 비즈니스 제트기 라벨
+      map.addLayer({
+        id: 'fl-labels-jet',
+        type: 'symbol',
+        source: 'jets',
+        minzoom: 5.8,
+        layout: {
+          'text-field': ['concat', ['get', 'displayLabel'], '\n', ['get', 'subLabel']],
+          'text-size': 9.5,
+          'text-font': ['Open Sans Bold'],
+          'text-offset': [0, 1.6],
+          'text-anchor': 'top',
+          'text-allow-overlap': false,
+          'text-ignore-placement': false,
+        },
+        paint: {
+          'text-color': '#FFD700',
+          'text-halo-color': '#050B14',
+          'text-halo-width': 2.0,
+        },
+      });
+
+      // 4. 일반 민간기 라벨
+      map.addLayer({
+        id: 'fl-labels-priv',
+        type: 'symbol',
+        source: 'private-fl',
+        minzoom: 6.2,
+        layout: {
+          'text-field': ['concat', ['get', 'displayLabel'], '\n', ['get', 'subLabel']],
+          'text-size': 9,
+          'text-font': ['Open Sans Regular'],
+          'text-offset': [0, 1.6],
+          'text-anchor': 'top',
+          'text-allow-overlap': false,
+        },
+        paint: {
+          'text-color': '#E0E0E0',
+          'text-halo-color': '#050B14',
+          'text-halo-width': 1.8,
+        },
+      });
+
       // Balloons (moving entities)
       map.addLayer({ id: 'balloon-dots', type: 'circle', source: 'balloons', paint: {
         'circle-radius': ['interpolate',['linear'],['zoom'], 1,3, 5,5, 10,7],
@@ -2700,7 +2903,7 @@ function OsirisMap({
     }
 
     // ── Flights (100% Korean Localized Popup HUD with Aircraft Photo & 2-Stage Verification) ──
-    ['fl-commercial','fl-private','fl-jets','fl-mil-rokus','fl-mil-dprk','fl-mil-china','fl-mil-russia','fl-mil-ukraine','fl-mil-israel','fl-mil-japan','fl-mil-other'].forEach((layer: string) => {
+    ['fl-commercial','fl-private','fl-jets','fl-mil-rokus','fl-mil-dprk','fl-mil-china','fl-mil-russia','fl-mil-ukraine','fl-mil-israel','fl-mil-japan','fl-mil-other','fl-labels-mil','fl-labels-com','fl-labels-jet','fl-labels-priv'].forEach((layer: string) => {
       map.on('click', layer, (e: any) => {
         if (!e.features?.length) return;
         const p = e.features[0].properties as any;
@@ -5107,11 +5310,72 @@ function getVideoAnalysisKeyframe(p: any): string {
           if (f.trail.length > 12) f.trail.shift();
         }
 
+        // ── 항공기 전술 식별 라벨 및 피아구분 색상 포맷팅 ──
+        let displayLabel = f.callsign || f.registration || '항공기';
+        let subLabel = '';
+        let textColor = '#00E5FF';
+
+        const altFt = Math.round(f.alt_feet || (f.alt ? f.alt * 3.28084 : 0));
+        const spdKt = Math.round(f.speed_knots || 0);
+        const flLevel = altFt > 0 ? `FL${Math.round(altFt / 100)}` : 'GND';
+
+        if (isMil) {
+          textColor = '#00E676';
+          if (f.country === '북한' || f.affiliation === 'DPRK_KPAF') {
+            textColor = '#FF1744';
+            if (!displayLabel.startsWith('[인민군]')) displayLabel = `[인민군] ${displayLabel}`;
+          } else if (f.country === '중국' || f.affiliation?.startsWith('CHINA')) {
+            textColor = '#FF9100';
+            if (!displayLabel.startsWith('[중국군]')) displayLabel = `[중국군] ${displayLabel}`;
+          } else if (f.country === '러시아' || f.affiliation?.startsWith('RUSSIA')) {
+            textColor = '#8D6E63';
+            if (!displayLabel.startsWith('[러시아]')) displayLabel = `[러시아] ${displayLabel}`;
+          } else if (f.country === '일본' || f.affiliation?.startsWith('JAPAN')) {
+            textColor = '#FFD700';
+            if (!displayLabel.startsWith('[자위대]')) displayLabel = `[자위대] ${displayLabel}`;
+          } else if (f.country === '미국' || f.affiliation === 'USAF' || f.affiliation === 'USMC' || f.affiliation === 'US_NAVY') {
+            textColor = '#00E676';
+            if (!displayLabel.startsWith('[미군]')) displayLabel = `[미군] ${displayLabel}`;
+          } else if (f.country === '대한민국' || f.affiliation === 'ROK_AF' || f.affiliation === 'ROK_ARMY' || f.affiliation === 'ROK_NAVY') {
+            textColor = '#00E676';
+            if (!displayLabel.startsWith('[공군]') && !displayLabel.startsWith('[육군]') && !displayLabel.startsWith('[해군]')) {
+              displayLabel = `[공군] ${displayLabel}`;
+            }
+          }
+
+          if (f.grounded) {
+            subLabel = `🅿️ 계류 정비 중 (${f.home_base_name?.split(' ')[0] || '기지'})`;
+          } else {
+            const modelTag = f.model ? (f.model.includes('F-35') ? 'F-35A' : f.model.includes('F-15') ? 'F-15K' : f.model.includes('KF-16') ? 'KF-16' : f.model.includes('FA-50') ? 'FA-50' : f.model.includes('MiG-29') ? 'MiG-29' : f.model.includes('Su-25') ? 'Su-25' : f.model.split(' ')[0]) : '';
+            subLabel = `${flLevel} · ${spdKt}kt ${modelTag ? `[${modelTag}]` : ''}`.trim();
+          }
+        } else if (isCom) {
+          textColor = '#00E5FF';
+          if (!displayLabel.startsWith('[민항]')) displayLabel = `[민항] ${displayLabel}`;
+          if (f.grounded) {
+            subLabel = `🅿️ 탑승 대기/택싱 (${f.origin?.split(' ')[0] || '공항'})`;
+          } else {
+            const destShort = f.destination ? (f.destination.split(' ')[0] || f.destination) : '';
+            const modelShort = f.model ? (f.model.includes('777') ? 'B777' : f.model.includes('787') ? 'B787' : f.model.includes('737') ? 'B737' : f.model.includes('747') ? 'B747' : f.model.includes('350') ? 'A350' : f.model.includes('330') ? 'A330' : f.model.includes('321') ? 'A321' : '') : '';
+            subLabel = `${flLevel} · ${spdKt}kt${destShort ? ` ➔ ${destShort}` : ''}${modelShort ? ` (${modelShort})` : ''}`;
+          }
+        } else if (isJet) {
+          textColor = '#FFD700';
+          if (!displayLabel.startsWith('[VIP]')) displayLabel = `[VIP] ${displayLabel}`;
+          subLabel = f.grounded ? '🅿️ VIP 계류 중' : `${flLevel} · ${spdKt}kt`;
+        } else {
+          textColor = '#E0E0E0';
+          subLabel = `${flLevel} · ${spdKt}kt`;
+        }
+
         const feat = {
           type: 'Feature' as const,
           geometry: { type: 'Point' as const, coordinates: [calcLng, calcLat] },
           properties: {
             callsign: f.callsign,
+            displayLabel,
+            subLabel,
+            textColor,
             heading: f.heading,
             alt: f.alt,
             alt_feet: f.alt_feet,
@@ -5219,21 +5483,7 @@ function getVideoAnalysisKeyframe(p: any): string {
         const canvas = document.createElement('canvas');
         canvas.width = size; canvas.height = size;
         const ctx = canvas.getContext('2d')!;
-        const cx = size / 2, cy = size / 2;
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.moveTo(cx, cy - size * 0.4);
-        ctx.lineTo(cx - size * 0.12, cy + size * 0.1);
-        ctx.lineTo(cx - size * 0.4, cy + size * 0.2);
-        ctx.lineTo(cx - size * 0.4, cy + size * 0.3);
-        ctx.lineTo(cx - size * 0.12, cy + size * 0.15);
-        ctx.lineTo(cx, cy + size * 0.35);
-        ctx.lineTo(cx + size * 0.12, cy + size * 0.15);
-        ctx.lineTo(cx + size * 0.4, cy + size * 0.3);
-        ctx.lineTo(cx + size * 0.4, cy + size * 0.2);
-        ctx.lineTo(cx + size * 0.12, cy + size * 0.1);
-        ctx.closePath();
-        ctx.fill();
+        drawAircraftOnCanvas(ctx, id, color, size);
         map.updateImage(id, { width: size, height: size, data: new Uint8Array(ctx.getImageData(0, 0, size, size).data) });
       };
 
@@ -6380,10 +6630,10 @@ function getVideoAnalysisKeyframe(p: any): string {
     setVis(['ransomware-glow','ransomware-dots','ransomware-label'], (activeLayers as any).ransomware);
     setVis(['temperature-glow','temperature-dots','temperature-label'], (activeLayers as any).temperature);
     setVis(['day-night-fill'], activeLayers.day_night);
-    setVis(['fl-commercial'], activeLayers.flights);
-    setVis(['fl-private'], activeLayers.private);
-    setVis(['fl-jets'], activeLayers.jets);
-    setVis(['fl-mil-rokus', 'fl-mil-dprk', 'fl-mil-china', 'fl-mil-russia', 'fl-mil-ukraine', 'fl-mil-israel', 'fl-mil-japan', 'fl-mil-other'], activeLayers.military);
+    setVis(['fl-commercial', 'fl-labels-com'], activeLayers.flights);
+    setVis(['fl-private', 'fl-labels-priv'], activeLayers.private);
+    setVis(['fl-jets', 'fl-labels-jet'], activeLayers.jets);
+    setVis(['fl-mil-rokus', 'fl-mil-dprk', 'fl-mil-china', 'fl-mil-russia', 'fl-mil-ukraine', 'fl-mil-israel', 'fl-mil-japan', 'fl-mil-other', 'fl-labels-mil'], activeLayers.military);
     setVis(['flight-trail-lines', 'flight-vector-lines'], !!(activeLayers.flights || activeLayers.private || activeLayers.jets || activeLayers.military));
     setVis(['cctv-glow','cctv-dots','cctv-label','road-corridors-casing','road-corridors-line','road-corridors-selected-casing','road-corridors-selected-glow','road-corridors-selected-line','road-corridors-label'], activeLayers.cctv);
     setVis(['its-incidents-glow','its-incidents-circle','its-incidents-label'], (activeLayers as any).its_incidents !== false && activeLayers.cctv !== false);

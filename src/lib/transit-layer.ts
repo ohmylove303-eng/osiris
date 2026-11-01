@@ -26,6 +26,7 @@ import {
   updateCourse, type Sample, type Track,
 } from './transit-playback';
 import { TRANSIT_STRIDE, createTransitVehicleLayer, markerSize, packVehicle, rgb } from './transit-gl-layer';
+import { getKoreanTransitRoutesGeoJSON } from './korean-transit';
 
 export type TransitState = 'overview' | 'loading' | 'ready' | 'empty' | 'error';
 
@@ -50,16 +51,20 @@ export interface TransitLayerOptions {
 const SRC_LABELS = 'transit-labels';
 const SRC_COVERAGE = 'transit-coverage';
 const SRC_TRAIL = 'transit-trail';
+const SRC_ROUTES = 'transit-routes';
 const GL_LAYER = 'transit-vehicles';
 export const TRANSIT_LAYER_IDS = [
   'transit-coverage-dots',
   'transit-coverage-label',
   'transit-trail',
+  'transit-route-casing',
+  'transit-route-glow',
+  'transit-route-labels',
   GL_LAYER,
   'transit-vehicle-icons',
   'transit-label',
 ];
-const OWN_SOURCES = new Set([SRC_LABELS, SRC_COVERAGE, SRC_TRAIL]);
+const OWN_SOURCES = new Set([SRC_LABELS, SRC_COVERAGE, SRC_TRAIL, SRC_ROUTES]);
 /** Vehicle icons visible from this zoom */
 const ICON_ZOOM = 8.5;
 /** Route labels with terminal & up/down indicators from this zoom */
@@ -429,6 +434,59 @@ export function attachTransit(map: MlMap, opts: TransitLayerOptions): () => void
   // ── Sources and layers ──
   registerTransitIcons(map);
   for (const id of OWN_SOURCES) map.addSource(id, { type: 'geojson', data: EMPTY });
+
+  // ── Transit Route Corridors on Road Network (길 위에 명확한 노선 경로선 및 라벨 표시) ──
+  map.addLayer({
+    id: 'transit-route-casing',
+    type: 'line',
+    source: SRC_ROUTES,
+    minzoom: 8.0,
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: {
+      'line-color': '#030712',
+      'line-width': ['interpolate', ['linear'], ['zoom'], 8, 3.5, 12, 6, 16, 9],
+      'line-opacity': 0.88,
+    },
+  });
+
+  map.addLayer({
+    id: 'transit-route-glow',
+    type: 'line',
+    source: SRC_ROUTES,
+    minzoom: 8.0,
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: {
+      'line-color': ['get', 'color'],
+      'line-width': ['interpolate', ['linear'], ['zoom'], 8, 1.8, 12, 3.2, 16, 5],
+      'line-opacity': 0.95,
+      'line-dasharray': [3, 1.5],
+    },
+  });
+
+  map.addLayer({
+    id: 'transit-route-labels',
+    type: 'symbol',
+    source: SRC_ROUTES,
+    minzoom: 11.0,
+    layout: {
+      'symbol-placement': 'line',
+      'text-field': ['get', 'shortName'],
+      'text-size': 10,
+      'text-font': ['Open Sans Bold'],
+      'symbol-spacing': 260,
+      'text-allow-overlap': false,
+      'text-ignore-placement': false,
+    },
+    paint: {
+      'text-color': ['get', 'color'],
+      'text-halo-color': '#000000',
+      'text-halo-width': 2.0,
+    },
+  });
+
+  // Load and render all Korean transit route corridor centerlines onto roads
+  const routesGeoJSON = getKoreanTransitRoutesGeoJSON();
+  source(SRC_ROUTES)?.setData(routesGeoJSON);
   map.addLayer({ id: 'transit-coverage-dots', type: 'circle', source: SRC_COVERAGE, maxzoom: TRANSIT_VEHICLE_ZOOM, paint: {
     'circle-radius': ['interpolate', ['linear'], ['get', 'vehicles'], 0, 3, 100, 5, 1000, 9, 5000, 13],
     'circle-color': TRANSIT_COLOR, 'circle-opacity': 0.18,
