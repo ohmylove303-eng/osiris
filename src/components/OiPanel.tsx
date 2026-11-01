@@ -72,11 +72,16 @@ export interface OiPanelProps {
 
 export type { OiMode };
 
-/** The engine this browser last used, or OpenAI with its default model. */
+/** The engine this browser last used, or local Ollama AI by default without requiring an API key. */
 function initialEngine(): Engine {
   const saved = loadEngine();
-  if (saved && PROVIDERS.some(p => p.id === saved.provider)) return saved;
-  return { provider: 'openai', model: providerInfo('openai').defaultModel, remember: false };
+  if (saved && PROVIDERS.some(p => p.id === saved.provider)) {
+    const info = providerInfo(saved.provider);
+    if (!info.needsKey || loadKey(saved.provider)) {
+      return saved;
+    }
+  }
+  return { provider: 'local_ollama', model: 'qwen3:14b-osiris', remember: true };
 }
 
 export default function OiPanel(props: OiPanelProps) {

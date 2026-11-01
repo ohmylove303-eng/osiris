@@ -45,8 +45,8 @@ describe('keys and models', () => {
   });
 
   it('lists the providers, the demo only outside production', () => {
-    expect(PROVIDERS.map(p => p.id)).toEqual(expect.arrayContaining(['openai', 'anthropic', 'google', 'openrouter']));
-    expect(PROVIDERS.every(p => p.needsKey === (p.id !== 'demo'))).toBe(true);
+    expect(PROVIDERS.map(p => p.id)).toEqual(expect.arrayContaining(['openai', 'anthropic', 'google', 'openrouter', 'local_ollama']));
+    expect(PROVIDERS.every(p => p.needsKey === (p.id !== 'demo' && p.id !== 'local_ollama'))).toBe(true);
   });
 });
 

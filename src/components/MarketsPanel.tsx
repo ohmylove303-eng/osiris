@@ -577,7 +577,7 @@ export default function MarketsPanel({ data, spaceWeather }: MarketsPanelProps) 
 
   const movers = breadth && (
     <div className="p-2.5 rounded-lg border border-[var(--border-secondary)] bg-white/[0.02]">
-      <div className="text-[9px] font-mono tracking-widest pb-1.5" style={{ color: T.faint }}>MOVERS · ALL MARKETS</div>
+      <div className="text-[9px] font-mono tracking-widest pb-1.5" style={{ color: T.faint }}>시장 주요 등락 종목 (MOVERS)</div>
       <div className="grid grid-cols-2 gap-3 text-[10px] font-mono tabular-nums">
         {[breadth.best, breadth.worst].map((list, col) => (
           <div key={col}>
@@ -597,11 +597,11 @@ export default function MarketsPanel({ data, spaceWeather }: MarketsPanelProps) 
     <div className="flex items-center justify-between gap-2 text-[9px] font-mono tracking-wider" style={{ color: T.faint }}>
       {spaceWeather ? (
         <span className="truncate">
-          SPACE WX{' '}
+          우주 기상 (SPACE WX){' '}
           <span style={{ color: spaceWeather.storm_color || T.text }}>
-            {spaceWeather.kp_index == null ? 'no reading' : `Kp ${spaceWeather.kp_index} — ${spaceWeather.storm_level}`}
+            {spaceWeather.kp_index == null ? '관측 대기' : `지자기 Kp ${spaceWeather.kp_index} — ${spaceWeather.storm_level}`}
           </span>
-          {spaceWeather.solar_flares?.length > 0 && <> · flare {spaceWeather.solar_flares[0].class}</>}
+          {spaceWeather.solar_flares?.length > 0 && <> · 플레어 {spaceWeather.solar_flares[0].class}</>}
         </span>
       ) : <span />}
       <span className="shrink-0">YAHOO · NOAA</span>
@@ -679,7 +679,7 @@ export default function MarketsPanel({ data, spaceWeather }: MarketsPanelProps) 
       <div className="flex items-center justify-between gap-2 px-3.5 py-2.5 border-b border-[rgba(255,255,255,0.05)] bg-[rgba(0,0,0,0.3)] hover:bg-[var(--hover-accent)] transition-colors shrink-0">
         <button onClick={() => setExpanded(e => !e)} className="flex items-center gap-2 min-w-0">
           <BarChart3 className="w-3.5 h-3.5 shrink-0" style={{ color: T.accent }} />
-          <span className="hud-text text-[11px] text-[var(--text-primary)]">MARKETS</span>
+          <span className="hud-text text-[11px] text-[var(--text-primary)]">글로벌 금융 시장 (MARKETS)</span>
           <span className="gotham-tag gotham-tag--classified truncate" style={{ fontSize: '9px', padding: '1px 5px' }}>{current ? current.code : 'HELP'}</span>
         </button>
         <div className="flex items-center gap-2.5 shrink-0">

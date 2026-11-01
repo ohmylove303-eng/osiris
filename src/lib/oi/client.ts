@@ -117,7 +117,10 @@ export const headersFor = (engine: Engine, key: string): Record<string, string> 
 /** What went wrong, in OI's words if it gave any. */
 export async function errorOf(res: Response): Promise<string> {
   const body = await res.json().catch(() => null);
-  return (body && typeof body.error === 'string' ? body.error : '') || `OI answered ${res.status}.`;
+  if (body && typeof body.error === 'string') return body.error;
+  if (res.status === 502) return 'OI 로컬 AI 서버 응답 대기 시간 초과 (502). 잠시 후 다시 시도해주세요.';
+  if (res.status === 504) return 'OI 로컬 AI 응답 타임아웃 (504).';
+  return `OI answered ${res.status}.`;
 }
 
 export interface StartInput {

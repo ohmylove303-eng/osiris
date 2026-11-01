@@ -536,8 +536,10 @@ export default function CameraViewer({ camera, onClose, onLocate, besideOi = fal
               ) : streamType === 'iframe' && streamUrl ? (
                 <iframe
                   src={streamUrl}
-                  className="w-full h-full border-0 pointer-events-none"
-                  allow="autoplay; fullscreen"
+                  className={`w-full h-full border-0 ${isDragging ? 'pointer-events-none' : ''}`}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+                  title={camera.name}
+                  onLoad={() => setLoading(false)}
                 />
               ) : imageUrl ? (
                 <img

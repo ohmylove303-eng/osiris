@@ -50,8 +50,9 @@ export async function assistStep(body: Record<string, unknown>, creds: Credentia
   try {
     const call = chat ?? createChat(creds.provider, creds.key ?? '', model);
     const seen = canSeeImages(creds.provider, model) ? await framesFor(last) : { images: [], note: '' };
+    const timeoutMs = creds.provider === 'local_ollama' ? 90_000 : 45_000;
     const out = await call({
-      system: systemPrompt(), user: userPrompt(messages, context) + seen.note, json: true, maxTokens: 1400, temperature: 0.3, timeoutMs: 45_000, signal,
+      system: systemPrompt(), user: userPrompt(messages, context) + seen.note, json: true, maxTokens: 1400, temperature: 0.3, timeoutMs, signal,
       ...(seen.images.length ? { images: seen.images } : {}),
     });
     return { ok: true, step: parseStep(out.text), usage: { input: out.input, output: out.output } };

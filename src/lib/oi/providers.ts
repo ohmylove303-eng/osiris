@@ -11,7 +11,7 @@
 import { createDemoChat } from './demo';
 
 export type ProviderId =
-  | 'openai' | 'anthropic' | 'google' | 'openrouter' | 'groq' | 'deepseek' | 'xai' | 'mistral' | 'qwen' | 'demo';
+  | 'local_ollama' | 'openai' | 'anthropic' | 'google' | 'openrouter' | 'groq' | 'deepseek' | 'xai' | 'mistral' | 'qwen' | 'demo';
 
 type Wire = 'openai' | 'anthropic' | 'google' | 'demo';
 
@@ -37,6 +37,13 @@ interface ProviderDef extends ProviderInfo {
 }
 
 const DEFS: ProviderDef[] = ([
+  {
+    id: 'local_ollama', name: '번개의 눈동자 로컬 AI (Ollama:11434)', wire: 'openai', base: 'http://127.0.0.1:11434/v1',
+    keyUrl: '', keyHint: '로컬 인공지능 (API 키 불필요)',
+    defaultModel: 'qwen3:14b-osiris',
+    suggested: ['qwen3:14b-osiris', 'hermes-gemma4-e4b-it-q4_K_M-64k:20261026', 'cctv-source-vision:20261011', 'gemma4:latest', 'qwen3:32b'],
+    concurrency: 4,
+  },
   {
     id: 'openai', name: 'OpenAI', wire: 'openai', base: 'https://api.openai.com/v1',
     keyUrl: 'https://platform.openai.com/api-keys', keyHint: 'sk-…',
@@ -92,7 +99,7 @@ const DEFS: ProviderDef[] = ([
   },
 ] as Omit<ProviderDef, 'needsKey'>[])
   .filter(d => d.id !== 'demo' || process.env.NODE_ENV !== 'production')
-  .map(d => ({ ...d, needsKey: d.id !== 'demo' }));
+  .map(d => ({ ...d, needsKey: d.id !== 'demo' && d.id !== 'local_ollama' }));
 
 const BY_ID = new Map(DEFS.map(d => [d.id, d]));
 
@@ -113,7 +120,9 @@ export function providerInfo(id: ProviderId): ProviderInfo {
 }
 
 /** A key we are willing to forward: printable, no whitespace, a sane length. */
-export function isPlausibleKey(key: unknown): key is string {
+export function isPlausibleKey(key: unknown, provider?: ProviderId): key is string {
+  if (provider === 'local_ollama' || provider === 'demo') return true;
+  if (typeof key === 'string' && key === '') return true;
   return typeof key === 'string' && key.length >= 8 && key.length <= 400 && /^[\x21-\x7e]+$/.test(key);
 }
 
@@ -252,6 +261,7 @@ export function canSeeImages(provider: ProviderId, model: string): boolean {
   const m = model.toLowerCase();
   switch (provider) {
     case 'anthropic': case 'google': return true;
+    case 'local_ollama': return /vision|gemma4|cctv/.test(m);
     case 'openai': return /gpt-4o|gpt-4\.1|gpt-4-turbo|gpt-5|^o[134]/.test(m);
     case 'openrouter': return /gemini|claude|gpt-4o|gpt-4\.1|gpt-5|llama-4|pixtral|qwen.*vl|grok-4|vision|\/o[34]/.test(m);
     case 'groq': return /llama-4|vision/.test(m);
@@ -306,11 +316,13 @@ function buildRequest(def: ProviderDef, key: string, model: string, req: ChatReq
   }
   const reasoning = def.id === 'openai' && openaiReasoning(model);
   const completion = r.completionTokens || def.id === 'openai';
-  const headers: Record<string, string> = { 'content-type': 'application/json', authorization: `Bearer ${key}` };
+  const headers: Record<string, string> = { 'content-type': 'application/json' };
+  if (key) headers['authorization'] = `Bearer ${key}`;
   if (def.id === 'openrouter') {
     headers['HTTP-Referer'] = 'https://osirisai.live';
     headers['X-Title'] = 'OSIRIS OI';
   }
+  const ollamaSkipThinking = def.id === 'local_ollama';
   return {
     url: `${def.base}/chat/completions`,
     init: {
@@ -326,6 +338,7 @@ function buildRequest(def: ProviderDef, key: string, model: string, req: ChatReq
               ? [{ type: 'text', text: req.user }, ...images.map(i => ({ type: 'image_url', image_url: { url: `data:${i.mime};base64,${i.data}` } }))]
               : req.user,
           },
+          ...(ollamaSkipThinking ? [{ role: 'assistant', content: '<think>\n</think>' }] : []),
         ],
         // Reasoning models spend completion tokens thinking before they answer.
         ...(completion ? { max_completion_tokens: reasoning ? Math.max(req.maxTokens, 8000) : req.maxTokens } : { max_tokens: req.maxTokens }),
@@ -370,8 +383,9 @@ function readResponse(def: ProviderDef, body: unknown): ChatResult {
     }
     return { text, input: num(j?.usageMetadata?.promptTokenCount), output: num(j?.usageMetadata?.candidatesTokenCount) };
   }
-  const j = body as OpenAIReply;
-  const content = j?.choices?.[0]?.message?.content;
+  const j = body as OpenAIReply & { choices?: { message?: { content?: string | (string | { text?: string })[] | null; reasoning?: string | null } }[] };
+  const choiceMsg = j?.choices?.[0]?.message;
+  const content = choiceMsg?.content || choiceMsg?.reasoning;
   const text = typeof content === 'string'
     ? content
     : Array.isArray(content) ? content.map(c => (typeof c === 'string' ? c : String(c?.text ?? ''))).join('') : '';
@@ -387,7 +401,8 @@ const sleep = (ms: number, signal?: AbortSignal) => new Promise<void>((resolve, 
 });
 
 async function send(def: ProviderDef, key: string, url: string, init: RequestInit, req: ChatRequest, f: FetchLike): Promise<unknown> {
-  const timeout = AbortSignal.timeout(req.timeoutMs ?? 90_000);
+  const timeoutMs = def.id === 'local_ollama' ? Math.max(req.timeoutMs ?? 120_000, 120_000) : (req.timeoutMs ?? 90_000);
+  const timeout = AbortSignal.timeout(timeoutMs);
   const signal = req.signal ? AbortSignal.any([req.signal, timeout]) : timeout;
   let res: Response;
   try {
@@ -483,7 +498,8 @@ export async function listModels(provider: ProviderId, key: string, f: FetchLike
       const j = await get(`${def.base}/models`, {});
       models = (j?.data ?? []).map(m => ({ id: String(m.id), name: String(m.name || m.id) }));
     } else {
-      const j = await get(`${def.base}/models`, { authorization: `Bearer ${key}` });
+      const headers: Record<string, string> = def.needsKey && key ? { authorization: `Bearer ${key}` } : {};
+      const j = await get(`${def.base}/models`, headers);
       models = (j?.data ?? []).map(m => ({ id: String(m.id), name: String(m.id) }));
     }
   } catch (err) {

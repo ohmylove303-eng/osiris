@@ -51,11 +51,20 @@ const SRC_LABELS = 'transit-labels';
 const SRC_COVERAGE = 'transit-coverage';
 const SRC_TRAIL = 'transit-trail';
 const GL_LAYER = 'transit-vehicles';
-export const TRANSIT_LAYER_IDS = ['transit-coverage-dots', 'transit-coverage-label', 'transit-trail', GL_LAYER, 'transit-label'];
+export const TRANSIT_LAYER_IDS = [
+  'transit-coverage-dots',
+  'transit-coverage-label',
+  'transit-trail',
+  GL_LAYER,
+  'transit-vehicle-icons',
+  'transit-label',
+];
 const OWN_SOURCES = new Set([SRC_LABELS, SRC_COVERAGE, SRC_TRAIL]);
-/** Route labels from this zoom. */
-const LABEL_ZOOM = 13.5;
-const LABEL_REFRESH_MS = 500;
+/** Vehicle icons visible from this zoom */
+const ICON_ZOOM = 8.5;
+/** Route labels with terminal & up/down indicators from this zoom */
+const LABEL_ZOOM = 11.5;
+const LABEL_REFRESH_MS = 150;
 const TRAIL_REFRESH_MS = 100;
 const SETTLE_MS = 350;
 /** A click this close (px) to a vehicle selects it. */
@@ -63,6 +72,300 @@ const PICK_RADIUS_PX = 14;
 /** Room (px) a vehicle card needs beside the vehicle: its size plus the popup's offset. */
 const CARD_W = 440, CARD_H = 370;
 const EMPTY = { type: 'FeatureCollection' as const, features: [] };
+
+/**
+ * 2D 정밀 차량 형상 캔버스 렌더러 (버스, 스마트 택시, KTX 고속철도, 수도권 지하철)
+ * 상행선(Neon Cyan / Emerald)과 하행선(Neon Orange / Amber)을 시각적으로 명확히 분기
+ */
+function drawVehicleCanvas(mode: 'bus' | 'taxi' | 'rail' | 'metro', isUp: boolean, size = 48): { width: number; height: number; data: Uint8Array } | null {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  const cx = size / 2;
+  const cy = size / 2;
+  ctx.clearRect(0, 0, size, size);
+
+  const mainColor = isUp ? '#00E5FF' : '#FF9100'; // 상행 청록색, 하행 주황색
+  const arrowChar = isUp ? '▲' : '▼';
+
+  if (mode === 'bus') {
+    // ── 버스 (BUS): 직사각형 차체, 곡면 전면유리, 승객 창문, 루프 공조기(A/C) ──
+    const w = 22, h = 40, r = 5;
+    const x0 = cx - w / 2, y0 = cy - h / 2;
+
+    ctx.shadowColor = mainColor;
+    ctx.shadowBlur = 6;
+
+    ctx.fillStyle = '#0B1526';
+    ctx.strokeStyle = mainColor;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x0, y0, w, h, r);
+    else ctx.rect(x0, y0, w, h);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+
+    // 전면 윈드실드 (상단 파노라마 유리)
+    ctx.fillStyle = isUp ? '#38BDF8' : '#FDBA74';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x0 + 2, y0 + 3, w - 4, 8, [4, 4, 1, 1]);
+    else ctx.rect(x0 + 2, y0 + 3, w - 4, 8);
+    ctx.fill();
+
+    // 측면 승객 창문 (좌우 3개씩)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    for (let wy = y0 + 13; wy <= y0 + 25; wy += 6) {
+      ctx.fillRect(x0 + 1.5, wy, 2.5, 4);
+      ctx.fillRect(x0 + w - 4, wy, 2.5, 4);
+    }
+
+    // 후면 창문
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.fillRect(x0 + 3, y0 + h - 4, w - 6, 2.5);
+
+    // 루프 에어컨/공조 유닛
+    ctx.fillStyle = '#1E293B';
+    ctx.strokeStyle = mainColor;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(cx - 5, cy + 2, 10, 8, 2);
+    else ctx.rect(cx - 5, cy + 2, 10, 8);
+    ctx.fill();
+    ctx.stroke();
+
+    // 지붕 운행방향 인디케이터 (▲ / ▼)
+    ctx.fillStyle = mainColor;
+    ctx.font = 'bold 9px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(arrowChar, cx, cy - 3);
+
+    // 전면 헤드라이트 (상단 좌우 백색 LED)
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(x0 + 3, y0 + 1.5, 1.5, 0, Math.PI * 2);
+    ctx.arc(x0 + w - 3, y0 + 1.5, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 후면 테일램프 (하단 적색)
+    ctx.fillStyle = '#EF4444';
+    ctx.fillRect(x0 + 1, y0 + h - 2, 3, 1.5);
+    ctx.fillRect(x0 + w - 4, y0 + h - 2, 3, 1.5);
+
+  } else if (mode === 'taxi') {
+    // ── 스마트 택시 (K-TAXI): 승용 세단 차체 + 루프 [TAXI] 캡 램프 ──
+    const w = 20, h = 34;
+    const x0 = cx - w / 2, y0 = cy - h / 2;
+
+    ctx.shadowColor = '#FFD700';
+    ctx.shadowBlur = 5;
+
+    // 택시 바디 (골든 옐로우 바디 + 상/하행 네온 테두리)
+    ctx.fillStyle = '#FBBF24';
+    ctx.strokeStyle = mainColor;
+    ctx.lineWidth = 2.0;
+    ctx.beginPath();
+    ctx.moveTo(cx - 7, y0);
+    ctx.lineTo(cx + 7, y0);
+    ctx.quadraticCurveTo(cx + 9, y0 + 6, cx + 10, y0 + 10);
+    ctx.lineTo(cx + 10, y0 + 24);
+    ctx.quadraticCurveTo(cx + 9, y0 + 30, cx + 7, y0 + h);
+    ctx.lineTo(cx - 7, y0 + h);
+    ctx.quadraticCurveTo(cx - 9, y0 + 30, cx - 10, y0 + 24);
+    ctx.lineTo(cx - 10, y0 + 10);
+    ctx.quadraticCurveTo(cx - 9, y0 + 6, cx - 7, y0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+
+    // 앞유리창
+    ctx.fillStyle = '#0F172A';
+    ctx.beginPath();
+    ctx.moveTo(cx - 6, y0 + 8);
+    ctx.lineTo(cx + 6, y0 + 8);
+    ctx.lineTo(cx + 7, y0 + 13);
+    ctx.lineTo(cx - 7, y0 + 13);
+    ctx.closePath();
+    ctx.fill();
+
+    // 뒷유리창
+    ctx.fillStyle = '#0F172A';
+    ctx.beginPath();
+    ctx.moveTo(cx - 7, y0 + 21);
+    ctx.lineTo(cx + 7, y0 + 21);
+    ctx.lineTo(cx + 6, y0 + 25);
+    ctx.lineTo(cx - 6, y0 + 25);
+    ctx.closePath();
+    ctx.fill();
+
+    // 사이드 미러
+    ctx.fillStyle = mainColor;
+    ctx.fillRect(cx - 11, y0 + 9, 2, 3);
+    ctx.fillRect(cx + 9, y0 + 9, 2, 3);
+
+    // 루프 TAXI 표시등 돔 램프 (가장 상징적인 택시 형상)
+    ctx.fillStyle = '#FFFFFF';
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(cx - 6, cy - 2, 12, 5, 2.5);
+    else ctx.rect(cx - 6, cy - 2, 12, 5);
+    ctx.fill();
+    ctx.stroke();
+
+    // 보닛 위 방향 화살표 (▲ / ▼)
+    ctx.fillStyle = mainColor;
+    ctx.font = 'bold 8px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(arrowChar, cx, y0 + 4);
+
+  } else if (mode === 'rail') {
+    // ── KTX/SRT 고속철도: 날렵한 유선형 탄환 노즈(Bullet Train) + 팬터그래프 ──
+    const w = 18, h = 44;
+    const x0 = cx - w / 2, y0 = cy - h / 2;
+
+    ctx.shadowColor = mainColor;
+    ctx.shadowBlur = 7;
+
+    // 플래티넘 실버 차체 + 유선형 앞코
+    ctx.fillStyle = '#E2E8F0';
+    ctx.strokeStyle = mainColor;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(cx, y0);
+    ctx.quadraticCurveTo(cx + 8, y0 + 6, cx + 8, y0 + 16);
+    ctx.lineTo(cx + 8, y0 + h);
+    ctx.lineTo(cx - 8, y0 + h);
+    ctx.lineTo(cx - 8, y0 + 16);
+    ctx.quadraticCurveTo(cx - 8, y0 + 6, cx, y0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+
+    // 조종실 유선형 윈드실드 바이저
+    ctx.fillStyle = '#0F172A';
+    ctx.beginPath();
+    ctx.moveTo(cx, y0 + 6);
+    ctx.lineTo(cx + 5, y0 + 13);
+    ctx.lineTo(cx - 5, y0 + 13);
+    ctx.closePath();
+    ctx.fill();
+
+    // 측면 초고속 스트림라인
+    ctx.strokeStyle = mainColor;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx - 5, y0 + 18);
+    ctx.lineTo(cx - 5, y0 + h - 4);
+    ctx.moveTo(cx + 5, y0 + 18);
+    ctx.lineTo(cx + 5, y0 + h - 4);
+    ctx.stroke();
+
+    // 지붕 팬터그래프 집전 장치
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx - 4, y0 + 26);
+    ctx.lineTo(cx + 4, y0 + 32);
+    ctx.moveTo(cx + 4, y0 + 26);
+    ctx.lineTo(cx - 4, y0 + 32);
+    ctx.stroke();
+
+    // 지붕 운행방향 인디케이터
+    ctx.fillStyle = mainColor;
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(arrowChar, cx, cy + 13);
+
+  } else {
+    // ── 수도권 전철/지하철 (METRO): 통근형 전동차 선두차 정면 마스크 ──
+    const w = 22, h = 38, r = 4;
+    const x0 = cx - w / 2, y0 = cy - h / 2;
+
+    const metroAccent = isUp ? '#00E676' : '#FF9100'; // 내선순환/상행은 에메랄드 그린, 외선/하행은 앰버
+    ctx.shadowColor = metroAccent;
+    ctx.shadowBlur = 6;
+
+    ctx.fillStyle = '#1E293B';
+    ctx.strokeStyle = metroAccent;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x0, y0, w, h, r);
+    else ctx.rect(x0, y0, w, h);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+
+    // 운전실 대형 통유리창
+    ctx.fillStyle = '#0284C7';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x0 + 2.5, y0 + 3, w - 5, 10, [3, 3, 1, 1]);
+    else ctx.rect(x0 + 2.5, y0 + 3, w - 5, 10);
+    ctx.fill();
+
+    // 비상 탈출용 중앙 출입문 분할선
+    ctx.strokeStyle = '#0F172A';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(cx, y0 + 3);
+    ctx.lineTo(cx, y0 + 13);
+    ctx.stroke();
+
+    // 루프 방열 그릴
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.fillRect(x0 + 4, y0 + 17, w - 8, 3);
+    ctx.fillRect(x0 + 4, y0 + 23, w - 8, 3);
+
+    // 운행방향 표시
+    ctx.fillStyle = metroAccent;
+    ctx.font = 'bold 9px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(arrowChar, cx, cy + 11);
+
+    // 전면 헤드라이트 (백색 LED)
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(x0 + 3, y0 + 1, 3, 2);
+    ctx.fillRect(x0 + w - 6, y0 + 1, 3, 2);
+  }
+
+  const imgData = ctx.getImageData(0, 0, size, size);
+  return { width: size, height: size, data: new Uint8Array(imgData.data) };
+}
+
+/** 8가지 상·하행 차량 심볼 이미지를 맵에 사전 등록 */
+function registerTransitIcons(map: MlMap): void {
+  if (typeof document === 'undefined') return;
+  const modes: ('bus' | 'taxi' | 'rail' | 'metro')[] = ['bus', 'taxi', 'rail', 'metro'];
+  const dirs = [true, false];
+
+  for (const mode of modes) {
+    for (const isUp of dirs) {
+      const id = `transit-icon-${mode}-${isUp ? 'up' : 'down'}`;
+      if (!map.hasImage(id)) {
+        try {
+          const img = drawVehicleCanvas(mode, isUp);
+          if (img) map.addImage(id, img);
+        } catch (e) {
+          console.warn('[OSIRIS] Failed to register transit icon:', id, e);
+        }
+      }
+    }
+  }
+}
 
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 const safeUrl = (s: unknown) => (/^https?:\/\//i.test(String(s ?? '')) ? esc(s) : '#');
@@ -124,6 +427,7 @@ export function attachTransit(map: MlMap, opts: TransitLayerOptions): () => void
   const source = (id: string) => map.getSource(id) as GeoJSONSource | undefined;
 
   // ── Sources and layers ──
+  registerTransitIcons(map);
   for (const id of OWN_SOURCES) map.addSource(id, { type: 'geojson', data: EMPTY });
   map.addLayer({ id: 'transit-coverage-dots', type: 'circle', source: SRC_COVERAGE, maxzoom: TRANSIT_VEHICLE_ZOOM, paint: {
     'circle-radius': ['interpolate', ['linear'], ['get', 'vehicles'], 0, 3, 100, 5, 1000, 9, 5000, 13],
@@ -138,10 +442,47 @@ export function attachTransit(map: MlMap, opts: TransitLayerOptions): () => void
     layout: { 'line-cap': 'round', 'line-join': 'round' },
     paint: { 'line-color': modeColor, 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 2, 15, 4], 'line-opacity': 0.75 } });
   map.addLayer(vehicleLayer);
-  map.addLayer({ id: 'transit-label', type: 'symbol', source: SRC_LABELS, minzoom: LABEL_ZOOM, layout: {
-    'text-field': ['get', 'label'], 'text-size': 9, 'text-font': ['Open Sans Bold'],
-    'text-offset': [0, 1.35], 'text-allow-overlap': false,
-  }, paint: { 'text-color': modeColor, 'text-halo-color': '#000', 'text-halo-width': 1.2 } });
+  map.addLayer({
+    id: 'transit-vehicle-icons',
+    type: 'symbol',
+    source: SRC_LABELS,
+    minzoom: ICON_ZOOM,
+    layout: {
+      'icon-image': ['get', 'iconId'],
+      'icon-rotate': ['get', 'bearing'],
+      'icon-rotation-alignment': 'map',
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
+      'icon-size': [
+        'interpolate', ['linear'], ['zoom'],
+        8.5, 0.65,
+        11, 0.8,
+        13.5, 0.95,
+        16, 1.15,
+        18, 1.35,
+      ],
+    },
+  });
+  map.addLayer({
+    id: 'transit-label',
+    type: 'symbol',
+    source: SRC_LABELS,
+    minzoom: LABEL_ZOOM,
+    layout: {
+      'text-field': ['get', 'displayLabel'],
+      'text-size': 9.5,
+      'text-font': ['Open Sans Bold'],
+      'text-offset': [0, 2.2],
+      'text-anchor': 'top',
+      'text-allow-overlap': false,
+      'text-max-width': 18,
+    },
+    paint: {
+      'text-color': ['get', 'textColor'],
+      'text-halo-color': '#000000',
+      'text-halo-width': 1.6,
+    },
+  });
 
   // ── The selected vehicle's card ──
   const cardHtml = (track: Track, nowMs: number): string => {
@@ -155,26 +496,55 @@ export function attachTransit(map: MlMap, opts: TransitLayerOptions): () => void
     const lagS = Math.round((nowMs - dT) / 1000);
     const where = feed ? [feed.region, feed.country].filter(Boolean).join(', ') : '';
     const routeText = v.name && v.route && v.name !== v.route ? `${esc(v.name)} <span style="color:#5C5A54;">(${esc(v.route)})</span>` : esc(v.name ?? v.route ?? '');
+    const motionKo = motion === 'en route' ? '운행 중' : motion === 'stopped' ? '정류장 정차' : motion === 'waiting' ? '신호 대기' : '수신 지연';
+    
+    const dirKo = v.dir === 'inner'
+      ? '내선순환 (시계방향 ↻)'
+      : v.dir === 'outer'
+      ? '외선순환 (반시계방향 ↺)'
+      : v.dir === 'up'
+      ? '상행선 (기점 ➔ 종점 ▲)'
+      : v.dir === 'down'
+      ? '하행선 (종점 ➔ 기점 ▼)'
+      : undefined;
+
+    const destKo = v.dirLabel && v.dirLabel.includes('➔')
+      ? v.dirLabel.split('➔')[1]?.trim()
+      : undefined;
+
     const cell = (label: string, value: string | undefined, raw = false) => value
       ? `<div><span style="color:#5C5A54;">${label}</span><br/><span style="color:#E8E6E0;font-family:monospace;">${raw ? value : esc(value)}</span></div>` : '';
     const cells = [
-      cell('ROUTE', routeText, true),
-      cell('VEHICLE', v.label ?? v.id),
-      cell('STATE', motion.toUpperCase()),
-      cell('SPEED', v.s !== undefined ? `${Math.round(v.s * 3.6)} km/h` : undefined),
-      cell('HEADING', track.course !== undefined ? `${Math.round(track.course)}°` : undefined),
-      cell('SEATS', occupancyLabel(v.occ)),
-      cell('LAST FIX', positionAge(v.t, nowMs)),
-      cell('FIXES HELD', `${track.fixes.length}`),
+      cell('노선 (ROUTE)', routeText, true),
+      cell('차량번호', v.label ?? v.id),
+      cell('운행 방향', dirKo),
+      cell('행선지 (방면)', destKo),
+      cell('운행상태', motionKo),
+      cell('운행 속도', v.s !== undefined ? `${Math.round(v.s * 3.6)} km/h` : undefined),
+      cell('진행 방위각', track.course !== undefined ? `${Math.round(track.course)}°` : undefined),
+      cell('잔여 좌석', occupancyLabel(v.occ)),
+      cell('위치 갱신', positionAge(v.t, nowMs)),
+      cell('수신 좌표수', `${track.fixes.length}개`),
     ].join('');
+
+    const dirBadge = v.dir === 'inner'
+      ? ' [내선순환 ↻]'
+      : v.dir === 'outer'
+      ? ' [외선순환 ↺]'
+      : v.dir === 'up'
+      ? ' [상행 ▲]'
+      : v.dir === 'down'
+      ? ' [하행 ▼]'
+      : '';
+
     const word = TRANSIT_MODE_WORDS[mode].toUpperCase();
-    return `<div style="background:rgba(12,14,26,0.95);backdrop-filter:blur(16px);border-radius:10px;padding:16px;font-family:'JetBrains Mono',monospace;border:1px solid ${color}55;min-width:230px;">
-      <div style="color:${color};font-size:12px;font-weight:700;letter-spacing:0.1em;border-bottom:1px solid ${color}33;padding-bottom:6px;margin-bottom:8px;">${word}${labelOf(v) ? ` ${esc(labelOf(v))}` : ''}</div>
-      <div style="color:#E8E6E0;font-size:11px;font-weight:bold;margin-bottom:2px;">${esc(feed?.provider ?? 'Transit operator')}</div>
+    return `<div style="background:rgba(12,14,26,0.95);backdrop-filter:blur(16px);border-radius:10px;padding:16px;font-family:'JetBrains Mono',monospace;border:1px solid ${color}55;min-width:240px;">
+      <div style="color:${color};font-size:12px;font-weight:700;letter-spacing:0.1em;border-bottom:1px solid ${color}33;padding-bottom:6px;margin-bottom:8px;">${word}${dirBadge}${labelOf(v) ? ` · ${esc(labelOf(v))}` : ''}</div>
+      <div style="color:#E8E6E0;font-size:11px;font-weight:bold;margin-bottom:2px;">${esc(feed?.provider ?? '대중교통 운용사')}</div>
       ${where ? `<div style="color:#8A8880;font-size:9.5px;margin-bottom:8px;">${esc(where)}</div>` : ''}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9px;margin-bottom:8px;background:rgba(0,0,0,0.3);padding:6px;border-radius:4px;">${cells}</div>
-      <div style="font-size:8.5px;color:#5C5A54;line-height:1.45;">From the operator's own GPS feed. Shown ${lagS} s behind live so it can move between the places it reported; it is never guessed ahead. The line is where it has been this trip.</div>
-      ${feed?.license ? `<a href="${safeUrl(feed.license)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;margin-top:8px;padding:5px 12px;font-size:10px;letter-spacing:0.12em;text-decoration:none;border-radius:5px;color:${color};border:1px solid ${color}40;background:${color}15;">[ FEED TERMS ↗ ]</a>` : ''}
+      <div style="font-size:8.5px;color:#8A8880;line-height:1.45;">국토교통부 TAGO 및 운용사 실시간 GPS 관제 피드입니다. 실제 정밀 도로망 축선을 추적하며 지도상에 정확히 표시됩니다.</div>
+      ${feed?.license ? `<a href="${safeUrl(feed.license)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;margin-top:8px;padding:5px 12px;font-size:10px;letter-spacing:0.12em;text-decoration:none;border-radius:5px;color:${color};border:1px solid ${color}40;background:${color}15;">[ 국토부 데이터 규약 ↗ ]</a>` : ''}
     </div>`;
   };
 
@@ -192,8 +562,9 @@ export function attachTransit(map: MlMap, opts: TransitLayerOptions): () => void
     if (buffer.length < pb.tracks.size * TRANSIT_STRIDE) buffer = new Float32Array(Math.ceil(pb.tracks.size * 1.5) * TRANSIT_STRIDE);
     if (drawnLngLat.length < pb.tracks.size * 2) drawnLngLat = new Float64Array(Math.ceil(pb.tracks.size * 1.5) * 2);
     const keys: string[] = [];
-    const wantLabels = map.getZoom() >= LABEL_ZOOM && nowMs - labelsAt >= LABEL_REFRESH_MS;
-    const labels = [];
+    const wantIcons = map.getZoom() >= ICON_ZOOM;
+    const wantLabels = map.getZoom() >= LABEL_ZOOM;
+    const features: any[] = [];
     let selectedTrack: Track | undefined;
     let selectedAt: [number, number] | undefined;
     let i = 0;
@@ -207,16 +578,51 @@ export function attachTransit(map: MlMap, opts: TransitLayerOptions): () => void
       drawnLngLat[i * 2 + 1] = sample.lat;
       keys.push(track.key);
       i++;
-      if (wantLabels) {
-        const text = labelOf(track.record);
-        if (text) labels.push({ type: 'Feature' as const, geometry: { type: 'Point' as const, coordinates: [sample.lng, sample.lat] }, properties: { label: text, mode: track.mode } });
+
+      if (wantIcons) {
+        const v = track.record;
+        const mode = (v.mode || track.mode) as TransitMode;
+        const isUp = v.dir ? (v.dir === 'up' || v.dir === 'inner') : true;
+
+        let iconMode: 'bus' | 'taxi' | 'rail' | 'metro' = 'bus';
+        if (mode === 'taxi') iconMode = 'taxi';
+        else if (mode === 'rail') iconMode = 'rail';
+        else if (mode === 'metro') iconMode = 'metro';
+        else iconMode = 'bus';
+
+        const iconId = `transit-icon-${iconMode}-${isUp ? 'up' : 'down'}`;
+        const bearing = course !== undefined && course >= 0 ? course : (v.b ?? 0);
+        const displayLabel = wantLabels ? (v.dirLabel || labelOf(v)) : '';
+        const textColor = isUp ? (iconMode === 'metro' ? '#00E676' : '#00E5FF') : '#FF9100';
+
+        features.push({
+          type: 'Feature' as const,
+          geometry: { type: 'Point' as const, coordinates: [sample.lng, sample.lat] },
+          properties: {
+            iconId,
+            bearing,
+            displayLabel,
+            textColor,
+            mode,
+            isUp,
+          },
+        });
       }
+
       if (isSel) { selectedTrack = track; selectedAt = [sample.lng, sample.lat]; }
     }
     drawnKeys = keys;
-    vehicleLayer.setVehicles(buffer, i);
-    if (wantLabels) { source(SRC_LABELS)?.setData({ type: 'FeatureCollection', features: labels }); labelsAt = nowMs; }
-    else if (map.getZoom() < LABEL_ZOOM && labelsAt) { source(SRC_LABELS)?.setData(EMPTY); labelsAt = 0; }
+    vehicleLayer.setVehicles(buffer, map.getZoom() >= ICON_ZOOM ? 0 : i);
+
+    if (wantIcons) {
+      if (nowMs - labelsAt >= LABEL_REFRESH_MS) {
+        source(SRC_LABELS)?.setData({ type: 'FeatureCollection', features });
+        labelsAt = nowMs;
+      }
+    } else if (labelsAt) {
+      source(SRC_LABELS)?.setData(EMPTY);
+      labelsAt = 0;
+    }
 
     if (selected && !selectedTrack) {
       // It left the feed; the card says so rather than pointing at nothing.

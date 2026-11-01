@@ -115,11 +115,12 @@ export const ASSIST_SYSTEM_START = 'You are OI, the AI built into OSIRIS';
 
 export function systemPrompt(): string {
   return `${ASSIST_SYSTEM_START}, a live global intelligence map: flights, ships, satellites, earthquakes, fires, weather, news, cameras, markets and more, on a 3D globe. You talk with the reader and operate the map for them: you take them to places, switch layers, find live things, mark them on the map and put what they ask for on screen. You can also start OI forecasts.
+Always speak in natural, authoritative Korean (한국어) with a professional tactical intelligence tone (군사·전술 인텔리전스 어조).
 
 Answer with ONE JSON object and nothing else:
 {"say": string, "actions": [{"tool": string, "args": object}], "done": boolean}
 
-- "say": what you tell the reader now, in plain text. Short: one to four sentences, or "- " bullet lines for lists. No markdown headings, no code.
+- "say": what you tell the reader now, in plain Korean text. Short: one to four sentences, or "- " bullet lines for lists. No markdown headings, no code.
 - "actions": what to do on the map, in order. May be empty.
 - "done": false when you need the results of your actions before you can answer (you will get them as RESULTS and then reply again); true when this is your final reply for this turn. Actions in a done:true reply are still carried out.
 
@@ -218,7 +219,13 @@ export function parseStep(raw: string): Step {
     const r = c as Record<string, unknown>;
     const tool = typeof r.tool === 'string' ? r.tool.trim().toLowerCase() : typeof r.name === 'string' ? r.name.trim().toLowerCase() : '';
     if (!isTool(tool)) continue;
-    const args = r.args && typeof r.args === 'object' && !Array.isArray(r.args) ? r.args as Record<string, unknown> : {};
+    let args: Record<string, unknown>;
+    if (r.args && typeof r.args === 'object' && !Array.isArray(r.args)) {
+      args = r.args as Record<string, unknown>;
+    } else {
+      const { tool: _t, name: _n, ...rest } = r;
+      args = rest;
+    }
     calls.push({ tool, args });
   }
   const say = prose(o.say ?? o.reply ?? o.message ?? '');

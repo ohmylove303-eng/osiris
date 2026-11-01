@@ -50,13 +50,13 @@ describe('parseBBox', () => {
 describe('positionAge and occupancyLabel', () => {
   it('says how old a position is', () => {
     const now = 1_792_200_100_000;
-    expect(positionAge(1_792_200_088, now)).toBe('12 s ago');
-    expect(positionAge(1_792_199_920, now)).toBe('3 min ago');
+    expect(positionAge(1_792_200_088, now)).toBe('12초 전');
+    expect(positionAge(1_792_199_920, now)).toBe('3분 전');
     expect(positionAge(undefined, now)).toBeUndefined();
   });
 
   it('names occupancy and hides "no data"', () => {
-    expect(occupancyLabel(1)).toBe('Many seats free');
+    expect(occupancyLabel(1)).toBe('좌석 여유');
     expect(occupancyLabel(7)).toBeUndefined();
     expect(occupancyLabel(undefined)).toBeUndefined();
   });

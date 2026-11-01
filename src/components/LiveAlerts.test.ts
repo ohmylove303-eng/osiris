@@ -64,13 +64,13 @@ describe('toWarning', () => {
 describe('expiryLabel', () => {
   const now = Date.parse('2026-09-20T10:00:00.000Z');
   it('counts down in the unit a reader thinks in', () => {
-    expect(expiryLabel(now + 25 * 60_000, now)).toBe('25 min left');
-    expect(expiryLabel(now + 4 * 3_600_000, now)).toBe('4h left');
-    expect(expiryLabel(now + 3 * 24 * 3_600_000, now)).toBe('3d left');
+    expect(expiryLabel(now + 25 * 60_000, now)).toBe('25분 남음');
+    expect(expiryLabel(now + 4 * 3_600_000, now)).toBe('4시간 남음');
+    expect(expiryLabel(now + 3 * 24 * 3_600_000, now)).toBe('3일 남음');
   });
 
   it('says so when the warning has run out', () => {
-    expect(expiryLabel(now - 60_000, now)).toBe('expired');
+    expect(expiryLabel(now - 60_000, now)).toBe('만료됨');
   });
 });
 

@@ -3475,17 +3475,29 @@ function OsirisMap({
       const p = e.features?.[0]?.properties;
       if (!p) return;
       const coords = (e.features![0].geometry as any).coordinates;
+      const countryKo: Record<string, string> = {
+        KR: '대한민국 (KR)', US: '미국 (US)', CN: '중국 (CN)', RU: '러시아 (RU)', JP: '일본 (JP)',
+        GB: '영국 (GB)', DE: '독일 (DE)', FR: '프랑스 (FR)', UA: '우크라이나 (UA)', IL: '이스라엘 (IL)',
+      };
+      const sectorKo: Record<string, string> = {
+        technology: '정보기술 / 테크 (Technology)', finance: '금융 / 은행 (Finance)',
+        healthcare: '의료 / 제약 (Healthcare)', manufacturing: '제조업 (Manufacturing)',
+        government: '정부 / 공공기관 (Government)', education: '교육 / 대학 (Education)',
+        energy: '에너지 / 유틸리티 (Energy)', telecom: '통신 / 네트워크 (Telecom)',
+      };
+      const countryStr = countryKo[String(p.country || '').toUpperCase()] || p.country || '글로벌 (Global)';
+      const sectorStr = sectorKo[String(p.sector || '').toLowerCase()] || p.sector || '일반 산업 (General)';
       popup(coords, `<div style="${pStyle}border:1.5px solid #FF1744;background:rgba(20,5,10,0.96);max-width:320px;box-shadow:0 0 15px rgba(255,23,68,0.3);">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;border-bottom:1px solid rgba(255,23,68,0.3);padding-bottom:4px;">
-          <span style="color:#FF1744;font-size:12px;font-weight:bold;">💀 RANSOMWARE VICTIM</span>
+          <span style="color:#FF1744;font-size:12px;font-weight:bold;">💀 랜섬웨어 침해 피해 기업</span>
           <span style="color:#FFF;font-size:9px;font-family:monospace;background:rgba(255,23,68,0.2);padding:1px 6px;border-radius:3px;">${htmlEsc(p.group || 'GANG')}</span>
         </div>
-        <div style="font-size:13px;color:#FFF;font-weight:bold;margin-bottom:4px;">${htmlEsc(p.victim || 'Unknown')}</div>
+        <div style="font-size:13px;color:#FFF;font-weight:bold;margin-bottom:4px;">${htmlEsc(p.victim || '기업명 미상')}</div>
         <div style="font-size:9px;color:#AAA;line-height:1.6;margin-bottom:4px;">
-          <div>공격 그룹: <span style="color:#FF5252;font-weight:bold;">${htmlEsc(p.group || 'Unknown')}</span></div>
-          <div>피해 국가: <span style="color:#FFF;font-weight:bold;">${htmlEsc(p.country || 'Global')}</span></div>
-          <div>산업 분야: <span style="color:#FFD740;">${htmlEsc(p.sector || 'General')}</span></div>
-          <div>유출 일자: <span style="color:#80DEEA;">${htmlEsc(p.discovered || 'Recent')}</span></div>
+          <div>공격 그룹: <span style="color:#FF5252;font-weight:bold;">${htmlEsc(p.group || '미상')}</span></div>
+          <div>피해 국가: <span style="color:#FFF;font-weight:bold;">${htmlEsc(countryStr)}</span></div>
+          <div>산업 분야: <span style="color:#FFD740;">${htmlEsc(sectorStr)}</span></div>
+          <div>유출 일자: <span style="color:#80DEEA;">${htmlEsc(p.discovered || '최근')}</span></div>
         </div>
       </div>`);
     });
@@ -3497,8 +3509,8 @@ function OsirisMap({
       const coords = (e.features![0].geometry as any).coordinates;
       popup(coords, `<div style="${pStyle}border:1.5px solid #00BCD4;background:rgba(5,20,25,0.96);max-width:280px;box-shadow:0 0 15px rgba(0,188,212,0.3);">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;border-bottom:1px solid rgba(0,188,212,0.3);padding-bottom:4px;">
-          <span style="color:#00BCD4;font-size:12px;font-weight:bold;">🌡️ GLOBAL TEMPERATURE</span>
-          <span style="color:#FFF;font-size:9px;font-family:monospace;background:rgba(0,188,212,0.2);padding:1px 6px;border-radius:3px;">${p.kind === 'ocean' ? '해양 SST' : '지표 2m'}</span>
+          <span style="color:#00BCD4;font-size:12px;font-weight:bold;">🌡️ 실시간 지구 관측 기온</span>
+          <span style="color:#FFF;font-size:9px;font-family:monospace;background:rgba(0,188,212,0.2);padding:1px 6px;border-radius:3px;">${p.kind === 'ocean' ? '해양 수온(SST)' : '지표 2m 기온'}</span>
         </div>
         <div style="font-size:13px;color:#FFF;font-weight:bold;margin-bottom:4px;">${htmlEsc(p.name || '관측점')}</div>
         <div style="font-size:10px;color:#AAA;line-height:1.6;">

@@ -13,7 +13,7 @@ import { credentials, disabled, disabledResponse, fail, json, limited, readBody 
  * their results back for the next step. Nothing is stored here.
  */
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 export async function POST(req: Request) {
   if (disabled()) return disabledResponse();

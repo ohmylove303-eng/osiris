@@ -133,10 +133,10 @@ export type FunctionCode = (typeof FUNCTIONS)[number]['code'];
  * not indices of anything, so they get a block of their own.
  */
 export const WEI_REGIONS: ReadonlyArray<{ label: string; symbols: readonly string[] }> = [
-  { label: 'AMERICAS', symbols: ['ES=F', 'NQ=F'] },
-  { label: 'EMEA', symbols: ['^GDAXI', '^FTSE', '^STOXX50E'] },
-  { label: 'ASIA / PACIFIC', symbols: ['^N225', '^HSI'] },
-  { label: 'RATES · VOLATILITY · DOLLAR', symbols: ['^TNX', '^VIX', 'DX-Y.NYB'] },
+  { label: '미주 증시 (AMERICAS)', symbols: ['ES=F', 'NQ=F'] },
+  { label: '유럽 · 중동 · 아프리카 (EMEA)', symbols: ['^GDAXI', '^FTSE', '^STOXX50E'] },
+  { label: '아시아 · 태평양 (ASIA / PACIFIC)', symbols: ['^N225', '^HSI'] },
+  { label: '금리 · 변동성 (VIX) · 달러 인덱스', symbols: ['^TNX', '^VIX', 'DX-Y.NYB'] },
 ];
 
 /** A symbol without Yahoo's decorations: ^GDAXI → GDAXI, ES=F → ES, BTC-USD → BTC, EURUSD=X → EURUSD. */

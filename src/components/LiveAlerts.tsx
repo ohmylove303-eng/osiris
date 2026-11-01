@@ -309,11 +309,87 @@ function compactCount(n: number): string {
 }
 
 const BUCKETS = [
-  { max: 3_600_000, label: 'LAST HOUR' },
-  { max: 6 * 3_600_000, label: '1–6 HOURS AGO' },
-  { max: 24 * 3_600_000, label: '6–24 HOURS AGO' },
-  { max: Infinity, label: 'OLDER' },
+  { max: 3_600_000, label: '최근 1시간 (LAST HOUR)' },
+  { max: 6 * 3_600_000, label: '1~6시간 전 (1-6H AGO)' },
+  { max: 24 * 3_600_000, label: '6~24시간 전 (6-24H AGO)' },
+  { max: Infinity, label: '과거 기록 (OLDER)' },
 ];
+
+const LEAN_TRANSLATIONS: Record<string, string> = {
+  'russian state agency': '러시아 관영 통신',
+  'palestinian / gaza & west bank': '팔레스타인 / 가자 및 서안',
+  'russian military osint': '러시아 군사 OSINT',
+  'multipolar / russian': '다극화 / 친러 시각',
+  'ukrainian newsroom': '우크라이나 뉴스룸',
+  'lebanese / resistance axis': '레바논 / 저항의 축',
+  'iranian state broadcaster': '이란 국영 방송',
+  'british public broadcaster': '영국 공영 방송 (BBC)',
+  'british newsroom': '영국 주요 언론 (가디언)',
+  'qatari broadcaster': '카타르 알자지라',
+  'israeli newsroom': '이스라엘 주요 언론',
+  'turkish state agency': '튀르키예 국영 통신',
+  'global incident osint': '글로벌 안보 위기 OSINT',
+  'global conflict monitor': '글로벌 분쟁 모니터',
+};
+
+const KEYWORD_TRANSLATIONS: Record<string, string> = {
+  attack: '공격/타격',
+  strike: '공습/타격',
+  missile: '미사일',
+  rocket: '로켓',
+  drone: '드론/무인기',
+  explosion: '폭발',
+  fire: '화재',
+  killed: '전사/사망',
+  injured: '부상',
+  casualty: '사상자',
+  air_raid: '공습경보',
+  siren: '경보 사이렌',
+  shelling: '포격',
+  artillery: '포병',
+  intercept: '요격',
+  refinery: '정유시설',
+  oil: '원유/정유',
+  nuclear: '핵/원자력',
+};
+
+function translateLeanKo(lean?: string | null): string {
+  if (!lean) return '';
+  const key = lean.toLowerCase().trim();
+  return LEAN_TRANSLATIONS[key] || lean;
+}
+
+function translateKeywordKo(k: string): string {
+  return KEYWORD_TRANSLATIONS[k.toLowerCase()] || k.toUpperCase();
+}
+
+function formatTimeAgoKo(v: string | number | null | undefined, now = Date.now()): string {
+  const s = timeAgo(v, now);
+  if (!s) return '';
+  if (s === 'just now') return '방금 전';
+  return s
+    .replace('m ago', '분 전')
+    .replace('h ago', '시간 전')
+    .replace('d ago', '일 전');
+}
+
+function translateThreadLabelKo(label: string): string {
+  const map: Record<string, string> = {
+    'Russia–Ukraine war': '러시아-우크라이나 전쟁',
+    'Russia-Ukraine war': '러시아-우크라이나 전쟁',
+    'Israel · Gaza · Lebanon': '이스라엘 · 가자 · 레바논',
+    'Iran & the Gulf': '이란 및 걸프 분쟁',
+    'Yemen & Red Sea': '예멘 및 홍해',
+    'Syria & Iraq': '시리아 및 이라크',
+    'China · Taiwan · Pacific': '중국 · 대만 · 태평양',
+    'Korean Peninsula': '한반도 안보',
+    'South & Central Asia': '서남아시아 및 중앙아시아',
+    'Africa': '아프리카 분쟁',
+    'Latin America': '중남미 분쟁',
+    'Europe & NATO': '유럽 및 NATO',
+  };
+  return map[label] || label;
+}
 
 function Chip({ children, color = '#8A8880', title }: { children: ReactNode; color?: string; title?: string }) {
   return (
@@ -347,15 +423,15 @@ function NewsCard({ item, now, open, wide, onToggle, onLocate }: {
           <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[9.5px] font-mono uppercase tracking-wider">
             {fresh && <span className="w-1.5 h-1.5 rounded-full animate-osiris-pulse" style={{ background: ACCENT }} title="Posted in the last 15 minutes" />}
             <span className="font-semibold text-[#E8E6E0]">{item.source_name}</span>
-            {item.lean && <span style={{ color }} title={item.bloc ? BLOCS[item.bloc].label : undefined}>{item.lean}</span>}
+            {item.lean && <span style={{ color }} title={item.bloc ? BLOCS[item.bloc].label : undefined}>{translateLeanKo(item.lean)}</span>}
           </div>
           <time dateTime={item.published} title={new Date(item.ts).toLocaleString()} className="flex-shrink-0 text-[9.5px] font-mono text-[#8A8880]">
-            {timeAgo(item.ts, now)}
+            {formatTimeAgoKo(item.ts, now)}
           </time>
         </div>
 
         <h4 className={`mt-1 font-sans text-[12.5px] font-medium leading-snug text-[#F2EFE8] ${open ? '' : 'line-clamp-3'}`}>
-          {item.flag && <span className="mr-1.5 inline-block translate-y-[-1px] rounded bg-[#FF3D3D]/15 px-1 text-[8.5px] font-mono font-bold tracking-wider text-[#FF6B6B]">BREAKING</span>}
+          {item.flag && <span className="mr-1.5 inline-block translate-y-[-1px] rounded bg-[#FF3D3D]/15 px-1 text-[8.5px] font-mono font-bold tracking-wider text-[#FF6B6B]">긴급속보</span>}
           {item.title}
         </h4>
         {!open && item.summary && (
@@ -365,30 +441,30 @@ function NewsCard({ item, now, open, wide, onToggle, onLocate }: {
         <div className="mt-1.5 flex flex-wrap items-center gap-1">
           {item.alertKind !== 'news' && <Chip color={kind.color}>{kind.label}</Chip>}
           {item.place && (
-            <Chip color={kind.color} title={`Pinned to ${item.place.label} — the place the post names`}>
+            <Chip color={kind.color} title={`발생 위치: ${item.place.label}`}>
               <MapPin className="w-2 h-2" /> <span className="max-w-[110px] truncate normal-case">{item.place.name}</span>
             </Chip>
           )}
           {item.media && (
-            <Chip title={item.media.count > 1 ? `${item.media.count} media items` : undefined}>
+            <Chip title={item.media.count > 1 ? `${item.media.count}개 미디어 첨부` : undefined}>
               {item.media.kind === 'video' ? <Play className="w-2 h-2" /> : <ImageIcon className="w-2 h-2" />}
-              {item.media.kind === 'video' ? (item.media.duration || 'video') : 'photo'}
+              {item.media.kind === 'video' ? (item.media.duration || '동영상') : '사진'}
               {item.media.count > 1 && ` +${item.media.count - 1}`}
             </Chip>
           )}
           {item.carriers.length > 0 && (
-            <Chip color="#00E5FF" title={`Also carried by ${item.carriers.map(c => c.source_name).join(', ')}`}>
-              <Layers className="w-2 h-2" /> +{item.carriers.length} channel{item.carriers.length > 1 ? 's' : ''}
+            <Chip color="#00E5FF" title={`교차 전파 언론: ${item.carriers.map(c => c.source_name).join(', ')}`}>
+              <Layers className="w-2 h-2" /> +{item.carriers.length}개 채널 교차보도
             </Chip>
           )}
           {item.forwarded_from && (
-            <Chip title={`Forwarded from ${item.forwarded_from.name}`}>
+            <Chip title={`전달 출처: ${item.forwarded_from.name}`}>
               <Repeat2 className="w-2 h-2" /> <span className="max-w-[110px] truncate normal-case">{item.forwarded_from.name}</span>
             </Chip>
           )}
-          {item.reply_to && <Chip><CornerDownRight className="w-2 h-2" /> reply</Chip>}
+          {item.reply_to && <Chip><CornerDownRight className="w-2 h-2" /> 답글</Chip>}
           {item.keywords.slice(0, 2).map(k => (
-            <Chip key={k} color="#FF9500" title="Matched by the conflict-keyword filter — a word match, not an assessment">{k}</Chip>
+            <Chip key={k} color="#FF9500" title="분쟁 감시 키워드 매칭">{translateKeywordKo(k)}</Chip>
           ))}
           {item.views != null && (
             <span className="ml-auto inline-flex items-center gap-0.5 text-[8.5px] font-mono text-[#5C5A54]" title={`${item.views.toLocaleString()} views`}>
@@ -549,13 +625,13 @@ function StatementCard({ speaker, items, now, open, wide, onToggle }: {
             {lead.lean && <span style={{ color }}>{lead.lean}</span>}
           </div>
           <time dateTime={lead.published} title={new Date(lead.ts).toLocaleString()} className="flex-shrink-0 text-[9.5px] font-mono text-[#8A8880]">
-            {timeAgo(lead.ts, now)}
+            {formatTimeAgoKo(lead.ts, now)}
           </time>
         </div>
         <h4 className="mt-1 font-sans text-[12.5px] font-medium leading-snug text-[#F2EFE8]">
-          {items.some(i => i.flag) && <span className="mr-1.5 inline-block translate-y-[-1px] rounded bg-[#FF3D3D]/15 px-1 text-[8.5px] font-mono font-bold tracking-wider text-[#FF6B6B]">BREAKING</span>}
+          {items.some(i => i.flag) && <span className="mr-1.5 inline-block translate-y-[-1px] rounded bg-[#FF3D3D]/15 px-1 text-[8.5px] font-mono font-bold tracking-wider text-[#FF6B6B]">긴급속보</span>}
           {speaker}
-          <span className="ml-1.5 whitespace-nowrap text-[9px] font-mono font-normal tracking-wider text-[#8A8880]">{items.length} STATEMENTS</span>
+          <span className="ml-1.5 whitespace-nowrap text-[9px] font-mono font-normal tracking-wider text-[#8A8880]">{items.length}건 성명/발표</span>
         </h4>
       </button>
       <ol className="px-2.5 pb-2 space-y-1">
@@ -566,7 +642,7 @@ function StatementCard({ speaker, items, now, open, wide, onToggle }: {
             </p>
             <span className="flex flex-shrink-0 items-center gap-1 pt-0.5 text-[9px] font-mono text-[#5C5A54]">
               {item.media && (item.media.kind === 'video' ? <Play className="w-2.5 h-2.5" /> : <ImageIcon className="w-2.5 h-2.5" />)}
-              {timeAgo(item.ts, now).replace(' ago', '')}
+              {formatTimeAgoKo(item.ts, now)}
               {item.link && (
                 <a href={item.link} target="_blank" rel="noopener noreferrer" className="text-[var(--cyan-primary)] hover:opacity-70" aria-label="Open this statement on Telegram">
                   <ExternalLink className="w-2.5 h-2.5" />
@@ -593,19 +669,19 @@ function QuakeCard({ item, now, onLocate }: { item: QuakeAlert; now: number; onL
           style={{ background: `${color}1c`, border: `1px solid ${color}55`, color }}
         >
           <span className="text-[13px] font-bold leading-none">{item.magnitude.toFixed(1)}</span>
-          <span className="mt-0.5 text-[7px] tracking-widest">MAG</span>
+          <span className="mt-0.5 text-[7px] tracking-widest">규모</span>
         </button>
         <div className="flex-1 min-w-0">
           <div className="font-sans text-[12px] leading-snug text-[#F2EFE8] line-clamp-2">{item.place}</div>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[9.5px] font-mono text-[#8A8880]">
-            <time dateTime={new Date(item.ts).toISOString()} title={new Date(item.ts).toLocaleString()}>{timeAgo(item.ts, now)}</time>
-            {item.depth != null && <span>· {Math.round(item.depth)} km deep</span>}
-            {item.felt ? <span>· felt by {item.felt.toLocaleString()}</span> : null}
+            <time dateTime={new Date(item.ts).toISOString()} title={new Date(item.ts).toLocaleString()}>{formatTimeAgoKo(item.ts, now)}</time>
+            {item.depth != null && <span>· 진원 깊이 {Math.round(item.depth)} km</span>}
+            {item.felt ? <span>· 감지 보고 {item.felt.toLocaleString()}명</span> : null}
           </div>
           {(item.tsunami || item.pager) && (
             <div className="mt-1 flex flex-wrap gap-1">
-              {item.tsunami && <Chip color="#448AFF"><Waves className="w-2 h-2" /> tsunami flag</Chip>}
-              {item.pager && <Chip color={PAGER_COLORS[item.pager] || '#8A8880'} title="USGS PAGER impact alert level">PAGER {item.pager}</Chip>}
+              {item.tsunami && <Chip color="#448AFF"><Waves className="w-2 h-2" /> 쓰나미 주의</Chip>}
+              {item.pager && <Chip color={PAGER_COLORS[item.pager] || '#8A8880'} title="USGS PAGER 영향 경보 레벨">PAGER {item.pager}</Chip>}
             </div>
           )}
         </div>
@@ -627,11 +703,11 @@ function QuakeCard({ item, now, onLocate }: { item: QuakeAlert; now: number; onL
 /** How long a warning has left to run, as its issuer states it. */
 export function expiryLabel(expires: number, now: number): string | null {
   const left = expires - now;
-  if (left <= 0) return 'expired';
+  if (left <= 0) return '만료됨';
   const hours = left / 3_600_000;
-  if (hours < 1) return `${Math.max(1, Math.round(left / 60_000))} min left`;
-  if (hours < 48) return `${Math.round(hours)}h left`;
-  return `${Math.round(hours / 24)}d left`;
+  if (hours < 1) return `${Math.max(1, Math.round(left / 60_000))}분 남음`;
+  if (hours < 48) return `${Math.round(hours)}시간 남음`;
+  return `${Math.round(hours / 24)}일 남음`;
 }
 
 function WarningCard({ item, now, onLocate }: { item: WarningAlert; now: number; onLocate: (lat: number, lng: number, options?: LocateOptions) => void }) {
@@ -647,7 +723,7 @@ function WarningCard({ item, now, onLocate }: { item: WarningAlert; now: number;
             <span className="text-[#8A8880]">{item.provider}</span>
           </div>
           <time dateTime={new Date(item.ts).toISOString()} title={new Date(item.ts).toLocaleString()} className="flex-shrink-0 text-[9.5px] font-mono text-[#8A8880]">
-            {timeAgo(item.ts, now)}
+            {formatTimeAgoKo(item.ts, now)}
           </time>
         </div>
 
@@ -954,7 +1030,7 @@ export default function LiveAlerts({ data, onLocate, onWatchFeed, onRefresh, pin
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder={tab === 'feeds' ? 'Search feeds…' : 'Search headlines, places, channels…'}
+            placeholder={tab === 'feeds' ? '피드 출처 검색…' : '헤드라인, 지역, 키워드 검색…'}
             className="w-full rounded border border-[#2A2A28] bg-black/30 py-1 pl-6 pr-6 text-[11px] text-[#E8E6E0] placeholder:text-[#5C5A54] outline-none focus:border-[var(--cyan-primary)]/50"
           />
           {query && (
@@ -971,7 +1047,7 @@ export default function LiveAlerts({ data, onLocate, onWatchFeed, onRefresh, pin
             className="w-[108px] flex-shrink-0 rounded border border-[#2A2A28] bg-[#0c0c10] px-1 py-1 text-[10px] font-mono text-[#C9C5BC] outline-none focus:border-[var(--cyan-primary)]/50"
             style={bloc !== 'all' ? { color: BLOCS[bloc].color, borderColor: `${BLOCS[bloc].color}66` } : undefined}
           >
-            <option value="all">All sides</option>
+            <option value="all">전체 관점 (다각도 분석)</option>
             {BLOC_ORDER.map(b => <option key={b} value={b}>{BLOCS[b].label}</option>)}
           </select>
         )}
@@ -1008,7 +1084,7 @@ export default function LiveAlerts({ data, onLocate, onWatchFeed, onRefresh, pin
                 style={active ? { borderColor: `${ACCENT}99`, background: `${ACCENT}22` } : undefined}
               >
                 <span className="h-1.5 w-1.5 rounded-full" style={{ background: dot }} />
-                {t.label}
+                {translateThreadLabelKo(t.label)}
                 <span className="tabular-nums opacity-60">{t.count}</span>
               </button>
             );
@@ -1019,9 +1095,9 @@ export default function LiveAlerts({ data, onLocate, onWatchFeed, onRefresh, pin
       {filtersActive && tab !== 'feeds' && (
         <div className="flex items-center justify-between rounded border border-white/5 bg-white/[0.02] px-2 py-1 text-[9.5px] font-mono text-[#8A8880]">
           <span className="truncate">
-            SHOWING {list.length}{activeThread ? ` · ${activeThread.label.toUpperCase()}` : ''}{bloc !== 'all' ? ` · ${BLOCS[bloc].short}` : ''}{newsKind ? ` · ${newsKind.toUpperCase()} ONLY` : ''}
+            표시 중: {list.length}건{activeThread ? ` · ${translateThreadLabelKo(activeThread.label)}` : ''}{bloc !== 'all' ? ` · ${BLOCS[bloc].label}` : ''}{newsKind ? ` · ${newsKind === 'rocket' ? '로켓/미사일' : '긴급속보'}` : ''}
           </span>
-          <button onClick={clearFilters} className="flex-shrink-0 text-[var(--cyan-primary)] hover:underline">CLEAR</button>
+          <button onClick={clearFilters} className="flex-shrink-0 text-[var(--cyan-primary)] hover:underline">초기화</button>
         </div>
       )}
     </div>
@@ -1128,7 +1204,7 @@ export default function LiveAlerts({ data, onLocate, onWatchFeed, onRefresh, pin
             className="flex min-w-0 items-center gap-2 outline-none"
           >
             <Radio className="w-3.5 h-3.5 flex-shrink-0" style={{ color: ACCENT }} />
-            <span className="hud-text whitespace-nowrap text-[11px] text-[var(--text-primary)]">LIVE ALERTS</span>
+            <span className="hud-text whitespace-nowrap text-[11px] text-[var(--text-primary)]">실시간 전술 경보 (LIVE ALERTS)</span>
             <span className="gotham-tag gotham-tag--high" style={{ fontSize: '9px', padding: '1px 5px' }}>{news.length + quakes.length}</span>
           </button>
           <div className="flex items-center gap-0.5 flex-shrink-0">
@@ -1147,19 +1223,19 @@ export default function LiveAlerts({ data, onLocate, onWatchFeed, onRefresh, pin
               </button>
             )}
             {onRefresh && (
-              <button onClick={refresh} disabled={refreshing} className="p-1 rounded hover:bg-white/10 transition-colors" title="Refresh (channels are re-read every 3 minutes)" aria-label="Refresh alerts">
+              <button onClick={refresh} disabled={refreshing} className="p-1 rounded hover:bg-white/10 transition-colors" title="새로고침 (3분마다 자동 갱신)" aria-label="새로고침">
                 <RefreshCw className={`w-3 h-3 text-[var(--text-muted)] ${refreshing ? 'animate-spin' : ''}`} />
               </button>
             )}
             <button
               onClick={() => { setMaximized(!maximized); if (!expanded) setExpanded(true); }}
               className="p-1 rounded hover:bg-white/10 transition-colors"
-              title={maximized ? 'Restore (Esc)' : 'Maximize'}
-              aria-label={maximized ? 'Restore panel' : 'Maximize panel'}
+              title={maximized ? '원래 크기로 (Esc)' : '최대화'}
+              aria-label={maximized ? '원래 크기로' : '최대화'}
             >
               {maximized ? <Minimize2 className="w-3 h-3 text-[var(--text-muted)]" /> : <Maximize2 className="w-3 h-3 text-[var(--text-muted)]" />}
             </button>
-            <button onClick={() => setExpanded(!expanded)} className="p-1 rounded hover:bg-white/10 transition-colors" aria-label={expanded ? 'Collapse panel' : 'Expand panel'}>
+            <button onClick={() => setExpanded(!expanded)} className="p-1 rounded hover:bg-white/10 transition-colors" aria-label={expanded ? '패널 접기' : '패널 펼치기'}>
               {expanded ? <ChevronUp className="w-3.5 h-3.5 text-[var(--text-muted)]" /> : <ChevronDown className="w-3.5 h-3.5 text-[var(--text-muted)]" />}
             </button>
           </div>
@@ -1172,13 +1248,13 @@ export default function LiveAlerts({ data, onLocate, onWatchFeed, onRefresh, pin
               style={{ color: liveSources === sources.length ? '#00E676' : '#FF9500' }}
             >
               <span className="h-1.5 w-1.5 rounded-full animate-osiris-pulse" style={{ background: 'currentColor' }} />
-              {liveSources}/{sources.length} SOURCES LIVE
+              {liveSources}/{sources.length}개 전술 출처 수신 중
             </span>
           ) : (
-            <span>CONNECTING…</span>
+            <span>전술망 연결 중…</span>
           )}
-          {fetchedAt && <span title={`Feed fetched ${new Date(fetchedAt).toLocaleString()}`}>· UPDATED {timeAgo(fetchedAt, now).toUpperCase()}</span>}
-          {breakingCount > 0 && <span className="text-[#FF6B6B]">· {breakingCount} BREAKING</span>}
+          {fetchedAt && <span title={`피드 수신 시각: ${new Date(fetchedAt).toLocaleString()}`}>· 갱신: {formatTimeAgoKo(fetchedAt, now)}</span>}
+          {breakingCount > 0 && <span className="text-[#FF6B6B]">· {breakingCount} 긴급속보</span>}
         </div>
       </div>
 

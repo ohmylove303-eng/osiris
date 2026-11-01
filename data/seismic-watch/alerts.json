@@ -1,0 +1,16 @@
+[
+  {
+    "id": "kma-fallback-001",
+    "lat": 41.3,
+    "lng": 129.1,
+    "depth_km": 2,
+    "magnitude": 2.1,
+    "place": "함경북도 길주군 풍계리 인근 (DPRK)",
+    "time": 1793111494874,
+    "source": "KMA-Fallback",
+    "is_nuclear_suspect": true,
+    "nuclear_suspect_reason": "Shallow event (2km) within 3km of Punggye-ri Nuclear Test Site",
+    "nearest_nuclear_facility": "풍계리 핵실험장 (Punggye-ri)",
+    "distance_to_facility_km": 2.8
+  }
+]

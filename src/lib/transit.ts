@@ -60,7 +60,7 @@ export interface TransitFeedKey {
   signup: string;
 }
 
-export const TRANSIT_MODES = ['bus', 'tram', 'metro', 'rail', 'ferry', 'cable', 'unknown'] as const;
+export const TRANSIT_MODES = ['bus', 'taxi', 'tram', 'metro', 'rail', 'ferry', 'cable', 'unknown'] as const;
 export type TransitMode = (typeof TRANSIT_MODES)[number];
 
 /**
@@ -91,9 +91,10 @@ export function modeForRouteType(type: number | undefined): TransitMode {
 
 /** One colour per mode, chosen to stay apart from flights, ships and cameras. */
 export const TRANSIT_MODE_COLORS: Record<TransitMode, string> = {
-  bus: '#5EEAD4',
+  bus: '#00E5FF',
+  taxi: '#FFD700',
   tram: '#FBBF24',
-  metro: '#F87171',
+  metro: '#00E676',
   rail: '#C4B5FD',
   ferry: '#7DD3FC',
   cable: '#F9A8D4',
@@ -101,7 +102,14 @@ export const TRANSIT_MODE_COLORS: Record<TransitMode, string> = {
 };
 
 export const TRANSIT_MODE_WORDS: Record<TransitMode, string> = {
-  bus: 'Bus', tram: 'Tram', metro: 'Metro', rail: 'Train', ferry: 'Ferry', cable: 'Cable car', unknown: 'Transit vehicle',
+  bus: '버 스 (BUS)',
+  taxi: '스마트 택시 (K-TAXI)',
+  tram: '트 램 (TRAM)',
+  metro: '지하철 (METRO)',
+  rail: '철 도 (TRAIN)',
+  ferry: '여객선 (FERRY)',
+  cable: '케이블카 (CABLE)',
+  unknown: '대중교통',
 };
 
 /** One vehicle, as /api/transit sends it. */
@@ -132,6 +140,10 @@ export interface TransitVehicle {
    * first: kept by the server so a map can play it back from the first poll.
    */
   h?: [number, number, number][];
+  /** Upbound / downbound / inner / outer direction */
+  dir?: 'up' | 'down' | 'inner' | 'outer';
+  /** Formatted directional label for HUD / popup */
+  dirLabel?: string;
 }
 
 /** Feed metadata the map shows in a vehicle's popup. */
@@ -187,18 +199,18 @@ export function parseBBox(raw: string | null): BBox | null {
   return [w, s, e, n];
 }
 
-const OCCUPANCY = ['Empty', 'Many seats free', 'Few seats free', 'Standing room only', 'Crushed standing room only', 'Full', 'Not accepting passengers', 'No data', 'Not boarding'];
+const OCCUPANCY = ['빈차 (Empty)', '좌석 여유', '좌석 보통', '입석 운행', '입석 혼잡', '만차', '탑승 마감', '데이터 없음', '운행 대기'];
 
 /** What a GTFS-Realtime occupancy code means to a rider, or undefined when unknown. */
 export function occupancyLabel(code: number | undefined): string | undefined {
   return code === undefined || code === 7 ? undefined : OCCUPANCY[code];
 }
 
-/** "12 s ago", "3 min ago": how old a position is, from its own timestamp. */
+/** "12초 전", "3분 전": 위치 데이터 수신 경과 시간 */
 export function positionAge(t: number | undefined, nowMs = Date.now()): string | undefined {
   if (!t) return undefined;
   const s = Math.max(0, Math.round(nowMs / 1000 - t));
-  if (s < 60) return `${s} s ago`;
-  if (s < 3600) return `${Math.round(s / 60)} min ago`;
-  return `${Math.round(s / 3600)} h ago`;
+  if (s < 60) return `${s}초 전`;
+  if (s < 3600) return `${Math.round(s / 60)}분 전`;
+  return `${Math.round(s / 3600)}시간 전`;
 }

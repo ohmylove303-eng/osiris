@@ -229,7 +229,7 @@ function Turn({ e, oi, onLocate, onOpenForecast, onWorkspace, onRetry }: {
         {e.error && (
           <div className="flex items-center gap-2 text-[11.5px]">
             <span className="text-[var(--alert-red)]">{e.error}</span>
-            {e.retry && <button onClick={() => onRetry(e.retry!.text, e.retry!.mode)} className="inline-flex items-center gap-1 text-[11px] text-[var(--cyan-primary)] hover:underline"><RotateCcw className="w-3 h-3" /> Try again</button>}
+            {e.retry && <button onClick={() => onRetry(e.retry!.text, e.retry!.mode)} className="inline-flex items-center gap-1 text-[11px] text-[var(--cyan-primary)] hover:underline"><RotateCcw className="w-3 h-3" /> 다시 시도</button>}
           </div>
         )}
       </div>
@@ -340,7 +340,7 @@ export function AssistView(p: AssistViewProps) {
             <textarea ref={input} value={dictation.listening ? dictation.heard : text} rows={1}
               onChange={e => setText(e.target.value.slice(0, 2000))}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(text); } }}
-              placeholder={dictation.listening ? '음성 듣는 중…' : mode === 'forecast' ? '어떤 미래 시나리오를 예측할까요?' : '궁금한 점을 질문하거나 이동할 전술 장소를 입력하세요'}
+              placeholder={dictation.listening ? '음성 듣는 중…' : mode === 'forecast' ? '어떤 미래 시나리오를 예측할까요?' : '질문 또는 전술 명령을 입력하세요 (예: 서울 날씨, 남산타워 CCTV 보기)...'}
               aria-label="Message to OI" readOnly={dictation.listening}
               className="flex-1 resize-none bg-transparent outline-none text-[12.5px] leading-relaxed text-[var(--text-primary)] placeholder:text-[var(--text-muted)] py-1 max-h-[110px]" />
             {dictation.supported && (
@@ -362,10 +362,10 @@ export function AssistView(p: AssistViewProps) {
           </div>
         ) : (
           <div className="flex flex-col gap-2 rounded-2xl border px-3.5 py-3" style={{ borderColor: blue(0.25), background: blue(0.05) }}>
-            <p className="text-[11.5px] leading-snug text-[var(--text-secondary)]">개인 AI API 키로 직접 실행됩니다. 키는 브라우저에만 안전하게 보관됩니다.</p>
+            <p className="text-[11.5px] leading-snug text-[var(--text-secondary)]">로컬 AI (qwen3:14b-osiris) 또는 외부 API 키를 연결하여 작전을 지휘하세요.</p>
             <button onClick={p.onKey} className="self-start inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[11.5px] font-medium transition-colors"
               style={{ background: T.blue, color: '#04121a' }}>
-              <KeyRound className="w-3.5 h-3.5" /> {shortName(p.providerName)} API 키 등록
+              <KeyRound className="w-3.5 h-3.5" /> AI 모델 설정 및 API 키 관리
             </button>
           </div>
         )}

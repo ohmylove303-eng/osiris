@@ -44,7 +44,7 @@ const SAME_PLACE_M = 4;
 
 /** Top speeds, m/s, beyond which a displacement is a cut rather than travel. */
 export const MODE_MAX_SPEED: Record<TransitMode, number> = {
-  bus: 36, tram: 28, metro: 42, rail: 111, ferry: 25, cable: 15, unknown: 56,
+  bus: 36, taxi: 38, tram: 28, metro: 42, rail: 111, ferry: 25, cable: 15, unknown: 56,
 };
 
 export interface Fix {

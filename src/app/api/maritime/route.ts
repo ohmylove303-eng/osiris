@@ -259,6 +259,9 @@ async function fetchMultiTierAisFallback() {
 
       // Only update if not already actively being updated by high-frequency WebSocket
       const existing = shipsCache.get(mmsi);
+      const shipTs = typeof props.timestampExternal === 'number' && Number.isFinite(props.timestampExternal)
+        ? props.timestampExternal
+        : now;
       if (!existing || (now - existing.timestamp > 15_000)) {
         shipsCache.set(mmsi, {
           id: `ship-${mmsi}`,
@@ -270,7 +273,7 @@ async function fetchMultiTierAisFallback() {
           name: existing?.name || `MMSI ${mmsi}`,
           destination: existing?.destination || '',
           type: existing?.type || (props.navStat === 1 ? 'tanker' : 'cargo'),
-          timestamp: now,
+          timestamp: shipTs,
           source: 'Digitraffic Live AIS',
         });
       }
